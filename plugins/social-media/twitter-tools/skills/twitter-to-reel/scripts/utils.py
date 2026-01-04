@@ -12,6 +12,7 @@ Shared utilities for twitter-to-reel skill.
 
 import re
 import subprocess
+import sys
 
 # Instagram Reels dimensions (9:16 aspect ratio)
 REEL_WIDTH = 1080
@@ -150,6 +151,14 @@ def check_playwright() -> bool:
     import importlib.util
 
     return importlib.util.find_spec("playwright") is not None
+
+
+def ensure_chromium_installed() -> None:
+    """Ensure Chromium browser is installed for Playwright."""
+    subprocess.run(
+        [sys.executable, "-m", "playwright", "install", "chromium"],
+        check=True,
+    )
 
 
 def rgb_to_hex(rgb: tuple[int, int, int]) -> str:

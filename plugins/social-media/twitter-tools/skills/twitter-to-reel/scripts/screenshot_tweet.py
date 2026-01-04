@@ -25,7 +25,7 @@ from playwright.async_api import (
 )
 from playwright.async_api import async_playwright  # pyright: ignore[reportMissingImports]
 
-from .utils import detect_theme, extract_tweet_id, normalize_tweet_url
+from .utils import detect_theme, ensure_chromium_installed, extract_tweet_id, normalize_tweet_url
 
 # CSS selectors for tweet elements
 TWEET_SELECTORS = {
@@ -251,6 +251,12 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output metadata as JSON")
 
     args = parser.parse_args()
+
+    try:
+        ensure_chromium_installed()
+    except Exception as e:
+        print(f"Error installing Chromium: {e}", file=sys.stderr)
+        sys.exit(1)
 
     try:
         result = asyncio.run(
