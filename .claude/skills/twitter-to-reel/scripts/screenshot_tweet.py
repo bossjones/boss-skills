@@ -17,7 +17,7 @@ import json
 import sys
 from pathlib import Path
 
-from playwright.async_api import TimeoutError as PlaywrightTimeout
+from playwright.async_api import TimeoutError as PlaywrightTimeout # pyright: ignore[reportMissingImports]
 from playwright.async_api import async_playwright  # pyright: ignore[reportMissingImports]
 
 from .utils import extract_tweet_id, normalize_tweet_url

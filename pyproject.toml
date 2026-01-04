@@ -10,6 +10,8 @@ dependencies = [
     "claude-agent-sdk>=0.1.6",
     "pyyaml>=6.0",
     "funlog>=0.2.1",
+    "pillow>=12.1.0",
+    "numpy>=2.4.0",
 ]
 
 [dependency-groups]
