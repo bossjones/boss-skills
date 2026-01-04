@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype locust locust-ui serve serve-otel otel-deps markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -83,46 +83,6 @@ clean: ## Remove build artifacts and cache directories
 help: ## Show this help message
 	@uv run python -c "import re; \
 	[[print(f'\033[36m{m[0]:<20}\033[0m {m[1]}') for m in re.findall(r'^([a-zA-Z_-]+):.*?## (.*)$$', open(makefile).read(), re.M)] for makefile in ('$(MAKEFILE_LIST)').strip().split()]"
-
-claude-skills: ## Install Claude skills
-	@echo "🚀 Installing Claude skills"
-	@npx skills-installer install @SlanyCukr/riot-api-project/uvicorn --local --client claude-code
-	@npx skills-installer install @SlanyCukr/riot-api-project/sqlalchemy --local --client claude-code
-	@npx skills-installer install @SlanyCukr/riot-api-project/pytest --local --client claude-code
-	@npx skills-installer install @SlanyCukr/riot-api-project/pydantic --local --client claude-code
-	@npx skills-installer install @SlanyCukr/riot-api-project/httpx --local --client claude-code
-	@npx skills-installer install @SlanyCukr/riot-api-project/fastapi --local --client claude-code
-	@npx skills-installer install @SlanyCukr/riot-api-project/apscheduler --local --client claude-code
-	@npx skills-installer install @SlanyCukr/riot-api-project/alembic --local --client claude-code
-	@npx claude-plugins install @JosiahSiegel/claude-plugin-marketplace/python-master
-
-.PHONY: locust
-locust: ## Run Locust load tests (headless mode). Usage: make locust [USERS=10] [SPAWN_RATE=1] [HOST=http://localhost:5002]
-	@echo "🚀 Running Locust load tests"
-	@uv run locust -f locustfile.py --headless \
-		--users $(or $(USERS),10) \
-		--spawn-rate $(or $(SPAWN_RATE),1) \
-		-H $(or $(HOST),http://localhost:5002)
-
-.PHONY: locust-ui
-locust-ui: ## Run Locust with web UI. Usage: make locust-ui [HOST=http://localhost:5002]
-	@echo "🚀 Running Locust with web UI"
-	@uv run locust -f locustfile.py -H $(or $(HOST),http://localhost:5002)
-
-.PHONY: serve
-serve: ## Start the FastAPI server. Usage: make serve [PORT=5002] [RELOAD=--reload]
-	@echo "🚀 Starting FastAPI server"
-	@uv run uvicorn logging_lab.app:app --host 0.0.0.0 --port $(or $(PORT),5002) $(RELOAD)
-
-.PHONY: serve-otel
-serve-otel: ## Start the FastAPI server with OpenTelemetry instrumentation. Usage: make serve-otel [PORT=5002] [RELOAD=--reload]
-	@echo "🚀 Starting FastAPI server with OpenTelemetry instrumentation"
-	@uv run opentelemetry-instrument uvicorn logging_lab.app:app --host 0.0.0.0 --port $(or $(PORT),5002) $(RELOAD)
-
-.PHONY: otel-deps
-otel-deps: ## List required OpenTelemetry dependencies
-	@echo "🚀 Listing required OpenTelemetry dependencies"
-	@uv run opentelemetry-bootstrap -a requirements
 
 .PHONY: markdown-lint
 markdown-lint: ## Lint Markdown files
