@@ -20,7 +20,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from playwright.async_api import TimeoutError as PlaywrightTimeout  # pyright: ignore[reportMissingImports]
+from playwright.async_api import (
+    TimeoutError as PlaywrightTimeout,  # pyright: ignore[reportMissingImports]
+)
 from playwright.async_api import async_playwright  # pyright: ignore[reportMissingImports]
 
 from .utils import detect_theme, extract_tweet_id, normalize_tweet_url
