@@ -32,11 +32,13 @@ For protected content (likes, bookmarks, private accounts), provide cookies:
 uv run python scripts/download.py "URL" --cookies /path/to/cookies.txt
 ```
 
-Or use browser cookies directly:
+Or use browser cookies directly (recommended):
 
 ```bash
 uv run python scripts/download.py "URL" --browser firefox
 ```
+
+> **Note**: Using `--browser firefox` is recommended as it automatically extracts cookies from your browser session.
 
 ## Common Options
 

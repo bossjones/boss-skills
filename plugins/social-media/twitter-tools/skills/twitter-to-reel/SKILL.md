@@ -61,7 +61,9 @@ Options:
 | `--padding` | Padding around tweet in pixels (default: 40) |
 | `--no-cleanup` | Keep intermediate files |
 | `--cookies` | Path to cookies.txt for auth |
-| `--browser` | Browser to extract cookies from |
+| `--browser` | Browser to extract cookies from (recommended: firefox) |
+
+> **Note**: Using `--browser firefox` is recommended as it automatically extracts cookies from your browser session.
 
 ### screenshot_tweet.py (Standalone)
 
@@ -124,7 +126,7 @@ uv run python scripts/screenshot_tweet.py "https://x.com/user/status/123" -o twe
 
 ## Troubleshooting
 
-- **Tweet not loading**: Use `--cookies` for protected accounts
+- **Tweet not loading**: Use `--browser firefox` (recommended) or `--cookies` for protected accounts
 - **Wrong colors**: Force theme with `--theme light` or `--theme dark`
 - **Video too long**: Trim video before processing or use `--duration`
 - **Playwright errors**: Run `playwright install chromium`
