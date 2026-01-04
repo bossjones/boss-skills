@@ -1,0 +1,47 @@
+{
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "recommended",
+  "failOnWarnings": false,
+  "allowedUntypedLibraries": [
+    "ultralytics",
+    "wandb",
+    "matplotlib",
+    "seaborn",
+    "pyyaml",
+    "opencv-python",
+    "cv2",
+    "numpy"
+  ],
+
+  "venvPath": ".",
+  "venv": ".venv",
+
+  "exclude": [
+    "**/__pycache__",
+    "**/.ruff_cache",
+    "scripts/*_example.py",
+    "scripts/firecrawl_*.py",
+    "scripts/jina_*.py",
+    "scripts/cleanup_bash_research.py",
+    "scripts/intelligent-markdown-lint.py",
+    "scripts/markdown_linter.py",
+    "scripts/note_smith.py",
+    "plugins/**/examples/**",
+    "plugins/**/assets/templates/**",
+    "plugins/**/tools/**",
+    "plugins/**/scripts/**"
+  ],
+
+
+  "include": ["devtools", "tests"],
+  "reportIgnoreCommentWithoutRule": false,
+  "reportUnnecessaryTypeIgnoreComment": false,
+  "reportMissingTypeStubs": false,
+  "reportUnusedCallResult": false,
+  "reportAny": false,
+  "reportExplicitAny": false,
+  "reportImplicitStringConcatenation": false,
+  "reportUnreachable": false,
+  "reportUnannotatedClassAttribute": false,
+  "reportUnknownVariableType": false
+}
