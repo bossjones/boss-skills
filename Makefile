@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -122,3 +122,41 @@ link-check: ## Check all links in markdown files using lychee
 link-check-verbose: ## Check all links in markdown files with verbose output
 	@echo "🚀 Checking all links in markdown files with verbose output"
 	@lychee --config lychee.toml --verbose debug '**/*.md'
+
+.PHONY: test-plugins
+test-plugins: ## Test plugins locally using claude --plugin-dir (usage: make test-plugins PLUGIN_DIR=./plugins/social-media/twitter-tools)
+	@if [ -z "$(PLUGIN_DIR)" ]; then \
+		echo "🚀 Finding plugins in plugins/ directory..."; \
+		plugin_dirs=$$(find plugins -type d -name ".claude-plugin" -exec dirname {} \; 2>/dev/null || true); \
+		if [ -z "$$plugin_dirs" ]; then \
+			echo "⚠️  No plugins found with .claude-plugin/plugin.json"; \
+			echo "Available plugin directories:"; \
+			find plugins -type d -mindepth 2 -maxdepth 2 2>/dev/null | head -10; \
+			exit 1; \
+		fi; \
+		echo "Found plugins:"; \
+		echo "$$plugin_dirs" | while read plugin_dir; do \
+			echo "  - $$plugin_dir"; \
+		done; \
+		echo ""; \
+		echo "To test a specific plugin, run:"; \
+		echo "  claude --plugin-dir <plugin-directory>"; \
+		echo ""; \
+		echo "Example:"; \
+		first_plugin=$$(echo "$$plugin_dirs" | head -1); \
+		echo "  claude --plugin-dir $$first_plugin"; \
+	else \
+		if [ ! -d "$(PLUGIN_DIR)" ]; then \
+			echo "❌ Error: Plugin directory '$(PLUGIN_DIR)' does not exist"; \
+			exit 1; \
+		fi; \
+		if [ ! -f "$(PLUGIN_DIR)/.claude-plugin/plugin.json" ]; then \
+			echo "⚠️  Warning: No .claude-plugin/plugin.json found in '$(PLUGIN_DIR)'"; \
+			echo "The plugin may still work if it has the correct structure."; \
+		fi; \
+		echo "🚀 Starting Claude Code with plugin: $(PLUGIN_DIR)"; \
+		echo "Run '/help' in Claude Code to see your plugin commands."; \
+		echo "Press Ctrl+C to exit."; \
+		echo ""; \
+		claude --plugin-dir "$(PLUGIN_DIR)"; \
+	fi
