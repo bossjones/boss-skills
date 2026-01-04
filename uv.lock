@@ -140,6 +140,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "claude-agent-sdk" },
     { name = "firecrawl-py" },
+    { name = "funlog" },
     { name = "jsonschema" },
     { name = "pyyaml" },
     { name = "rich" },
@@ -159,6 +160,7 @@ dev = [
 requires-dist = [
     { name = "claude-agent-sdk", specifier = ">=0.1.6" },
     { name = "firecrawl-py", specifier = ">=1.0.0" },
+    { name = "funlog", specifier = ">=0.2.1" },
     { name = "jsonschema", specifier = ">=4.20.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=13.0.0" },
@@ -512,6 +514,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/89/76/c615883b7b521ead2944bb3480398cbb07e12b7b4e4d073d3752eb721558/frozenlist-1.8.0-cp314-cp314t-win_amd64.whl", hash = "sha256:06be8f67f39c8b1dc671f5d83aaefd3358ae5cdcf8314552c57e7ed3e6475bdd", size = 49451, upload-time = "2025-10-06T05:37:53.425Z" },
     { url = "https://files.pythonhosted.org/packages/e0/a3/5982da14e113d07b325230f95060e2169f5311b1017ea8af2a29b374c289/frozenlist-1.8.0-cp314-cp314t-win_arm64.whl", hash = "sha256:102e6314ca4da683dca92e3b1355490fed5f313b768500084fbe6371fddfdb79", size = 42507, upload-time = "2025-10-06T05:37:54.513Z" },
     { url = "https://files.pythonhosted.org/packages/9a/9a/e35b4a917281c0b8419d4207f4334c8e8c5dbf4f3f5f9ada73958d937dcc/frozenlist-1.8.0-py3-none-any.whl", hash = "sha256:0c18a16eab41e82c295618a77502e17b195883241c563b00f0aa5106fc4eaa0d", size = 13409, upload-time = "2025-10-06T05:38:16.721Z" },
+]
+
+[[package]]
+name = "funlog"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/22/46/4ab8e6d87ab6aae6f1eafdd2f891c009e95e295bec2df8cd0b2f06870417/funlog-0.2.1.tar.gz", hash = "sha256:16f89e9c499077b374b4986a7c7dfc9fcd21ef40eb757fefff1a3631fdddf16f", size = 25691, upload-time = "2025-03-28T18:55:45.341Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/af/420b08227bd021f80008520aa20a001120e71042342801d0c782a6615a39/funlog-0.2.1-py3-none-any.whl", hash = "sha256:eed8d206c21ee8dc96137b4df51689470682d4700f6f99a1a6133a0e065f3798", size = 9399, upload-time = "2025-03-28T18:55:43.733Z" },
 ]
 
 [[package]]

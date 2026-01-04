@@ -58,7 +58,7 @@ Therefore:
 
 - DO NOT number steps in comments.
   These are hard to maintain if the code changes.
-  NEVER DO THIS: “// Step 3: Fetch the data from the cache”\
+  NEVER DO THIS: “// Step 3: Fetch the data from the cache”
   This is fine: “// Now fetch the data from the cache”
 
 - DO NOT use emojis or special unicode characters like ① or • or – or — in comments.
