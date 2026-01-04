@@ -5,6 +5,8 @@
 #     "playwright>=1.40.0",
 # ]
 # ///
+from __future__ import annotations
+
 """
 Screenshot Twitter/X tweets using Playwright.
 
@@ -16,11 +18,12 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
-from playwright.async_api import TimeoutError as PlaywrightTimeout # pyright: ignore[reportMissingImports]
+from playwright.async_api import TimeoutError as PlaywrightTimeout  # pyright: ignore[reportMissingImports]
 from playwright.async_api import async_playwright  # pyright: ignore[reportMissingImports]
 
-from .utils import extract_tweet_id, normalize_tweet_url
+from .utils import detect_theme, extract_tweet_id, normalize_tweet_url
 
 # CSS selectors for tweet elements
 TWEET_SELECTORS = {
@@ -71,7 +74,7 @@ CLEANUP_JS = """
 """
 
 
-async def load_cookies(page, cookies_path: str):
+async def load_cookies(page: Any, cookies_path: str) -> None:  # pyright: ignore[reportUnknownParameterType]
     """Load cookies from file into browser context."""
     cookies_file = Path(cookies_path)
     if not cookies_file.exists():
@@ -79,7 +82,7 @@ async def load_cookies(page, cookies_path: str):
         return
 
     # Parse Netscape/Mozilla cookies.txt format
-    cookies = []
+    cookies: list[dict[str, Any]] = []
     with open(cookies_file) as f:
         for line in f:
             line = line.strip()
@@ -88,7 +91,7 @@ async def load_cookies(page, cookies_path: str):
 
             parts = line.split("\t")
             if len(parts) >= 7:
-                domain, _, path, secure, expires, name, value = parts[:7]
+                domain, _, path, secure, _expires, name, value = parts[:7]
                 cookies.append(
                     {
                         "name": name,
@@ -101,7 +104,7 @@ async def load_cookies(page, cookies_path: str):
                 )
 
     if cookies:
-        await page.context.add_cookies(cookies)
+        await page.context.add_cookies(cookies)  # pyright: ignore[reportUnknownMemberType]
         print(f"Loaded {len(cookies)} cookies")
 
 
@@ -111,9 +114,9 @@ async def screenshot_tweet(
     theme: str | None = None,
     width: int = 550,
     cookies_path: str | None = None,
-    full_thread: bool = False,
+    full_thread: bool = False,  # pyright: ignore[reportUnusedParameter]
     timeout: int = 30000,
-) -> dict:
+) -> dict[str, str | int]:
     """
     Screenshot a tweet and return metadata.
 
@@ -126,22 +129,22 @@ async def screenshot_tweet(
     if not tweet_id:
         raise ValueError(f"Could not extract tweet ID from URL: {url}")
 
-    async with async_playwright() as p:
+    async with async_playwright() as p:  # pyright: ignore[reportUnknownVariableType]
         # Configure browser
         browser_args = ["--disable-blink-features=AutomationControlled"]
 
         # Set color scheme based on theme
         color_scheme = "dark" if theme == "dark" else "light"
 
-        browser = await p.chromium.launch(headless=True, args=browser_args)
+        browser = await p.chromium.launch(headless=True, args=browser_args)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
-        context = await browser.new_context(
+        context = await browser.new_context(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
             viewport={"width": width, "height": 1200},
             color_scheme=color_scheme,
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         )
 
-        page = await context.new_page()
+        page = await context.new_page()  # pyright: ignore[reportUnknownMemberType]
 
         # Load cookies if provided
         if cookies_path:
@@ -150,25 +153,25 @@ async def screenshot_tweet(
         try:
             # Navigate to tweet
             print(f"Loading tweet: {url}")
-            await page.goto(url, wait_until="networkidle", timeout=timeout)
+            await page.goto(url, wait_until="networkidle", timeout=timeout)  # pyright: ignore[reportUnknownMemberType]
 
             # Wait for tweet to load
-            await page.wait_for_selector(TWEET_SELECTORS["tweet"], timeout=timeout)
+            await page.wait_for_selector(TWEET_SELECTORS["tweet"], timeout=timeout)  # pyright: ignore[reportUnknownMemberType]
 
             # Additional wait for media to load
             await asyncio.sleep(2)
 
             # Run cleanup JavaScript
-            await page.evaluate(CLEANUP_JS)
+            await page.evaluate(CLEANUP_JS)  # pyright: ignore[reportUnknownMemberType]
 
             # Find the main tweet element
-            tweet_element = await page.query_selector(TWEET_SELECTORS["tweet"])
+            tweet_element = await page.query_selector(TWEET_SELECTORS["tweet"])  # pyright: ignore[reportUnknownMemberType]
 
             if not tweet_element:
                 raise RuntimeError("Could not find tweet element on page")
 
             # Get bounding box
-            box = await tweet_element.bounding_box()
+            box = await tweet_element.bounding_box()  # pyright: ignore[reportUnknownMemberType]
 
             if not box:
                 raise RuntimeError("Could not get tweet bounding box")
@@ -176,30 +179,32 @@ async def screenshot_tweet(
             # Adjust screenshot area
             # Add some padding
             padding = 20
+            box_x = float(box["x"])  # pyright: ignore[reportUnknownArgumentType]
+            box_y = float(box["y"])  # pyright: ignore[reportUnknownArgumentType]
+            box_width = float(box["width"])  # pyright: ignore[reportUnknownArgumentType]
+            box_height = float(box["height"])  # pyright: ignore[reportUnknownArgumentType]
             clip = {
-                "x": max(0, box["x"] - padding),
-                "y": max(0, box["y"] - padding),
-                "width": box["width"] + (padding * 2),
-                "height": box["height"] + (padding * 2),
+                "x": max(0, box_x - padding),
+                "y": max(0, box_y - padding),
+                "width": box_width + (padding * 2),
+                "height": box_height + (padding * 2),
             }
 
             # Take screenshot
             output_file = Path(output_path)
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
-            await page.screenshot(path=str(output_file), clip=clip, type="png")
+            await page.screenshot(path=str(output_file), clip=clip, type="png")  # pyright: ignore[reportUnknownMemberType]
 
             print(f"Screenshot saved: {output_path}")
 
             # Detect actual theme from screenshot
-            from utils import detect_theme
-
             detected_theme = detect_theme(str(output_file))
 
             return {
                 "path": str(output_file),
-                "width": int(clip["width"]),
-                "height": int(clip["height"]),
+                "width": int(clip["width"]),  # pyright: ignore[reportArgumentType]
+                "height": int(clip["height"]),  # pyright: ignore[reportArgumentType]
                 "theme": detected_theme,
                 "tweet_id": tweet_id,
             }
@@ -209,7 +214,7 @@ async def screenshot_tweet(
                 "Timeout loading tweet. The tweet may be protected or deleted."
             ) from None
         finally:
-            await browser.close()
+            await browser.close()  # pyright: ignore[reportUnknownMemberType]
 
 
 def main():

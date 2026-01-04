@@ -16,18 +16,31 @@ This is the main entry point that combines screenshot_tweet.py and compose_video
 into a single workflow.
 """
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import glob
 import sys
 import tempfile
 from pathlib import Path
+from typing import TypedDict, cast
 
 from .compose_video import compose_video
 from .screenshot_tweet import screenshot_tweet
 
 # Import our modules
 from .utils import check_ffmpeg, check_playwright, extract_tweet_id, normalize_tweet_url
+
+
+class ScreenshotResult(TypedDict):
+    """Result from screenshot_tweet function."""
+
+    path: str
+    width: int
+    height: int
+    theme: str
+    tweet_id: str
 
 
 def find_video_file(pattern: str) -> str:
@@ -114,19 +127,21 @@ def create_reel(
         # Step 1: Screenshot the tweet
         print("\n[1/3] Capturing tweet screenshot...")
         try:
-            screenshot_result = asyncio.run(
-                screenshot_tweet(
-                    url=tweet_url,
-                    output_path=str(screenshot_path),
-                    theme=theme if theme != "auto" else None,
-                    width=screenshot_width,
-                    cookies_path=cookies,
-                )
+            coro = screenshot_tweet(
+                url=tweet_url,
+                output_path=str(screenshot_path),
+                theme=theme if theme != "auto" else None,
+                width=screenshot_width,
+                cookies_path=cookies,
+            )
+            screenshot_result = cast(
+                ScreenshotResult,
+                cast(object, asyncio.run(coro)),  # pyright: ignore[reportUnknownArgumentType]
             )
         except Exception as e:
             raise RuntimeError(f"Failed to screenshot tweet: {e}") from e
 
-        detected_theme = screenshot_result["theme"]
+        detected_theme: str = screenshot_result["theme"]
         print(
             f"    Screenshot captured: {screenshot_result['width']}x{screenshot_result['height']}"
         )
@@ -137,7 +152,7 @@ def create_reel(
         print("\n[3/3] Composing final video...")
 
         # Use detected theme if auto
-        final_theme = theme if theme != "auto" else detected_theme
+        final_theme: str = theme if theme != "auto" else detected_theme
 
         output_file = compose_video(
             screenshot_path=str(screenshot_path),
