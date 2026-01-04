@@ -33,7 +33,7 @@
   ],
 
 
-  "include": ["src", "tests", "devtools", "scripts", "plugins"],
+  "include": ["devtools"],
   "reportIgnoreCommentWithoutRule": false,
   "reportUnnecessaryTypeIgnoreComment": false,
   "reportMissingTypeStubs": false,

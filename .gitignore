@@ -217,7 +217,6 @@ __marimo__/
 # PyPI configuration file
 .pypirc
 .claude/settings.local.json
-src/screencropnet_yolov11/config/datasets/
 
 cov.xml
 junit/
