@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -17,6 +17,15 @@ install: ## Install dependencies with all extras
 lint: ## Run linting tools
 	@echo "🚀 Running linting tools"
 	@uv run python devtools/lint.py
+
+.PHONY: pre-commit
+pre-commit: ## Run pre-commit hooks on all files
+	@echo "🚀 Running pre-commit hooks..."
+	@if command -v pre-commit >/dev/null 2>&1; then \
+		pre-commit run --all-files; \
+	else \
+		echo "⚠️  Warning: pre-commit not installed"; \
+	fi
 
 .PHONY: test
 test: ## Run tests with pytest

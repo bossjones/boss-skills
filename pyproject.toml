@@ -3,6 +3,11 @@ name = "boss-skills"
 version = "0.1.0"
 description = "Boss Skills Repo and Lab for my personal Claude Code configs and skills"
 requires-python = ">=3.13"
+authors = [
+    { name="Malcolm Jones", email="bossjones@theblacktonystark.com" },
+]
+readme = "README.md"
+license = "MIT"
 dependencies = [
     "jsonschema>=4.20.0",
     "rich>=13.0.0",

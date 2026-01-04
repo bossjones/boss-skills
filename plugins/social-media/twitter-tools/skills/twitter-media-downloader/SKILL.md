@@ -12,7 +12,7 @@ Download images and videos from X/Twitter using gallery-dl.
 Run the download script with a Twitter/X URL:
 
 ```bash
-python3 scripts/download.py "https://x.com/username" --output ./downloads
+uv run python scripts/download.py "https://x.com/username" --output ./downloads
 ```
 
 ## Supported URL Types
@@ -29,13 +29,13 @@ python3 scripts/download.py "https://x.com/username" --output ./downloads
 For protected content (likes, bookmarks, private accounts), provide cookies:
 
 ```bash
-python3 scripts/download.py "URL" --cookies /path/to/cookies.txt
+uv run python scripts/download.py "URL" --cookies /path/to/cookies.txt
 ```
 
 Or use browser cookies directly:
 
 ```bash
-python3 scripts/download.py "URL" --browser firefox
+uv run python scripts/download.py "URL" --browser firefox
 ```
 
 ## Common Options
@@ -55,22 +55,22 @@ python3 scripts/download.py "URL" --browser firefox
 
 Download all media from a user:
 ```bash
-python3 scripts/download.py "https://x.com/NASA" --output ./nasa_media
+uv run python scripts/download.py "https://x.com/NASA" --output ./nasa_media
 ```
 
 Download a single tweet's media:
 ```bash
-python3 scripts/download.py "https://x.com/user/status/1234567890"
+uv run python scripts/download.py "https://x.com/user/status/1234567890"
 ```
 
 Download only videos from a user (limit 50):
 ```bash
-python3 scripts/download.py "https://x.com/username" --videos-only --limit 50
+uv run python scripts/download.py "https://x.com/username" --videos-only --limit 50
 ```
 
 Download bookmarks with Firefox cookies:
 ```bash
-python3 scripts/download.py "https://x.com/i/bookmarks" --browser firefox
+uv run python scripts/download.py "https://x.com/i/bookmarks" --browser firefox
 ```
 
 ## Output Structure

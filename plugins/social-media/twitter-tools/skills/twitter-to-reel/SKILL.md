@@ -30,7 +30,7 @@ brew install ffmpeg
 Create a reel from a tweet URL and video file:
 
 ```bash
-python3 scripts/create_reel.py "https://x.com/user/status/123" video.mp4 -o output.mp4
+uv run python scripts/create_reel.py "https://x.com/user/status/123" video.mp4 -o output.mp4
 ```
 
 ## Workflow
@@ -49,7 +49,7 @@ python3 scripts/create_reel.py "https://x.com/user/status/123" video.mp4 -o outp
 Full pipeline from tweet URL to finished reel:
 
 ```bash
-python3 scripts/create_reel.py "TWEET_URL" VIDEO_FILE [options]
+uv run python scripts/create_reel.py "TWEET_URL" VIDEO_FILE [options]
 ```
 
 Options:
@@ -68,7 +68,7 @@ Options:
 Screenshot a tweet without video overlay:
 
 ```bash
-python3 scripts/screenshot_tweet.py "TWEET_URL" -o screenshot.png
+uv run python scripts/screenshot_tweet.py "TWEET_URL" -o screenshot.png
 ```
 
 Options:
@@ -85,34 +85,34 @@ Options:
 Compose video onto an existing screenshot:
 
 ```bash
-python3 scripts/compose_video.py screenshot.png video.mp4 -o reel.mp4
+uv run python scripts/compose_video.py screenshot.png video.mp4 -o reel.mp4
 ```
 
 ## Examples
 
 Basic reel creation:
 ```bash
-python3 scripts/create_reel.py "https://x.com/NASA/status/123456" nasa_video.mp4
+uv run python scripts/create_reel.py "https://x.com/NASA/status/123456" nasa_video.mp4
 ```
 
 Dark theme with bottom positioning:
 ```bash
-python3 scripts/create_reel.py "https://x.com/user/status/123" clip.mp4 \
+uv run python scripts/create_reel.py "https://x.com/user/status/123" clip.mp4 \
   --theme dark --position bottom -o my_reel.mp4
 ```
 
 Using with twitter-media-downloader:
 ```bash
 # First download the video
-python3 ../twitter-media-downloader/scripts/download.py "https://x.com/user/status/123" -o ./downloads
+uv run python ../twitter-media-downloader/scripts/download.py "https://x.com/user/status/123" -o ./downloads
 
 # Then create the reel
-python3 scripts/create_reel.py "https://x.com/user/status/123" ./downloads/*.mp4 -o reel.mp4
+uv run python scripts/create_reel.py "https://x.com/user/status/123" ./downloads/*.mp4 -o reel.mp4
 ```
 
 Screenshot only (no video):
 ```bash
-python3 scripts/screenshot_tweet.py "https://x.com/user/status/123" -o tweet.png
+uv run python scripts/screenshot_tweet.py "https://x.com/user/status/123" -o tweet.png
 ```
 
 ## Output Specifications
