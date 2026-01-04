@@ -7,6 +7,7 @@ Supports tweets, user profiles, timelines, likes, bookmarks, and lists.
 """
 
 import argparse
+import contextlib
 import json
 import os
 import subprocess
@@ -211,10 +212,8 @@ Examples:
 
     finally:
         # Clean up temp config file
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(config_file)
-        except OSError:
-            pass
 
 
 if __name__ == "__main__":

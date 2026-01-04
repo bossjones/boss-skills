@@ -13,6 +13,7 @@ Takes a tweet screenshot and overlays a video to create a 9:16 vertical video.
 """
 
 import argparse
+import contextlib
 import subprocess
 import sys
 import tempfile
@@ -277,10 +278,8 @@ def compose_video(
     finally:
         # Clean up temp files
         if not keep_temp:
-            try:
+            with contextlib.suppress(OSError):
                 Path(canvas_path).unlink()
-            except OSError:
-                pass
 
 
 def main():

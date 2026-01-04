@@ -205,7 +205,9 @@ async def screenshot_tweet(
             }
 
         except PlaywrightTimeout:
-            raise RuntimeError("Timeout loading tweet. The tweet may be protected or deleted.")
+            raise RuntimeError(
+                "Timeout loading tweet. The tweet may be protected or deleted."
+            ) from None
         finally:
             await browser.close()
 

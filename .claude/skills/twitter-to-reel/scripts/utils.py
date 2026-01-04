@@ -147,12 +147,9 @@ def check_ffmpeg() -> bool:
 
 def check_playwright() -> bool:
     """Check if playwright is available."""
-    try:
-        import playwright
+    import importlib.util
 
-        return True
-    except ImportError:
-        return False
+    return importlib.util.find_spec("playwright") is not None
 
 
 def rgb_to_hex(rgb: tuple[int, int, int]) -> str:

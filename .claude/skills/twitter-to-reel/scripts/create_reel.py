@@ -124,7 +124,7 @@ def create_reel(
                 )
             )
         except Exception as e:
-            raise RuntimeError(f"Failed to screenshot tweet: {e}")
+            raise RuntimeError(f"Failed to screenshot tweet: {e}") from e
 
         detected_theme = screenshot_result["theme"]
         print(
