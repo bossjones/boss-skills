@@ -12,12 +12,15 @@ Compose video onto a tweet screenshot for Instagram Reels format.
 Takes a tweet screenshot and overlays a video to create a 9:16 vertical video.
 """
 
+from __future__ import annotations
+
 import argparse
 import contextlib
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import TypedDict
 
 from PIL import Image  # pyright: ignore[reportMissingImports]
 
@@ -33,12 +36,39 @@ from .utils import (
 )
 
 
+class VideoArea(TypedDict):
+    """Video overlay area coordinates and dimensions."""
+
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+class ScreenshotBounds(TypedDict):
+    """Screenshot position and dimensions on canvas."""
+
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+class Metadata(TypedDict):
+    """Metadata about the composed reel."""
+
+    theme: str
+    background_color: tuple[int, int, int]
+    screenshot_bounds: ScreenshotBounds
+    video_area: VideoArea
+
+
 def create_reel_canvas(
     screenshot_path: str,
     theme: str = "auto",
     position: str = "top",
     padding: int = 40,
-) -> tuple[Image.Image, dict]:
+) -> tuple[Image.Image, Metadata]:
     """
     Create a 1080x1920 canvas with the tweet screenshot positioned.
 
@@ -50,10 +80,13 @@ def create_reel_canvas(
     orig_width, orig_height = screenshot.size
 
     # Detect or use specified theme
+    detected_theme: str
     if theme == "auto":
-        theme = detect_theme(screenshot_path)
+        detected_theme = detect_theme(screenshot_path)
+    else:
+        detected_theme = theme
 
-    bg_color = THEME_COLORS[theme]["background"]
+    bg_color = THEME_COLORS[detected_theme]["background"]
 
     # Calculate scaling to fit width with padding
     max_width = REEL_WIDTH - (padding * 2)
@@ -94,22 +127,24 @@ def create_reel_canvas(
         video_y = padding
         video_height = y_offset - (padding * 2)
 
-    video_area = {
+    video_area: VideoArea = {
         "x": padding,
         "y": video_y,
         "width": REEL_WIDTH - (padding * 2),
         "height": max(video_height, 400),  # Minimum height
     }
 
-    metadata = {
-        "theme": theme,
+    screenshot_bounds: ScreenshotBounds = {
+        "x": x_offset,
+        "y": y_offset,
+        "width": new_width,
+        "height": new_height,
+    }
+
+    metadata: Metadata = {
+        "theme": detected_theme,
         "background_color": bg_color,
-        "screenshot_bounds": {
-            "x": x_offset,
-            "y": y_offset,
-            "width": new_width,
-            "height": new_height,
-        },
+        "screenshot_bounds": screenshot_bounds,
         "video_area": video_area,
     }
 
@@ -120,7 +155,7 @@ def compose_with_ffmpeg(
     canvas_path: str,
     video_path: str,
     output_path: str,
-    video_area: dict,
+    video_area: VideoArea,
     background_color: tuple[int, int, int],
     duration: float | None = None,
 ) -> str:
@@ -137,8 +172,8 @@ def compose_with_ffmpeg(
         vid_duration = min(vid_duration, duration)
 
     # Calculate video scaling to fit in area while maintaining aspect ratio
-    area_width = video_area["width"]
-    area_height = video_area["height"]
+    area_width: int = video_area["width"]
+    area_height: int = video_area["height"]
 
     vid_aspect = vid_width / vid_height
     area_aspect = area_width / area_height
@@ -157,8 +192,8 @@ def compose_with_ffmpeg(
     scale_height = scale_height - (scale_height % 2)
 
     # Calculate position to center video in area
-    vid_x = video_area["x"] + (area_width - scale_width) // 2
-    vid_y = video_area["y"] + (area_height - scale_height) // 2
+    vid_x: int = video_area["x"] + (area_width - scale_width) // 2
+    vid_y: int = video_area["y"] + (area_height - scale_height) // 2
 
     # Build FFmpeg command
     bg_hex = rgb_to_hex(background_color)

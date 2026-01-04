@@ -6,6 +6,8 @@ A wrapper script for gallery-dl to download images and videos from X/Twitter.
 Supports tweets, user profiles, timelines, likes, bookmarks, and lists.
 """
 
+from __future__ import annotations
+
 import argparse
 import contextlib
 import json
@@ -14,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 
 def check_dependencies():
@@ -45,9 +48,9 @@ def normalize_url(url: str) -> str:
     return url
 
 
-def build_config(args) -> dict:
+def build_config(args: argparse.Namespace) -> dict[str, Any]:
     """Build gallery-dl configuration based on arguments."""
-    config = {
+    config: dict[str, Any] = {
         "extractor": {
             "twitter": {
                 "retweets": args.retweets,
@@ -69,15 +72,17 @@ def build_config(args) -> dict:
 
     # Add sleep interval if specified
     if args.sleep:
-        config["extractor"]["twitter"]["sleep"] = args.sleep
-        config["extractor"]["twitter"]["sleep-request"] = args.sleep
+        extractor_twitter = config["extractor"]["twitter"]
+        assert isinstance(extractor_twitter, dict)
+        extractor_twitter["sleep"] = args.sleep
+        extractor_twitter["sleep-request"] = args.sleep
 
     return config
 
 
-def build_command(args, config_file: str) -> list:
+def build_command(args: argparse.Namespace, config_file: str) -> list[str]:
     """Build the gallery-dl command."""
-    cmd = ["gallery-dl"]
+    cmd: list[str] = ["gallery-dl"]
 
     # Output directory
     output_dir = Path(args.output).resolve()
