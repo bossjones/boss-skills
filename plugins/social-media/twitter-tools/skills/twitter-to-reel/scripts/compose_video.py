@@ -24,7 +24,12 @@ from typing import TypedDict
 
 from PIL import Image  # pyright: ignore[reportMissingImports]
 
-from .utils import (
+# Add scripts directory to path for importing sibling modules
+SCRIPT_DIR = Path(__file__).parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from utils import (  # noqa: E402
     REEL_HEIGHT,
     REEL_WIDTH,
     THEME_COLORS,

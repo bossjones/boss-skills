@@ -25,7 +25,17 @@ from playwright.async_api import (
 )
 from playwright.async_api import async_playwright  # pyright: ignore[reportMissingImports]
 
-from .utils import detect_theme, ensure_chromium_installed, extract_tweet_id, normalize_tweet_url
+# Add scripts directory to path for importing sibling modules
+SCRIPT_DIR = Path(__file__).parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from utils import (  # noqa: E402
+    detect_theme,
+    ensure_chromium_installed,
+    extract_tweet_id,
+    normalize_tweet_url,
+)
 
 # CSS selectors for tweet elements
 TWEET_SELECTORS = {

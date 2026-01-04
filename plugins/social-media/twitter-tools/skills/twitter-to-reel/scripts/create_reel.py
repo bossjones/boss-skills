@@ -26,11 +26,20 @@ import tempfile
 from pathlib import Path
 from typing import TypedDict, cast
 
-from .compose_video import compose_video
-from .screenshot_tweet import screenshot_tweet
+# Add scripts directory to path for importing sibling modules
+SCRIPT_DIR = Path(__file__).parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
-# Import our modules
-from .utils import check_ffmpeg, check_playwright, extract_tweet_id, normalize_tweet_url
+# Import sibling modules (no relative imports)
+from compose_video import compose_video  # noqa: E402
+from screenshot_tweet import screenshot_tweet  # noqa: E402
+from utils import (  # noqa: E402
+    check_ffmpeg,
+    check_playwright,
+    extract_tweet_id,
+    normalize_tweet_url,
+)
 
 
 class ScreenshotResult(TypedDict):
