@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -160,3 +160,13 @@ test-plugins: ## Test plugins locally using claude --plugin-dir (usage: make tes
 		echo ""; \
 		claude --plugin-dir "$(PLUGIN_DIR)"; \
 	fi
+
+.PHONY: verify-structure
+verify-structure: ## Verify Claude Code marketplace structure and validate plugin manifests
+	@echo "🚀 Verifying marketplace structure and plugin manifests"
+	@uv run scripts/verify-structure.py
+
+.PHONY: verify-structure-strict
+verify-structure-strict: ## Verify marketplace structure in strict mode (warnings treated as errors)
+	@echo "🚀 Verifying marketplace structure in strict mode"
+	@uv run scripts/verify-structure.py --strict
