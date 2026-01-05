@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci smoke smoke-debug smoke-help
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -183,3 +183,26 @@ test-twitter-reel: ## Run twitter-to-reel tests
 
 .PHONY: ci
 ci: test-twitter-downloader test-twitter-reel ## Run all twitter-tools tests (CI target)
+
+# Default test tweet URL (a public tweet with video)
+SMOKE_URL ?= https://x.com/KameronBennett/status/2008195824304672928
+
+.PHONY: smoke
+smoke: ## Run smoke test - create a reel from a test tweet
+	@echo "🚀 Running twitter-to-reel smoke test"
+	cd plugins/social-media/twitter-tools/skills/twitter-to-reel && uv run scripts/create_reel.py "$(SMOKE_URL)" --browser firefox -o reel.mp4
+
+.PHONY: smoke-debug
+smoke-debug: ## Run smoke test with debug output for troubleshooting
+	@echo "🚀 Running twitter-to-reel smoke test (debug mode)"
+	cd plugins/social-media/twitter-tools/skills/twitter-to-reel && uv run scripts/create_reel.py "$(SMOKE_URL)" --browser firefox --debug -o reel.mp4
+
+.PHONY: smoke-help
+smoke-help: ## Show smoke test usage
+	@echo "Usage: make smoke [SMOKE_URL=<url>]"
+	@echo "       make smoke-debug [SMOKE_URL=<url>]  # with verbose debug output"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make smoke"
+	@echo "  make smoke-debug"
+	@echo "  make smoke SMOKE_URL='https://x.com/user/status/123'"
