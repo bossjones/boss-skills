@@ -52,6 +52,7 @@ uv run python scripts/download.py "URL" --browser firefox
 | `--limit N` | Limit number of items to download |
 | `--retweets` | Include retweets when downloading user timeline |
 | `--replies` | Include replies when downloading user timeline |
+| `--json` | Output structured JSON with downloaded file paths |
 
 ## Examples
 
@@ -75,10 +76,32 @@ Download bookmarks with Firefox cookies:
 uv run python scripts/download.py "https://x.com/i/bookmarks" --browser firefox
 ```
 
+## JSON Output Mode
+
+For programmatic use (e.g., integration with other skills), use `--json` to get structured output:
+
+```bash
+uv run python scripts/download.py "https://x.com/user/status/123" --json --videos-only
+```
+
+Output format:
+```json
+{
+  "files": ["/path/to/downloads/twitter_user_123_1.mp4"],
+  "tweet_id": "123",
+  "output_dir": "/path/to/downloads",
+  "url": "https://x.com/user/status/123",
+  "success": true,
+  "error": null
+}
+```
+
+This is used by the `twitter-to-reel` skill to automatically download videos before creating reels.
+
 ## Output Structure
 
 Files are saved with the following naming pattern:
-```
+```text
 {output_dir}/twitter_{username}_{tweet_id}_{num}.{ext}
 ```
 

@@ -52,6 +52,90 @@ class ScreenshotResult(TypedDict):
     tweet_id: str
 
 
+def download_video_from_tweet(
+    tweet_url: str,
+    output_dir: str | None = None,
+    cookies_path: str | None = None,
+    browser: str | None = None,
+) -> str:
+    """
+    Download video from tweet using twitter-media-downloader skill.
+
+    Args:
+        tweet_url: URL of the tweet containing video
+        output_dir: Directory to save downloaded video (uses temp dir if None)
+        cookies_path: Path to cookies.txt for authentication
+        browser: Browser to extract cookies from
+
+    Returns:
+        Path to downloaded video file
+
+    Raises:
+        RuntimeError: If download fails or no video found
+    """
+    import json
+    import subprocess
+
+    # Determine output directory
+    if output_dir is None:
+        output_dir = tempfile.mkdtemp(prefix="reel_video_")
+
+    # Locate downloader script (relative to this skill's location)
+    downloader_path = (
+        SCRIPT_DIR.parent.parent / "twitter-media-downloader" / "scripts" / "download.py"
+    )
+
+    if not downloader_path.exists():
+        raise RuntimeError(
+            f"twitter-media-downloader not found at {downloader_path}. "
+            "Please ensure the skill is installed in the same plugin."
+        )
+
+    # Build download command
+    cmd = [
+        sys.executable,
+        str(downloader_path),
+        tweet_url,
+        "--output",
+        output_dir,
+        "--videos-only",
+        "--json",
+    ]
+
+    # Pass through authentication
+    if cookies_path:
+        cmd.extend(["--cookies", cookies_path])
+    elif browser:
+        cmd.extend(["--browser", browser])
+
+    # Execute downloader
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+        raise RuntimeError(f"Download failed: {error_msg}")
+
+    # Parse JSON output
+    try:
+        download_result = json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Failed to parse downloader output: {e}") from e
+
+    if not download_result.get("success"):
+        error = download_result.get("error", "Unknown error")
+        raise RuntimeError(f"Download failed: {error}")
+
+    files = download_result.get("files", [])
+    if not files:
+        raise RuntimeError(
+            "No video found in tweet. The tweet may not contain video content, "
+            "or authentication may be required for protected content."
+        )
+
+    # Return first video file
+    return files[0]
+
+
 def find_video_file(pattern: str) -> str:
     """
     Find video file from pattern (supports glob patterns).
@@ -77,7 +161,7 @@ def find_video_file(pattern: str) -> str:
 
 def create_reel(
     tweet_url: str,
-    video_path: str,
+    video_path: str | None = None,
     output_path: str = "reel_output.mp4",
     theme: str = "auto",
     position: str = "top",
@@ -92,10 +176,27 @@ def create_reel(
     Create an Instagram Reel from a tweet URL and video.
 
     Full pipeline:
+    0. (Optional) Auto-download video from tweet if not provided
     1. Screenshot the tweet
     2. Create 9:16 canvas with matching background
     3. Overlay video
     4. Export final MP4
+
+    Args:
+        tweet_url: URL of the tweet to convert
+        video_path: Path to video file (optional - auto-downloads if None)
+        output_path: Output file path for the reel
+        theme: Background theme ("light", "dark", or "auto")
+        position: Tweet position on canvas ("top", "center", "bottom")
+        padding: Padding around elements in pixels
+        duration: Maximum output duration in seconds
+        cookies_path: Path to cookies.txt for authentication
+        browser: Browser to extract cookies from
+        screenshot_width: Width of tweet screenshot
+        keep_temp: Keep intermediate files
+
+    Returns:
+        Path to the created reel video file
     """
     # Validate dependencies
     if not check_ffmpeg():
@@ -106,9 +207,19 @@ def create_reel(
             "Playwright is required. Install with: pip install playwright && playwright install chromium"
         )
 
-    # Find video file
-    video_file = find_video_file(video_path)
-    print(f"Using video: {video_file}")
+    # Auto-download video if not provided
+    if video_path is None:
+        print("\n[0/3] Downloading video from tweet...")
+        video_file = download_video_from_tweet(
+            tweet_url=tweet_url,
+            cookies_path=cookies_path,
+            browser=browser,
+        )
+        print(f"      Downloaded: {video_file}")
+    else:
+        # Find video file from path/pattern
+        video_file = find_video_file(video_path)
+        print(f"Using video: {video_file}")
 
     # Normalize URL
     tweet_url = normalize_tweet_url(tweet_url)
@@ -184,21 +295,25 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s "https://x.com/NASA/status/123" nasa_video.mp4
-  %(prog)s "https://x.com/user/status/123" ./downloads/*.mp4 -o my_reel.mp4
-  %(prog)s "https://x.com/user/status/123" video.mp4 --theme dark --position bottom
-  %(prog)s "https://x.com/user/status/123" video.mp4 --browser firefox
+  # Auto-download video from tweet (recommended):
+  %(prog)s "https://x.com/NASA/status/123" -o nasa_reel.mp4
 
-Works with twitter-media-downloader:
-  python3 ../twitter-media-downloader/scripts/download.py "URL" -o ./downloads
-  python3 scripts/create_reel.py "URL" ./downloads/*.mp4
+  # With explicit video file:
+  %(prog)s "https://x.com/user/status/123" video.mp4 -o my_reel.mp4
+  %(prog)s "https://x.com/user/status/123" ./downloads/*.mp4
+
+  # With authentication for protected tweets:
+  %(prog)s "https://x.com/user/status/123" --browser firefox -o reel.mp4
         """,
     )
 
     parser.add_argument("url", help="Tweet URL to screenshot")
 
     parser.add_argument(
-        "video", help="Video file path (supports glob patterns like ./downloads/*.mp4)"
+        "video",
+        nargs="?",
+        default=None,
+        help="Video file path (optional - auto-downloads if omitted)",
     )
 
     parser.add_argument(
@@ -245,8 +360,25 @@ Works with twitter-media-downloader:
         "--screenshot-width", type=int, default=550, help="Tweet screenshot width (default: 550)"
     )
     advanced_group.add_argument("--no-cleanup", action="store_true", help="Keep intermediate files")
+    advanced_group.add_argument(
+        "--no-auto-download",
+        action="store_true",
+        help="Disable automatic video download (require explicit video path)",
+    )
 
     args = parser.parse_args()
+
+    # Validate: if no video provided, URL must be a specific tweet
+    if args.video is None and not args.no_auto_download:
+        tweet_id = extract_tweet_id(args.url)
+        if not tweet_id:
+            parser.error(
+                "When video is not provided, URL must be a specific tweet "
+                "(e.g., https://x.com/user/status/123456). "
+                "User profile URLs require an explicit video path."
+            )
+    elif args.video is None and args.no_auto_download:
+        parser.error("--no-auto-download requires an explicit video path")
 
     try:
         create_reel(
