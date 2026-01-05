@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -170,3 +170,16 @@ verify-structure: ## Verify Claude Code marketplace structure and validate plugi
 verify-structure-strict: ## Verify marketplace structure in strict mode (warnings treated as errors)
 	@echo "🚀 Verifying marketplace structure in strict mode"
 	@uv run scripts/verify-structure.py --strict
+
+.PHONY: test-twitter-downloader
+test-twitter-downloader: ## Run twitter-media-downloader tests
+	@echo "🚀 Running twitter-media-downloader tests"
+	@uv run pytest plugins/social-media/twitter-tools/skills/twitter-media-downloader/scripts/tests/ -v
+
+.PHONY: test-twitter-reel
+test-twitter-reel: ## Run twitter-to-reel tests
+	@echo "🚀 Running twitter-to-reel tests"
+	@uv run pytest plugins/social-media/twitter-tools/skills/twitter-to-reel/scripts/tests/ -v
+
+.PHONY: ci
+ci: test-twitter-downloader test-twitter-reel ## Run all twitter-tools tests (CI target)
