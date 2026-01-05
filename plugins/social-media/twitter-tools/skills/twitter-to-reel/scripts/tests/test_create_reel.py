@@ -139,12 +139,14 @@ class TestDownloadVideoFromTweet:
             stderr="Network error",
         )
 
-        with patch("create_reel.SCRIPT_DIR", scripts_dir):
-            with pytest.raises(RuntimeError, match="Download failed"):
-                download_video_from_tweet(
-                    tweet_url="https://x.com/user/status/123",
-                    output_dir=str(tmp_path),
-                )
+        with (
+            patch("create_reel.SCRIPT_DIR", scripts_dir),
+            pytest.raises(RuntimeError, match="Download failed"),
+        ):
+            download_video_from_tweet(
+                tweet_url="https://x.com/user/status/123",
+                output_dir=str(tmp_path),
+            )
 
     @patch("subprocess.run")
     def test_raises_on_no_video_found(self, mock_run: MagicMock, tmp_path: Path) -> None:
@@ -157,12 +159,14 @@ class TestDownloadVideoFromTweet:
             stderr="",
         )
 
-        with patch("create_reel.SCRIPT_DIR", scripts_dir):
-            with pytest.raises(RuntimeError, match="No video found"):
-                download_video_from_tweet(
-                    tweet_url="https://x.com/user/status/123",
-                    output_dir=str(tmp_path),
-                )
+        with (
+            patch("create_reel.SCRIPT_DIR", scripts_dir),
+            pytest.raises(RuntimeError, match="No video found"),
+        ):
+            download_video_from_tweet(
+                tweet_url="https://x.com/user/status/123",
+                output_dir=str(tmp_path),
+            )
 
     @patch("subprocess.run")
     def test_raises_on_json_parse_error(self, mock_run: MagicMock, tmp_path: Path) -> None:
@@ -175,12 +179,14 @@ class TestDownloadVideoFromTweet:
             stderr="",
         )
 
-        with patch("create_reel.SCRIPT_DIR", scripts_dir):
-            with pytest.raises(RuntimeError, match="Failed to parse"):
-                download_video_from_tweet(
-                    tweet_url="https://x.com/user/status/123",
-                    output_dir=str(tmp_path),
-                )
+        with (
+            patch("create_reel.SCRIPT_DIR", scripts_dir),
+            pytest.raises(RuntimeError, match="Failed to parse"),
+        ):
+            download_video_from_tweet(
+                tweet_url="https://x.com/user/status/123",
+                output_dir=str(tmp_path),
+            )
 
     @patch("subprocess.run")
     def test_passes_cookies_option(self, mock_run: MagicMock, tmp_path: Path) -> None:
@@ -234,11 +240,13 @@ class TestDownloadVideoFromTweet:
 
     def test_raises_if_downloader_not_found(self, tmp_path: Path) -> None:
         """Should raise RuntimeError if downloader script not found."""
-        with patch("create_reel.SCRIPT_DIR", tmp_path):
-            with pytest.raises(RuntimeError, match="twitter-media-downloader not found"):
-                download_video_from_tweet(
-                    tweet_url="https://x.com/user/status/123",
-                )
+        with (
+            patch("create_reel.SCRIPT_DIR", tmp_path),
+            pytest.raises(RuntimeError, match="twitter-media-downloader not found"),
+        ):
+            download_video_from_tweet(
+                tweet_url="https://x.com/user/status/123",
+            )
 
 
 class TestCreateReel:
