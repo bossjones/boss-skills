@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -17,6 +17,15 @@ install: ## Install dependencies with all extras
 lint: ## Run linting tools
 	@echo "🚀 Running linting tools"
 	@uv run python devtools/lint.py
+
+.PHONY: pre-commit
+pre-commit: ## Run pre-commit hooks on all files
+	@echo "🚀 Running pre-commit hooks..."
+	@if command -v pre-commit >/dev/null 2>&1; then \
+		pre-commit run --all-files; \
+	else \
+		echo "⚠️  Warning: pre-commit not installed"; \
+	fi
 
 .PHONY: test
 test: ## Run tests with pytest
@@ -113,3 +122,64 @@ link-check: ## Check all links in markdown files using lychee
 link-check-verbose: ## Check all links in markdown files with verbose output
 	@echo "🚀 Checking all links in markdown files with verbose output"
 	@lychee --config lychee.toml --verbose debug '**/*.md'
+
+.PHONY: test-plugins
+test-plugins: ## Test plugins locally using claude --plugin-dir (usage: make test-plugins PLUGIN_DIR=./plugins/social-media/twitter-tools)
+	@if [ -z "$(PLUGIN_DIR)" ]; then \
+		echo "🚀 Finding plugins in plugins/ directory..."; \
+		plugin_dirs=$$(find plugins -type d -name ".claude-plugin" -exec dirname {} \; 2>/dev/null || true); \
+		if [ -z "$$plugin_dirs" ]; then \
+			echo "⚠️  No plugins found with .claude-plugin/plugin.json"; \
+			echo "Available plugin directories:"; \
+			find plugins -type d -mindepth 2 -maxdepth 2 2>/dev/null | head -10; \
+			exit 1; \
+		fi; \
+		echo "Found plugins:"; \
+		echo "$$plugin_dirs" | while read plugin_dir; do \
+			echo "  - $$plugin_dir"; \
+		done; \
+		echo ""; \
+		echo "To test a specific plugin, run:"; \
+		echo "  claude --plugin-dir <plugin-directory>"; \
+		echo ""; \
+		echo "Example:"; \
+		first_plugin=$$(echo "$$plugin_dirs" | head -1); \
+		echo "  claude --plugin-dir $$first_plugin"; \
+	else \
+		if [ ! -d "$(PLUGIN_DIR)" ]; then \
+			echo "❌ Error: Plugin directory '$(PLUGIN_DIR)' does not exist"; \
+			exit 1; \
+		fi; \
+		if [ ! -f "$(PLUGIN_DIR)/.claude-plugin/plugin.json" ]; then \
+			echo "⚠️  Warning: No .claude-plugin/plugin.json found in '$(PLUGIN_DIR)'"; \
+			echo "The plugin may still work if it has the correct structure."; \
+		fi; \
+		echo "🚀 Starting Claude Code with plugin: $(PLUGIN_DIR)"; \
+		echo "Run '/help' in Claude Code to see your plugin commands."; \
+		echo "Press Ctrl+C to exit."; \
+		echo ""; \
+		claude --plugin-dir "$(PLUGIN_DIR)"; \
+	fi
+
+.PHONY: verify-structure
+verify-structure: ## Verify Claude Code marketplace structure and validate plugin manifests
+	@echo "🚀 Verifying marketplace structure and plugin manifests"
+	@uv run scripts/verify-structure.py
+
+.PHONY: verify-structure-strict
+verify-structure-strict: ## Verify marketplace structure in strict mode (warnings treated as errors)
+	@echo "🚀 Verifying marketplace structure in strict mode"
+	@uv run scripts/verify-structure.py --strict
+
+.PHONY: test-twitter-downloader
+test-twitter-downloader: ## Run twitter-media-downloader tests
+	@echo "🚀 Running twitter-media-downloader tests"
+	@uv run pytest plugins/social-media/twitter-tools/skills/twitter-media-downloader/scripts/tests/ -v
+
+.PHONY: test-twitter-reel
+test-twitter-reel: ## Run twitter-to-reel tests
+	@echo "🚀 Running twitter-to-reel tests"
+	@uv run pytest plugins/social-media/twitter-tools/skills/twitter-to-reel/scripts/tests/ -v
+
+.PHONY: ci
+ci: test-twitter-downloader test-twitter-reel ## Run all twitter-tools tests (CI target)

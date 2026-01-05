@@ -51,7 +51,9 @@ select = [
 ]
 
 ignore = [
-    "E501",  # Line too long (handled by formatter)
+    "E501",  # Line too long (handled by formatter),
+    "E402",  # Module level import not at top of file
+    "SIM108", #  Use ternary operator `detected_theme = detect_theme(screenshot_path) if theme == "auto" else theme` instead of `if`-`else`-block
 ]
 
 # Allow fix for all enabled rules

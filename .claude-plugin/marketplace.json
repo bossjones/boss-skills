@@ -1,0 +1,37 @@
+{
+  "name": "boss-skills",
+  "owner": {
+    "name": "Malcolm Jones",
+    "email": "bossjones@theblacktonystark.com"
+  },
+  "metadata": {
+    "description": "Boss Skills Repo and Lab for my personal Claude Code configs and skills",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "twitter-tools",
+      "source": "./plugins/social-media/twitter-tools",
+      "description": "Twitter/X social media tools for downloading media and converting tweets to Instagram Reels format. Includes gallery-dl integration for media downloads and video composition tools for vertical content creation.",
+      "version": "0.1.0",
+      "category": "social-media",
+      "keywords": [
+        "twitter",
+        "x",
+        "social-media",
+        "media-download",
+        "gallery-dl",
+        "reel",
+        "instagram",
+        "video",
+        "screenshot",
+        "content-creation",
+        "vertical-video"
+      ],
+      "author": {
+        "name": "Malcolm Jones",
+        "email": "bossjones@theblacktonystark.com"
+      }
+    }
+  ]
+}
