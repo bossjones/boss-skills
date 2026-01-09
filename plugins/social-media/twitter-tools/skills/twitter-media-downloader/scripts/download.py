@@ -20,6 +20,62 @@ from pathlib import Path
 from typing import Any
 
 
+class DebugConsole:
+    """Debug output console with flush support for subprocess environments."""
+
+    enabled = False
+
+    @classmethod
+    def debug(cls, msg: str) -> None:
+        """Print debug message only when debug mode is enabled."""
+        if not cls.enabled:
+            return
+
+        print(f"[DEBUG] {msg}", file=sys.stderr)
+        sys.stderr.flush()
+
+    @classmethod
+    def debug_dict(cls, label: str, data: dict[str, object]) -> None:
+        """Pretty print a dict in debug mode."""
+        if not cls.enabled:
+            return
+
+        print(f"[DEBUG] {label}:", file=sys.stderr)
+        for key, value in data.items():
+            print(f"        {key}: {value}", file=sys.stderr)
+        sys.stderr.flush()
+
+    @classmethod
+    def debug_cmd(cls, cmd: list[str]) -> None:
+        """Print command that will be executed."""
+        if not cls.enabled:
+            return
+
+        print("[DEBUG] Executing command:", file=sys.stderr)
+        print(f"        {' '.join(cmd)}", file=sys.stderr)
+        sys.stderr.flush()
+
+    @classmethod
+    def debug_subprocess(cls, result: subprocess.CompletedProcess[str]) -> None:
+        """Print subprocess result details."""
+        if not cls.enabled:
+            return
+
+        print("[DEBUG] Subprocess result:", file=sys.stderr)
+        print(f"        returncode: {result.returncode}", file=sys.stderr)
+        if result.stdout:
+            stdout_preview = result.stdout[:1000]
+            if len(result.stdout) > 1000:
+                stdout_preview += "..."
+            print(f"        stdout: {stdout_preview}", file=sys.stderr)
+        if result.stderr:
+            stderr_preview = result.stderr[:1000]
+            if len(result.stderr) > 1000:
+                stderr_preview += "..."
+            print(f"        stderr: {stderr_preview}", file=sys.stderr)
+        sys.stderr.flush()
+
+
 def check_dependencies():
     """Check if required dependencies are installed."""
     try:
@@ -75,6 +131,18 @@ def download_with_json_output(args: argparse.Namespace) -> dict[str, Any]:
     tweet_id = extract_tweet_id(args.url)
     normalized_url = normalize_url(args.url)
 
+    DebugConsole.debug_dict(
+        "download_with_json_output called with",
+        {
+            "url": args.url,
+            "output": args.output,
+            "videos_only": getattr(args, "videos_only", False),
+            "images_only": getattr(args, "images_only", False),
+            "cookies": getattr(args, "cookies", None),
+            "browser": getattr(args, "browser", None),
+        },
+    )
+
     result: dict[str, Any] = {
         "files": [],
         "tweet_id": tweet_id,
@@ -87,6 +155,9 @@ def download_with_json_output(args: argparse.Namespace) -> dict[str, Any]:
     # Check dependencies first
     try:
         dep_result = subprocess.run(["gallery-dl", "--version"], capture_output=True, text=True)
+        DebugConsole.debug(f"gallery-dl version check: returncode={dep_result.returncode}")
+        if dep_result.stdout:
+            DebugConsole.debug(f"gallery-dl version: {dep_result.stdout.strip()}")
         if dep_result.returncode != 0:
             result["error"] = "gallery-dl is not installed"
             return result
@@ -94,23 +165,25 @@ def download_with_json_output(args: argparse.Namespace) -> dict[str, Any]:
         result["error"] = "gallery-dl is not installed"
         return result
 
-    # Build configuration
-    config = build_config(args)
-
-    # Write config to temporary file
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-        json.dump(config, f, indent=2)
-        config_file = f.name
+    # Build command without custom config (use user's default gallery-dl config)
+    # Note: We don't use --print or custom config as they can interfere with downloads
+    cmd = build_command(args, config_file=None)
+    DebugConsole.debug_cmd(cmd)
 
     try:
-        # Build and execute command with path capture
-        cmd = build_command(args, config_file, capture_paths=True)
-
         # Run gallery-dl and capture output
         proc_result = subprocess.run(cmd, capture_output=True, text=True)
+        DebugConsole.debug_subprocess(proc_result)
 
-        # Parse downloaded file paths from stdout
-        files = parse_downloaded_paths(proc_result.stdout)
+        # Scan output directory for downloaded files (more reliable than --print)
+        DebugConsole.debug("Scanning output directory for downloaded files...")
+        files = find_downloaded_files(
+            output_dir,
+            videos_only=getattr(args, "videos_only", False),
+            images_only=getattr(args, "images_only", False),
+        )
+
+        DebugConsole.debug(f"Found files: {files}")
 
         result["files"] = files
         result["success"] = proc_result.returncode == 0
@@ -118,14 +191,17 @@ def download_with_json_output(args: argparse.Namespace) -> dict[str, Any]:
         if proc_result.returncode != 0 and proc_result.stderr:
             result["error"] = proc_result.stderr.strip()
 
+        # If success but no files, add diagnostic info
+        if result["success"] and not files:
+            DebugConsole.debug("WARNING: gallery-dl succeeded but no files were found")
+            if proc_result.stderr:
+                DebugConsole.debug(f"stderr (may contain info): {proc_result.stderr}")
+
     except Exception as e:
+        DebugConsole.debug(f"Exception during download: {e}")
         result["error"] = str(e)
 
-    finally:
-        # Clean up temp config file
-        with contextlib.suppress(OSError):
-            os.unlink(config_file)
-
+    DebugConsole.debug_dict("Final result", result)
     return result
 
 
@@ -163,15 +239,18 @@ def build_config(args: argparse.Namespace) -> dict[str, Any]:
 
 def build_command(
     args: argparse.Namespace,
-    config_file: str,
-    capture_paths: bool = False,
+    config_file: str | None = None,
 ) -> list[str]:
     """Build the gallery-dl command.
 
     Args:
         args: Parsed command line arguments
-        config_file: Path to temporary gallery-dl config file
-        capture_paths: If True, add --print option to output downloaded file paths
+        config_file: Path to temporary gallery-dl config file (optional)
+
+    Note:
+        - We don't use --print because it can interfere with downloads
+        - Filtering (--videos-only, --images-only) is done post-download
+        - We scan the output directory to find downloaded files
     """
     cmd: list[str] = ["gallery-dl"]
 
@@ -180,24 +259,15 @@ def build_command(
     output_dir.mkdir(parents=True, exist_ok=True)
     cmd.extend(["-d", str(output_dir)])
 
-    # Config file
-    cmd.extend(["-c", config_file])
-
-    # Print downloaded file paths to stdout (for JSON mode parsing)
-    if capture_paths:
-        cmd.extend(["--print", "after:{_path}"])
+    # Config file (optional - omit to use user's default config)
+    if config_file:
+        cmd.extend(["-c", config_file])
 
     # Authentication
     if args.cookies:
         cmd.extend(["--cookies", args.cookies])
     elif args.browser:
         cmd.extend(["--cookies-from-browser", args.browser])
-
-    # Filtering
-    if args.videos_only:
-        cmd.extend(["--filter", "extension in ('mp4', 'webm', 'mov', 'm4v')"])
-    elif args.images_only:
-        cmd.extend(["--filter", "extension in ('jpg', 'jpeg', 'png', 'gif', 'webp')"])
 
     # Limit
     if args.limit:
@@ -223,6 +293,74 @@ def build_command(
     cmd.append(normalize_url(args.url))
 
     return cmd
+
+
+# File extension sets for post-download filtering
+VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+
+
+def filter_files_by_type(
+    files: list[str],
+    videos_only: bool = False,
+    images_only: bool = False,
+) -> list[str]:
+    """Filter downloaded files by media type.
+
+    Args:
+        files: List of file paths
+        videos_only: If True, keep only video files
+        images_only: If True, keep only image files
+
+    Returns:
+        Filtered list of file paths
+    """
+    if not videos_only and not images_only:
+        return files
+
+    filtered = []
+    for f in files:
+        ext = Path(f).suffix.lower()
+        if videos_only and ext in VIDEO_EXTENSIONS or images_only and ext in IMAGE_EXTENSIONS:
+            filtered.append(f)
+
+    DebugConsole.debug(f"Filtered {len(files)} files to {len(filtered)} matching type filter")
+    return filtered
+
+
+def find_downloaded_files(
+    output_dir: Path, videos_only: bool = False, images_only: bool = False
+) -> list[str]:
+    """Scan output directory for downloaded media files.
+
+    This is a fallback when --print doesn't capture paths correctly.
+
+    Args:
+        output_dir: Directory to scan
+        videos_only: If True, return only video files
+        images_only: If True, return only image files
+
+    Returns:
+        List of file paths found
+    """
+    if not output_dir.exists():
+        return []
+
+    all_extensions = VIDEO_EXTENSIONS | IMAGE_EXTENSIONS
+    if videos_only:
+        target_extensions = VIDEO_EXTENSIONS
+    elif images_only:
+        target_extensions = IMAGE_EXTENSIONS
+    else:
+        target_extensions = all_extensions
+
+    files = []
+    for f in output_dir.rglob("*"):
+        if f.is_file() and f.suffix.lower() in target_extensions:
+            files.append(str(f))
+
+    DebugConsole.debug(f"Found {len(files)} files in output directory matching filter")
+    return files
 
 
 def main():
@@ -287,8 +425,18 @@ Examples:
         action="store_true",
         help="Output JSON with downloaded file paths (for programmatic use)",
     )
+    output_group.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable verbose debug output for troubleshooting",
+    )
 
     args = parser.parse_args()
+
+    # Enable debug mode if requested
+    if args.debug:
+        DebugConsole.enabled = True
+        DebugConsole.debug("Debug mode enabled")
 
     # Validate mutually exclusive options
     if args.videos_only and args.images_only:

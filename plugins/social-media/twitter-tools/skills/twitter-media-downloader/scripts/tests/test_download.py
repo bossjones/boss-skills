@@ -257,16 +257,14 @@ class TestBuildCommand:
         assert "-c" in cmd
         assert config_file in cmd
 
-    def test_capture_paths_adds_print_option(self, tmp_path: Path) -> None:
-        """Should add --print option when capture_paths is True."""
+    def test_config_file_optional(self, tmp_path: Path) -> None:
+        """Should work without config file (use user's default)."""
         args = self.create_args(output=str(tmp_path))
-        config_file = str(tmp_path / "config.json")
 
-        cmd = build_command(args, config_file, capture_paths=True)
+        cmd = build_command(args, config_file=None)
 
-        assert "--print" in cmd
-        print_idx = cmd.index("--print")
-        assert cmd[print_idx + 1] == "after:{_path}"
+        assert cmd[0] == "gallery-dl"
+        assert "-c" not in cmd
 
     def test_cookies_option(self, tmp_path: Path) -> None:
         """Should add --cookies when cookies path provided."""
@@ -289,27 +287,15 @@ class TestBuildCommand:
         assert "--cookies-from-browser" in cmd
         assert "firefox" in cmd
 
-    def test_videos_only_filter(self, tmp_path: Path) -> None:
-        """Should add video filter when videos_only is True."""
+    def test_no_filter_in_command(self, tmp_path: Path) -> None:
+        """Should NOT add --filter (filtering is done post-download)."""
         args = self.create_args(output=str(tmp_path), videos_only=True)
         config_file = str(tmp_path / "config.json")
 
         cmd = build_command(args, config_file)
 
-        assert "--filter" in cmd
-        filter_idx = cmd.index("--filter")
-        assert "mp4" in cmd[filter_idx + 1]
-
-    def test_images_only_filter(self, tmp_path: Path) -> None:
-        """Should add image filter when images_only is True."""
-        args = self.create_args(output=str(tmp_path), images_only=True)
-        config_file = str(tmp_path / "config.json")
-
-        cmd = build_command(args, config_file)
-
-        assert "--filter" in cmd
-        filter_idx = cmd.index("--filter")
-        assert "jpg" in cmd[filter_idx + 1]
+        # We no longer use gallery-dl's --filter as it doesn't work reliably
+        assert "--filter" not in cmd
 
     def test_limit_option(self, tmp_path: Path) -> None:
         """Should add --range when limit specified."""
@@ -539,3 +525,112 @@ class TestCheckDependencies:
 
         # Should not raise or exit
         check_dependencies()
+
+
+class TestFilterFilesByType:
+    """Tests for filter_files_by_type function."""
+
+    def test_returns_all_files_when_no_filter(self) -> None:
+        """Should return all files when no filter applied."""
+        from download import filter_files_by_type
+
+        files = ["/path/to/video.mp4", "/path/to/image.jpg"]
+        result = filter_files_by_type(files, videos_only=False, images_only=False)
+        assert result == files
+
+    def test_filters_videos_only(self) -> None:
+        """Should return only video files when videos_only is True."""
+        from download import filter_files_by_type
+
+        files = ["/path/to/video.mp4", "/path/to/image.jpg", "/path/to/clip.webm"]
+        result = filter_files_by_type(files, videos_only=True, images_only=False)
+        assert result == ["/path/to/video.mp4", "/path/to/clip.webm"]
+
+    def test_filters_images_only(self) -> None:
+        """Should return only image files when images_only is True."""
+        from download import filter_files_by_type
+
+        files = ["/path/to/video.mp4", "/path/to/photo.png", "/path/to/pic.jpeg"]
+        result = filter_files_by_type(files, videos_only=False, images_only=True)
+        assert result == ["/path/to/photo.png", "/path/to/pic.jpeg"]
+
+    def test_handles_empty_list(self) -> None:
+        """Should handle empty file list."""
+        from download import filter_files_by_type
+
+        result = filter_files_by_type([], videos_only=True)
+        assert result == []
+
+    def test_case_insensitive_extensions(self) -> None:
+        """Should handle mixed case extensions."""
+        from download import filter_files_by_type
+
+        files = ["/path/to/VIDEO.MP4", "/path/to/image.JPG"]
+        result = filter_files_by_type(files, videos_only=True)
+        assert result == ["/path/to/VIDEO.MP4"]
+
+
+class TestFindDownloadedFiles:
+    """Tests for find_downloaded_files function."""
+
+    def test_finds_video_files(self, tmp_path: Path) -> None:
+        """Should find video files in directory."""
+        from download import find_downloaded_files
+
+        (tmp_path / "video.mp4").touch()
+        (tmp_path / "image.jpg").touch()
+
+        result = find_downloaded_files(tmp_path, videos_only=True)
+        assert len(result) == 1
+        assert result[0].endswith("video.mp4")
+
+    def test_finds_image_files(self, tmp_path: Path) -> None:
+        """Should find image files in directory."""
+        from download import find_downloaded_files
+
+        (tmp_path / "video.mp4").touch()
+        (tmp_path / "image.jpg").touch()
+        (tmp_path / "photo.png").touch()
+
+        result = find_downloaded_files(tmp_path, images_only=True)
+        assert len(result) == 2
+
+    def test_finds_all_media_by_default(self, tmp_path: Path) -> None:
+        """Should find all media files when no filter specified."""
+        from download import find_downloaded_files
+
+        (tmp_path / "video.mp4").touch()
+        (tmp_path / "image.jpg").touch()
+
+        result = find_downloaded_files(tmp_path)
+        assert len(result) == 2
+
+    def test_searches_subdirectories(self, tmp_path: Path) -> None:
+        """Should search recursively in subdirectories."""
+        from download import find_downloaded_files
+
+        subdir = tmp_path / "twitter" / "user"
+        subdir.mkdir(parents=True)
+        (subdir / "video.mp4").touch()
+
+        result = find_downloaded_files(tmp_path, videos_only=True)
+        assert len(result) == 1
+        assert "video.mp4" in result[0]
+
+    def test_handles_nonexistent_directory(self) -> None:
+        """Should return empty list for nonexistent directory."""
+        from download import find_downloaded_files
+
+        result = find_downloaded_files(Path("/nonexistent/path"))
+        assert result == []
+
+    def test_ignores_non_media_files(self, tmp_path: Path) -> None:
+        """Should ignore non-media files."""
+        from download import find_downloaded_files
+
+        (tmp_path / "video.mp4").touch()
+        (tmp_path / "readme.txt").touch()
+        (tmp_path / "data.json").touch()
+
+        result = find_downloaded_files(tmp_path)
+        assert len(result) == 1

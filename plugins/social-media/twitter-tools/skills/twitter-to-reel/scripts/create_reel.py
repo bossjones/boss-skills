@@ -26,6 +26,66 @@ import tempfile
 from pathlib import Path
 from typing import TypedDict, cast
 
+
+class DebugConsole:
+    """Debug output console with flush support for subprocess environments."""
+
+    enabled = False
+
+    @classmethod
+    def debug(cls, msg: str, *args: object) -> None:
+        """Print debug message only when debug mode is enabled."""
+        if not cls.enabled:
+            return
+
+        if args:
+            print(f"[DEBUG] {msg}" % args)
+        else:
+            print(f"[DEBUG] {msg}")
+
+        # Flush immediately for subprocess environments
+        sys.stdout.flush()
+
+    @classmethod
+    def debug_dict(cls, label: str, data: dict[str, object]) -> None:
+        """Pretty print a dict in debug mode."""
+        if not cls.enabled:
+            return
+
+        print(f"[DEBUG] {label}:")
+        for key, value in data.items():
+            print(f"        {key}: {value}")
+        sys.stdout.flush()
+
+    @classmethod
+    def debug_cmd(cls, cmd: list[str]) -> None:
+        """Print command that will be executed."""
+        if not cls.enabled:
+            return
+
+        print("[DEBUG] Executing command:")
+        print(f"        {' '.join(cmd)}")
+        sys.stdout.flush()
+
+    @classmethod
+    def debug_subprocess(cls, result: object) -> None:
+        """Print subprocess result details."""
+        if not cls.enabled:
+            return
+
+        # Type narrow for subprocess.CompletedProcess
+        if hasattr(result, "returncode"):
+            print("[DEBUG] Subprocess result:")
+            print(f"        returncode: {result.returncode}")  # type: ignore[attr-defined]
+            stdout = getattr(result, "stdout", "")
+            stderr = getattr(result, "stderr", "")
+            if stdout:
+                print(f"        stdout: {stdout[:500]}{'...' if len(stdout) > 500 else ''}")
+            if stderr:
+                print(f"        stderr: {stderr[:500]}{'...' if len(stderr) > 500 else ''}")
+            sys.stdout.flush()
+
+
 # Add scripts directory to path for importing sibling modules
 SCRIPT_DIR = Path(__file__).parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -57,6 +117,7 @@ def download_video_from_tweet(
     output_dir: str | None = None,
     cookies_path: str | None = None,
     browser: str | None = None,
+    debug: bool = False,
 ) -> str:
     """
     Download video from tweet using twitter-media-downloader skill.
@@ -66,6 +127,7 @@ def download_video_from_tweet(
         output_dir: Directory to save downloaded video (uses temp dir if None)
         cookies_path: Path to cookies.txt for authentication
         browser: Browser to extract cookies from
+        debug: Enable debug output from the downloader
 
     Returns:
         Path to downloaded video file
@@ -76,14 +138,27 @@ def download_video_from_tweet(
     import json
     import subprocess
 
+    DebugConsole.debug_dict(
+        "download_video_from_tweet called with",
+        {
+            "tweet_url": tweet_url,
+            "output_dir": output_dir,
+            "cookies_path": cookies_path,
+            "browser": browser,
+        },
+    )
+
     # Determine output directory
     if output_dir is None:
         output_dir = tempfile.mkdtemp(prefix="reel_video_")
+        DebugConsole.debug(f"Created temp output dir: {output_dir}")
 
     # Locate downloader script (relative to this skill's location)
     downloader_path = (
         SCRIPT_DIR.parent.parent / "twitter-media-downloader" / "scripts" / "download.py"
     )
+    DebugConsole.debug(f"Downloader script path: {downloader_path}")
+    DebugConsole.debug(f"Downloader exists: {downloader_path.exists()}")
 
     if not downloader_path.exists():
         raise RuntimeError(
@@ -105,34 +180,59 @@ def download_video_from_tweet(
     # Pass through authentication
     if cookies_path:
         cmd.extend(["--cookies", cookies_path])
+        DebugConsole.debug(f"Using cookies file: {cookies_path}")
     elif browser:
         cmd.extend(["--browser", browser])
+        DebugConsole.debug(f"Using browser for cookies: {browser}")
+    else:
+        DebugConsole.debug("No authentication method specified")
+
+    # Pass debug flag to downloader
+    if debug:
+        cmd.append("--debug")
+
+    DebugConsole.debug_cmd(cmd)
 
     # Execute downloader
     result = subprocess.run(cmd, capture_output=True, text=True)
+    DebugConsole.debug_subprocess(result)
 
     if result.returncode != 0:
         error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+        DebugConsole.debug(f"Download failed with error: {error_msg}")
         raise RuntimeError(f"Download failed: {error_msg}")
 
     # Parse JSON output
+    DebugConsole.debug(f"Raw stdout from downloader: {result.stdout}")
     try:
         download_result = json.loads(result.stdout)
+        DebugConsole.debug_dict("Parsed download result", download_result)
     except json.JSONDecodeError as e:
+        DebugConsole.debug(f"JSON parse error: {e}")
         raise RuntimeError(f"Failed to parse downloader output: {e}") from e
 
     if not download_result.get("success"):
         error = download_result.get("error", "Unknown error")
+        DebugConsole.debug(f"Download reported failure: {error}")
         raise RuntimeError(f"Download failed: {error}")
 
     files = download_result.get("files", [])
+    DebugConsole.debug(f"Files returned: {files}")
     if not files:
+        DebugConsole.debug("No files in download result - checking output directory contents")
+        # List what's actually in the output directory for debugging
+        import os
+
+        if os.path.isdir(output_dir):
+            contents = os.listdir(output_dir)
+            DebugConsole.debug(f"Output directory contents: {contents}")
         raise RuntimeError(
             "No video found in tweet. The tweet may not contain video content, "
             "or authentication may be required for protected content."
         )
 
     # Return first video file
+    DebugConsole.debug(f"Returning video file: {files[0]}")
     return files[0]
 
 
@@ -171,6 +271,7 @@ def create_reel(
     browser: str | None = None,
     screenshot_width: int = 550,
     keep_temp: bool = False,
+    debug: bool = False,
 ) -> str:
     """
     Create an Instagram Reel from a tweet URL and video.
@@ -194,6 +295,7 @@ def create_reel(
         browser: Browser to extract cookies from
         screenshot_width: Width of tweet screenshot
         keep_temp: Keep intermediate files
+        debug: Enable verbose debug output
 
     Returns:
         Path to the created reel video file
@@ -214,6 +316,7 @@ def create_reel(
             tweet_url=tweet_url,
             cookies_path=cookies_path,
             browser=browser,
+            debug=debug,
         )
         print(f"      Downloaded: {video_file}")
     else:
@@ -304,6 +407,9 @@ Examples:
 
   # With authentication for protected tweets:
   %(prog)s "https://x.com/user/status/123" --browser firefox -o reel.mp4
+
+  # Debug mode for troubleshooting:
+  %(prog)s "https://x.com/user/status/123" --browser firefox --debug -o reel.mp4
         """,
     )
 
@@ -365,8 +471,35 @@ Examples:
         action="store_true",
         help="Disable automatic video download (require explicit video path)",
     )
+    advanced_group.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable verbose debug output for troubleshooting",
+    )
 
     args = parser.parse_args()
+
+    # Enable debug mode if requested
+    if args.debug:
+        DebugConsole.enabled = True
+        DebugConsole.debug("Debug mode enabled")
+        DebugConsole.debug_dict(
+            "Parsed arguments",
+            {
+                "url": args.url,
+                "video": args.video,
+                "output": args.output,
+                "theme": args.theme,
+                "position": args.position,
+                "padding": args.padding,
+                "duration": args.duration,
+                "cookies": args.cookies,
+                "browser": args.browser,
+                "screenshot_width": args.screenshot_width,
+                "no_cleanup": args.no_cleanup,
+                "no_auto_download": args.no_auto_download,
+            },
+        )
 
     # Validate: if no video provided, URL must be a specific tweet
     if args.video is None and not args.no_auto_download:
@@ -393,6 +526,7 @@ Examples:
             browser=args.browser,
             screenshot_width=args.screenshot_width,
             keep_temp=args.no_cleanup,
+            debug=args.debug,
         )
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)

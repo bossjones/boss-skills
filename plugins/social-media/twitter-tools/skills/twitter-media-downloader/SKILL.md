@@ -12,7 +12,7 @@ Download images and videos from X/Twitter using gallery-dl.
 Run the download script with a Twitter/X URL:
 
 ```bash
-uv run python scripts/download.py "https://x.com/username" --output ./downloads
+uv run scripts/download.py "https://x.com/username" --output ./downloads
 ```
 
 ## Supported URL Types
@@ -29,13 +29,13 @@ uv run python scripts/download.py "https://x.com/username" --output ./downloads
 For protected content (likes, bookmarks, private accounts), provide cookies:
 
 ```bash
-uv run python scripts/download.py "URL" --cookies /path/to/cookies.txt
+uv run scripts/download.py "URL" --cookies /path/to/cookies.txt
 ```
 
 Or use browser cookies directly (recommended):
 
 ```bash
-uv run python scripts/download.py "URL" --browser firefox
+uv run scripts/download.py "URL" --browser firefox
 ```
 
 > **Note**: Using `--browser firefox` is recommended as it automatically extracts cookies from your browser session.
@@ -53,27 +53,28 @@ uv run python scripts/download.py "URL" --browser firefox
 | `--retweets` | Include retweets when downloading user timeline |
 | `--replies` | Include replies when downloading user timeline |
 | `--json` | Output structured JSON with downloaded file paths |
+| `--debug` | Enable verbose debug output for troubleshooting |
 
 ## Examples
 
 Download all media from a user:
 ```bash
-uv run python scripts/download.py "https://x.com/NASA" --output ./nasa_media
+uv run scripts/download.py "https://x.com/NASA" --output ./nasa_media
 ```
 
 Download a single tweet's media:
 ```bash
-uv run python scripts/download.py "https://x.com/user/status/1234567890"
+uv run scripts/download.py "https://x.com/user/status/1234567890"
 ```
 
 Download only videos from a user (limit 50):
 ```bash
-uv run python scripts/download.py "https://x.com/username" --videos-only --limit 50
+uv run scripts/download.py "https://x.com/username" --videos-only --limit 50
 ```
 
 Download bookmarks with Firefox cookies:
 ```bash
-uv run python scripts/download.py "https://x.com/i/bookmarks" --browser firefox
+uv run scripts/download.py "https://x.com/i/bookmarks" --browser firefox
 ```
 
 ## JSON Output Mode
@@ -81,7 +82,7 @@ uv run python scripts/download.py "https://x.com/i/bookmarks" --browser firefox
 For programmatic use (e.g., integration with other skills), use `--json` to get structured output:
 
 ```bash
-uv run python scripts/download.py "https://x.com/user/status/123" --json --videos-only
+uv run scripts/download.py "https://x.com/user/status/123" --json --videos-only
 ```
 
 Output format:
@@ -110,3 +111,4 @@ Files are saved with the following naming pattern:
 - **Rate limiting**: Add delays between requests with `--sleep 2`
 - **Login required**: Use `--cookies` or `--browser` for authentication
 - **Missing videos**: Ensure yt-dlp is installed for video downloads
+- **Debug mode**: Use `--debug` flag for verbose output to diagnose issues
