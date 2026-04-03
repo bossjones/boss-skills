@@ -190,3 +190,22 @@ Effective subagents share four characteristics:
 4. Limited tool access -- Only give a subagent the tools it actually needs. Read-only for research, bash for reviewers, edit/write only for agents that should change code.
 
 Each of these patterns is simple on its own, but together they turn a subagent from something that vaguely tries to help into a focused, predictable worker that finishes on time and reports back clearly.
+
+### Subagents: When to use them?
+
+The Decision Rule
+When you're deciding whether to use a subagent, ask yourself one question: does the intermediate work matter?
+
+If the answer is no -- you just need the final result -- delegate it to a subagent. If the answer is yes -- you need to see and react to what's happening along the way -- keep it in your main thread.
+
+Use subagents for:
+
+- Research and exploration
+- Code reviews
+- Tasks that need a custom system prompt
+
+Avoid subagents for:
+
+- "Expert" personas that don't add real capability
+- Multi-step pipelines where each step depends on the last
+- Running tests where you need full output for debugging
