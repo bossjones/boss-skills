@@ -238,3 +238,8 @@ mise.local.toml
 .lychee-report.md
 .lycheecache
 .claude/research-cache
+
+# Logs
+*.log
+dont_stop.log
+.claude/settings.local.json
