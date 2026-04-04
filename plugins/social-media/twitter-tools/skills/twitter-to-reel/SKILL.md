@@ -9,34 +9,38 @@ Convert Twitter/X posts into Instagram Reels format (9:16 vertical video).
 
 ## Dependencies
 
-Install required packages before use:
+Python dependencies are installed automatically via PEP 723 inline metadata when using `uv run`.
+
+Playwright and FFmpeg must be installed separately:
 
 ```bash
-pip install playwright pillow numpy
+# Install Playwright globally via uv tool
+uv tool install playwright
+
+# Install Chromium browser for Playwright
 playwright install chromium
-```
 
-FFmpeg must also be available:
-```bash
-# Ubuntu/Debian
+# FFmpeg - Ubuntu/Debian
 apt-get install ffmpeg
 
-# macOS
+# FFmpeg - macOS
 brew install ffmpeg
 ```
+
+> **Note**: Using `uv tool install playwright` makes the `playwright` CLI available globally, which is required for installing browser binaries.
 
 ## Quick Start
 
 Create a reel from a tweet URL (video auto-downloaded):
 
 ```bash
-uv run python scripts/create_reel.py "https://x.com/user/status/123" -o output.mp4
+uv run scripts/create_reel.py "https://x.com/user/status/123" -o output.mp4
 ```
 
 Or provide a video file explicitly:
 
 ```bash
-uv run python scripts/create_reel.py "https://x.com/user/status/123" video.mp4 -o output.mp4
+uv run scripts/create_reel.py "https://x.com/user/status/123" video.mp4 -o output.mp4
 ```
 
 ## Workflow
@@ -55,7 +59,7 @@ uv run python scripts/create_reel.py "https://x.com/user/status/123" video.mp4 -
 Full pipeline from tweet URL to finished reel:
 
 ```bash
-uv run python scripts/create_reel.py "TWEET_URL" [VIDEO_FILE] [options]
+uv run scripts/create_reel.py "TWEET_URL" [VIDEO_FILE] [options]
 ```
 
 Options:
@@ -69,6 +73,7 @@ Options:
 | `--cookies` | Path to cookies.txt for auth |
 | `--browser` | Browser to extract cookies from (recommended: firefox) |
 | `--no-auto-download` | Disable automatic video download (require explicit video path) |
+| `--debug` | Enable verbose debug output for troubleshooting |
 
 > **Note**: Using `--browser firefox` is recommended as it automatically extracts cookies from your browser session. This applies to both tweet screenshots and video downloads.
 
@@ -77,7 +82,7 @@ Options:
 Screenshot a tweet without video overlay:
 
 ```bash
-uv run python scripts/screenshot_tweet.py "TWEET_URL" -o screenshot.png
+uv run scripts/screenshot_tweet.py "TWEET_URL" -o screenshot.png
 ```
 
 Options:
@@ -94,7 +99,7 @@ Options:
 Compose video onto an existing screenshot:
 
 ```bash
-uv run python scripts/compose_video.py screenshot.png video.mp4 -o reel.mp4
+uv run scripts/compose_video.py screenshot.png video.mp4 -o reel.mp4
 ```
 
 ## Examples
@@ -104,12 +109,12 @@ uv run python scripts/compose_video.py screenshot.png video.mp4 -o reel.mp4
 Simply provide the tweet URL - video is downloaded automatically:
 
 ```bash
-uv run python scripts/create_reel.py "https://x.com/NASA/status/123456" -o nasa_reel.mp4
+uv run scripts/create_reel.py "https://x.com/NASA/status/123456" -o nasa_reel.mp4
 ```
 
 With authentication for protected tweets:
 ```bash
-uv run python scripts/create_reel.py "https://x.com/user/status/123" --browser firefox -o reel.mp4
+uv run scripts/create_reel.py "https://x.com/user/status/123" --browser firefox -o reel.mp4
 ```
 
 ### Manual Download (Advanced)
@@ -121,26 +126,26 @@ If you want more control, download separately first:
 uv run python ../twitter-media-downloader/scripts/download.py "https://x.com/user/status/123" -o ./downloads
 
 # Then create the reel
-uv run python scripts/create_reel.py "https://x.com/user/status/123" ./downloads/*.mp4 -o reel.mp4
+uv run scripts/create_reel.py "https://x.com/user/status/123" ./downloads/*.mp4 -o reel.mp4
 ```
 
 Or provide a video file directly:
 ```bash
-uv run python scripts/create_reel.py "https://x.com/NASA/status/123456" my_video.mp4 -o reel.mp4
+uv run scripts/create_reel.py "https://x.com/NASA/status/123456" my_video.mp4 -o reel.mp4
 ```
 
 ### Customization
 
 Dark theme with bottom positioning:
 ```bash
-uv run python scripts/create_reel.py "https://x.com/user/status/123" \
+uv run scripts/create_reel.py "https://x.com/user/status/123" \
   --theme dark --position bottom -o my_reel.mp4
 ```
 
 ### Screenshot Only (No Video)
 
 ```bash
-uv run python scripts/screenshot_tweet.py "https://x.com/user/status/123" -o tweet.png
+uv run scripts/screenshot_tweet.py "https://x.com/user/status/123" -o tweet.png
 ```
 
 ## Output Specifications
@@ -155,4 +160,5 @@ uv run python scripts/screenshot_tweet.py "https://x.com/user/status/123" -o twe
 - **Tweet not loading**: Use `--browser firefox` (recommended) or `--cookies` for protected accounts
 - **Wrong colors**: Force theme with `--theme light` or `--theme dark`
 - **Video too long**: Trim video before processing or use `--duration`
-- **Playwright errors**: Run `playwright install chromium`
+- **Playwright errors**: Run `uv tool install playwright && playwright install chromium`
+- **Debug mode**: Use `--debug` flag for verbose output to diagnose issues

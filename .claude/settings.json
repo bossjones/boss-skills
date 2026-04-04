@@ -1,19 +1,181 @@
 {
     "hooks": {
-        "PostToolUse": [
+        "Notification": [
             {
-                "matcher": "Edit|Write",
                 "hooks": [
                     {
-                        "type": "command",
-                        "command": "uv run scripts/markdown_formatter.py"
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/notification.py --notify",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "PermissionRequest": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/permission_request.py --log-only",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "PostToolUse": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run scripts/markdown_formatter.py",
+                        "type": "command"
                     },
                     {
-                        "type": "command",
-                        "command": "jq -r '.tool_input.file_path' | while read file_path; do if [[ \"$file_path\" =~ \\.py$ ]]; then uv run ruff check --fix \"$file_path\" && uv run ruff format \"$file_path\"; fi; done"
+                        "command": "jq -r '.tool_input.file_path' | while read file_path; do if [[ \"$file_path\" =~ \\.py$ ]]; then uv run ruff check --fix \"$file_path\" && uv run ruff format \"$file_path\"; fi; done",
+                        "type": "command"
+                    }
+                ],
+                "matcher": "Edit|Write"
+            },
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/post_tool_use.py",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "PostToolUseFailure": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/post_tool_use_failure.py",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "PreCompact": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/pre_compact.py",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "PreToolUse": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/pre_tool_use.py",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "SessionEnd": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/session_end.py",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "SessionStart": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/session_start.py",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "Setup": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/setup.py",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "Stop": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/stop.py --chat",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "SubagentStart": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/subagent_start.py",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "SubagentStop": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/subagent_stop.py --notify",
+                        "type": "command"
+                    }
+                ],
+                "matcher": ""
+            }
+        ],
+        "UserPromptSubmit": [
+            {
+                "hooks": [
+                    {
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/user_prompt_submit.py --log-only --store-last-prompt --name-agent",
+                        "type": "command"
                     }
                 ]
             }
         ]
+    },
+    "permissions": {
+        "allow": [
+            "Bash(mkdir:*)",
+            "Bash(uv:*)",
+            "Bash(find:*)",
+            "Bash(mv:*)",
+            "Bash(grep:*)",
+            "Bash(npm:*)",
+            "Bash(ls:*)",
+            "Bash(cp:*)",
+            "Write",
+            "Edit",
+            "Bash(chmod:*)",
+            "Bash(touch:*)"
+        ],
+        "deny": []
+    },
+    "statusLine": {
+        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/status_lines/status_line_v6.py",
+        "padding": 0,
+        "type": "command"
     }
 }
