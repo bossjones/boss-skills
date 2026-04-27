@@ -1,0 +1,25 @@
+have_fun: false
+memory_config:
+  disabled: false
+code_review:
+  disable: false
+  comment_severity_threshold: HIGH
+  max_review_comments: 10
+  pull_request_opened:
+    help: false
+    summary: true
+    code_review: true
+    include_drafts: false
+ignore_patterns:
+  - "**/.venv/**"
+  - "**/.pytest_cache/**"
+  - "**/.ruff_cache/**"
+  - "**/__pycache__/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/*.egg-info/**"
+  - "**/vendor/**"
+  - "ai_docs/**"
+  - "logs/**"
+  - "plugins/**/examples/**"
+  - "plugins/**/assets/templates/**"
