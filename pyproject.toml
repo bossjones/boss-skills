@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Boss Skills Repo and Lab for my personal Claude Code configs and skills"
 requires-python = ">=3.13"
 authors = [
-    { name="Malcolm Jones", email="bossjones@theblacktonystark.com" },
+    { name = "Malcolm Jones", email = "bossjones@theblacktonystark.com" },
 ]
 readme = "README.md"
 license = "MIT"
@@ -42,3 +42,67 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.ty.environment]
+python = "./.venv"
+python-version = "3.10"
+
+[tool.ty.src]
+exclude = [".claude/"]
+
+[tool.ty.rules]
+unresolved-import = "ignore"
+
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+fix = true
+exclude = [".claude/"]
+
+[tool.ruff.lint]
+select = [
+    # flake8-2020
+    "YTT",
+    # flake8-bandit
+    "S",
+    # flake8-bugbear
+    "B",
+    # flake8-builtins
+    "A",
+    # flake8-comprehensions
+    "C4",
+    # flake8-debugger
+    "T10",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # mccabe
+    "C90",
+    # pycodestyle
+    "E",
+    "W",
+    # pyflakes
+    "F",
+    # pygrep-hooks
+    "PGH",
+    # pyupgrade
+    "UP",
+    # ruff
+    "RUF",
+    # tryceratops
+    "TRY",
+]
+ignore = [
+    # LineTooLong
+    "E501",
+    # DoNotAssignLambda
+    "E731",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.ruff.format]
+preview = true
