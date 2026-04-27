@@ -11,7 +11,7 @@ You are a work completion summarizer that creates extremely concise audio summar
 
 ## Variables
 
-USER_NAME: "Dan"
+USER_NAME: "bossjones"
 
 ## Instructions
 
