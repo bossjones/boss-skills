@@ -45,7 +45,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[logging.FileHandler(LOG_FILE, mode='a')]
+    handlers=[logging.FileHandler(LOG_FILE, mode="a")],
 )
 logger = logging.getLogger(__name__)
 
@@ -74,23 +74,20 @@ def get_git_untracked_files(directory: str, extension: str) -> list[str]:
     """Get list of untracked files in directory from git."""
     try:
         result = subprocess.run(
-            ["git", "status", "--porcelain", f"{directory}/"],
-            capture_output=True,
-            text=True,
-            timeout=5
+            ["git", "status", "--porcelain", f"{directory}/"], capture_output=True, text=True, timeout=5
         )
         if result.returncode != 0:
             logger.info(f"git status returned non-zero: {result.returncode}")
             return []
 
         untracked = []
-        for line in result.stdout.strip().split('\n'):
+        for line in result.stdout.strip().split("\n"):
             if not line:
                 continue
             status = line[:2]
             filepath = line[3:].strip()
 
-            if status in ('??', 'A ', ' A', 'AM') and filepath.endswith(extension):
+            if status in ("??", "A ", " A", "AM") and filepath.endswith(extension):
                 untracked.append(filepath)
 
         logger.info(f"Git untracked files: {untracked}")
@@ -110,7 +107,7 @@ def get_recent_files(directory: str, extension: str, max_age_minutes: int) -> li
     now = time.time()
     max_age_seconds = max_age_minutes * 60
 
-    ext = extension if extension.startswith('.') else f'.{extension}'
+    ext = extension if extension.startswith(".") else f".{extension}"
     pattern = f"*{ext}"
 
     for filepath in target_dir.glob(pattern):
@@ -174,7 +171,7 @@ def check_file_contains(filepath: str, required_strings: list[str]) -> tuple[boo
         tuple: (all_found: bool, found: list[str], missing: list[str])
     """
     try:
-        content = Path(filepath).read_text(encoding='utf-8')
+        content = Path(filepath).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as e:
         logger.error(f"Failed to read file {filepath}: {e}")
         return False, [], required_strings
@@ -192,10 +189,7 @@ def check_file_contains(filepath: str, required_strings: list[str]) -> tuple[boo
 
 
 def validate_file_contains(
-    directory: str,
-    extension: str,
-    max_age_minutes: int,
-    required_strings: list[str]
+    directory: str, extension: str, max_age_minutes: int, required_strings: list[str]
 ) -> tuple[bool, str]:
     """
     Validate that a new file was created AND contains required content.
@@ -243,45 +237,41 @@ def validate_file_contains(
         return True, msg
     else:
         missing_list = "\n".join(f"  - {m}" for m in missing)
-        msg = MISSING_CONTENT_ERROR.format(
-            file=newest_file,
-            count=len(missing),
-            missing_list=missing_list
-        )
+        msg = MISSING_CONTENT_ERROR.format(file=newest_file, count=len(missing), missing_list=missing_list)
         logger.warning(f"FAIL: Missing {len(missing)} required sections")
         return False, msg
 
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Validate that a new file contains required content"
-    )
+    parser = argparse.ArgumentParser(description="Validate that a new file contains required content")
     parser.add_argument(
-        '-d', '--directory',
+        "-d",
+        "--directory",
         type=str,
         default=DEFAULT_DIRECTORY,
-        help=f'Directory to check for new files (default: {DEFAULT_DIRECTORY})'
+        help=f"Directory to check for new files (default: {DEFAULT_DIRECTORY})",
     )
     parser.add_argument(
-        '-e', '--extension',
+        "-e",
+        "--extension",
         type=str,
         default=DEFAULT_EXTENSION,
-        help=f'File extension to match (default: {DEFAULT_EXTENSION})'
+        help=f"File extension to match (default: {DEFAULT_EXTENSION})",
     )
     parser.add_argument(
-        '--max-age',
+        "--max-age",
         type=int,
         default=DEFAULT_MAX_AGE_MINUTES,
-        help=f'Maximum file age in minutes (default: {DEFAULT_MAX_AGE_MINUTES})'
+        help=f"Maximum file age in minutes (default: {DEFAULT_MAX_AGE_MINUTES})",
     )
     parser.add_argument(
-        '--contains',
-        action='append',
-        dest='required_strings',
+        "--contains",
+        action="append",
+        dest="required_strings",
         default=[],
-        metavar='STRING',
-        help='Required string that must be in the file (can be used multiple times)'
+        metavar="STRING",
+        help="Required string that must be in the file (can be used multiple times)",
     )
     return parser.parse_args()
 
@@ -310,7 +300,7 @@ def main():
             directory=args.directory,
             extension=args.extension,
             max_age_minutes=args.max_age,
-            required_strings=args.required_strings
+            required_strings=args.required_strings,
         )
 
         if success:
@@ -320,17 +310,14 @@ def main():
             sys.exit(0)
         else:
             result = {"result": "block", "reason": message}
-            logger.info(f"Result: BLOCK")
+            logger.info("Result: BLOCK")
             print(json.dumps(result))
             sys.exit(1)
 
     except Exception as e:
         # On error, allow through but log
         logger.exception(f"Validation error: {e}")
-        print(json.dumps({
-            "result": "continue",
-            "message": f"Validation error (allowing through): {str(e)}"
-        }))
+        print(json.dumps({"result": "continue", "message": f"Validation error (allowing through): {str(e)}"}))
         sys.exit(0)
 
 

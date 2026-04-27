@@ -104,16 +104,14 @@ async def load_cookies(page: Any, cookies_path: str) -> None:  # pyright: ignore
             parts = line.split("\t")
             if len(parts) >= 7:
                 domain, _, path, secure, _expires, name, value = parts[:7]
-                cookies.append(
-                    {
-                        "name": name,
-                        "value": value,
-                        "domain": domain,
-                        "path": path,
-                        "secure": secure.lower() == "true",
-                        "httpOnly": False,
-                    }
-                )
+                cookies.append({
+                    "name": name,
+                    "value": value,
+                    "domain": domain,
+                    "path": path,
+                    "secure": secure.lower() == "true",
+                    "httpOnly": False,
+                })
 
     if cookies:
         await page.context.add_cookies(cookies)  # pyright: ignore[reportUnknownMemberType]
@@ -222,9 +220,7 @@ async def screenshot_tweet(
             }
 
         except PlaywrightTimeout:
-            raise RuntimeError(
-                "Timeout loading tweet. The tweet may be protected or deleted."
-            ) from None
+            raise RuntimeError("Timeout loading tweet. The tweet may be protected or deleted.") from None
         finally:
             await browser.close()  # pyright: ignore[reportUnknownMemberType]
 
@@ -246,17 +242,13 @@ def main():
 
     parser.add_argument("--theme", choices=["light", "dark"], help="Force light or dark theme")
 
-    parser.add_argument(
-        "--width", type=int, default=550, help="Browser viewport width (default: 550)"
-    )
+    parser.add_argument("--width", type=int, default=550, help="Browser viewport width (default: 550)")
 
     parser.add_argument("--full", action="store_true", help="Capture full tweet thread")
 
     parser.add_argument("--cookies", help="Path to cookies.txt file for protected tweets")
 
-    parser.add_argument(
-        "--timeout", type=int, default=30000, help="Timeout in milliseconds (default: 30000)"
-    )
+    parser.add_argument("--timeout", type=int, default=30000, help="Timeout in milliseconds (default: 30000)")
 
     parser.add_argument("--json", action="store_true", help="Output metadata as JSON")
 

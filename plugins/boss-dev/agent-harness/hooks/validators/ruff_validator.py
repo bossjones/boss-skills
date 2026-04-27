@@ -12,6 +12,7 @@ Outputs JSON decision for Claude Code PostToolUse hook:
 - {"decision": "block", "reason": "..."} to block and retry
 - {} to allow completion
 """
+
 import json
 import logging
 import subprocess
@@ -26,7 +27,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[logging.FileHandler(LOG_FILE, mode='a')]
+    handlers=[logging.FileHandler(LOG_FILE, mode="a")],
 )
 logger = logging.getLogger(__name__)
 
@@ -59,18 +60,13 @@ def main():
     # Run uvx ruff check on the single file
     logger.info(f"Running: uvx ruff check {file_path}")
     try:
-        result = subprocess.run(
-            ["uvx", "ruff", "check", file_path],
-            capture_output=True,
-            text=True,
-            timeout=120
-        )
+        result = subprocess.run(["uvx", "ruff", "check", file_path], capture_output=True, text=True, timeout=120)
 
         stdout = result.stdout.strip()
         stderr = result.stderr.strip()
 
         if stdout:
-            for line in stdout.split('\n')[:20]:  # Limit log lines
+            for line in stdout.split("\n")[:20]:  # Limit log lines
                 logger.info(f"  {line}")
 
         if result.returncode == 0:
@@ -79,20 +75,14 @@ def main():
         else:
             logger.info(f"RESULT: BLOCK (exit code {result.returncode})")
             if stderr:
-                for line in stderr.split('\n')[:10]:
+                for line in stderr.split("\n")[:10]:
                     logger.info(f"  stderr: {line}")
             error_output = stdout or stderr or "Lint check failed"
-            print(json.dumps({
-                "decision": "block",
-                "reason": f"Lint check failed:\n{error_output[:500]}"
-            }))
+            print(json.dumps({"decision": "block", "reason": f"Lint check failed:\n{error_output[:500]}"}))
 
     except subprocess.TimeoutExpired:
         logger.info("RESULT: BLOCK (timeout)")
-        print(json.dumps({
-            "decision": "block",
-            "reason": "Lint check timed out after 120 seconds"
-        }))
+        print(json.dumps({"decision": "block", "reason": "Lint check timed out after 120 seconds"}))
     except FileNotFoundError:
         logger.info("RESULT: PASS (uvx ruff not found, skipping)")
         print(json.dumps({}))

@@ -64,9 +64,7 @@ from rich.table import Table
 console = Console()
 
 
-def validate_plugin_path(
-    base_dir: Path, relative_path: str, context: str
-) -> tuple[Path | None, str | None]:
+def validate_plugin_path(base_dir: Path, relative_path: str, context: str) -> tuple[Path | None, str | None]:
     """Validate a plugin-relative path stays within base directory.
 
     Args:
@@ -142,15 +140,9 @@ def load_plugin_json_file(
     except PermissionError:
         errors.append(f"{context}: Permission denied reading file: {relative_path}")
     except json.JSONDecodeError as e:
-        errors.append(
-            f"{context}: Invalid JSON in {relative_path}\n"
-            f"  Line {e.lineno}, column {e.colno}: {e.msg}"
-        )
+        errors.append(f"{context}: Invalid JSON in {relative_path}\n  Line {e.lineno}, column {e.colno}: {e.msg}")
     except UnicodeDecodeError:
-        errors.append(
-            f"{context}: File is not valid UTF-8: {relative_path}\n"
-            f"  Ensure file is text, not binary"
-        )
+        errors.append(f"{context}: File is not valid UTF-8: {relative_path}\n  Ensure file is text, not binary")
     except OSError as e:
         errors.append(f"{context}: Cannot read file: {e}")
 
@@ -385,7 +377,7 @@ def validate_marketplace_json(marketplace_data: dict[str, Any]) -> list[str]:
     return errors
 
 
-def validate_markdown_frontmatter(
+def validate_markdown_frontmatter(  # noqa: C901
     file_path: Path, required_fields: list[str], plugin_name: str
 ) -> list[str]:
     """Validate YAML frontmatter in markdown file.
@@ -414,8 +406,7 @@ def validate_markdown_frontmatter(
         except OSError:
             mode = "unknown"
         errors.append(
-            f"{plugin_name}/{rel_path}: Permission denied reading file\n"
-            f"  Check file permissions (current: {mode})"
+            f"{plugin_name}/{rel_path}: Permission denied reading file\n  Check file permissions (current: {mode})"
         )
         return errors
     except UnicodeDecodeError as e:
@@ -459,9 +450,7 @@ def validate_markdown_frontmatter(
     # Check for required fields with non-empty values
     for field in required_fields:
         if field not in frontmatter:
-            errors.append(
-                f"{plugin_name}/{rel_path}: Missing required field '{field}' in frontmatter"
-            )
+            errors.append(f"{plugin_name}/{rel_path}: Missing required field '{field}' in frontmatter")
         elif not frontmatter[field]:
             errors.append(f"{plugin_name}/{rel_path}: Required field '{field}' is empty or null")
 
@@ -504,9 +493,7 @@ def check_skills_directory(plugin_dir: Path) -> list[str]:
     skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir()]
 
     if not skill_dirs:
-        errors.append(
-            f"{plugin_name}/skills/: Directory exists but contains no skill subdirectories"
-        )
+        errors.append(f"{plugin_name}/skills/: Directory exists but contains no skill subdirectories")
         return errors
 
     for skill_path in skill_dirs:
@@ -517,9 +504,7 @@ def check_skills_directory(plugin_dir: Path) -> list[str]:
             continue
 
         # Validate SKILL.md frontmatter
-        frontmatter_errors = validate_markdown_frontmatter(
-            skill_md, ["name", "description"], plugin_name
-        )
+        frontmatter_errors = validate_markdown_frontmatter(skill_md, ["name", "description"], plugin_name)
         errors.extend(frontmatter_errors)
 
     return errors
@@ -575,15 +560,13 @@ def check_agents_directory(plugin_dir: Path) -> list[str]:
 
     for agent_file in agent_files:
         # Validate frontmatter - agents require description and capabilities
-        frontmatter_errors = validate_markdown_frontmatter(
-            agent_file, ["description", "capabilities"], plugin_name
-        )
+        frontmatter_errors = validate_markdown_frontmatter(agent_file, ["description", "capabilities"], plugin_name)
         errors.extend(frontmatter_errors)
 
     return errors
 
 
-def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:
+def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:  # noqa: C901
     """Validate hooks configuration (file or inline)."""
     errors: list[str] = []
     plugin_name: str = plugin_dir.name
@@ -602,17 +585,13 @@ def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> 
         hooks_config = inline_hooks
     elif isinstance(inline_hooks, str):
         # Path to hooks file - load with validation
-        hooks_config, load_errors = load_plugin_json_file(
-            plugin_dir, inline_hooks, f"{plugin_name}/hooks"
-        )
+        hooks_config, load_errors = load_plugin_json_file(plugin_dir, inline_hooks, f"{plugin_name}/hooks")
         if load_errors:
             errors.extend(load_errors)
             return errors
     elif hooks_file.exists():
         # Load default hooks file
-        hooks_config, load_errors = load_plugin_json_file(
-            plugin_dir, "hooks/hooks.json", f"{plugin_name}/hooks"
-        )
+        hooks_config, load_errors = load_plugin_json_file(plugin_dir, "hooks/hooks.json", f"{plugin_name}/hooks")
         if load_errors:
             errors.extend(load_errors)
             return errors
@@ -630,8 +609,7 @@ def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> 
     for event_type, hook_list in hooks_dict.items():
         if event_type not in VALID_HOOK_EVENTS:
             errors.append(
-                f"{plugin_name}: Invalid hook event '{event_type}' "
-                f"(valid: {', '.join(sorted(VALID_HOOK_EVENTS))})"
+                f"{plugin_name}: Invalid hook event '{event_type}' (valid: {', '.join(sorted(VALID_HOOK_EVENTS))})"
             )
 
         # Validate each hook in the event
@@ -660,20 +638,14 @@ def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> 
                                     )
                                     continue
 
-                                script_path: str = match.group(1).strip(
-                                    "\"'"
-                                )  # Remove quotes if present
+                                script_path: str = match.group(1).strip("\"'")  # Remove quotes if present
 
                                 # Validate path to prevent traversal
-                                full_path, error = validate_plugin_path(
-                                    plugin_dir, script_path, f"{plugin_name}/hooks"
-                                )
+                                full_path, error = validate_plugin_path(plugin_dir, script_path, f"{plugin_name}/hooks")
                                 if error:
                                     errors.append(error)
                                 elif full_path is not None and not full_path.exists():
-                                    errors.append(
-                                        f"{plugin_name}: Hook command script not found: {script_path}"
-                                    )
+                                    errors.append(f"{plugin_name}: Hook command script not found: {script_path}")
                             elif cmd.startswith("/"):
                                 errors.append(
                                     f"{plugin_name}: Hook command uses absolute path instead of "
@@ -683,7 +655,7 @@ def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> 
     return errors
 
 
-def check_mcp_servers(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:
+def check_mcp_servers(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:  # noqa: C901
     """Validate MCP server configuration."""
     errors: list[str] = []
     plugin_name: str = plugin_dir.name
@@ -702,17 +674,13 @@ def check_mcp_servers(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str
         mcp_config = inline_mcp
     elif isinstance(inline_mcp, str):
         # Path to MCP file - load with validation
-        mcp_config, load_errors = load_plugin_json_file(
-            plugin_dir, inline_mcp, f"{plugin_name}/mcp"
-        )
+        mcp_config, load_errors = load_plugin_json_file(plugin_dir, inline_mcp, f"{plugin_name}/mcp")
         if load_errors:
             errors.extend(load_errors)
             return errors
     elif mcp_file.exists():
         # Load default MCP file
-        mcp_config, load_errors = load_plugin_json_file(
-            plugin_dir, ".mcp.json", f"{plugin_name}/mcp"
-        )
+        mcp_config, load_errors = load_plugin_json_file(plugin_dir, ".mcp.json", f"{plugin_name}/mcp")
         if load_errors:
             errors.extend(load_errors)
             return errors
@@ -735,14 +703,13 @@ def check_mcp_servers(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str
         command: str = str(server_config.get("command", ""))
         if "/" in command and "${CLAUDE_PLUGIN_ROOT}" not in command and command.startswith("/"):
             errors.append(
-                f"{plugin_name}: MCP server '{server_name}' uses absolute path instead of "
-                "${{CLAUDE_PLUGIN_ROOT}}"
+                f"{plugin_name}: MCP server '{server_name}' uses absolute path instead of ${{{{CLAUDE_PLUGIN_ROOT}}}}"
             )
 
     return errors
 
 
-def check_custom_component_paths(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:
+def check_custom_component_paths(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:  # noqa: C901
     """Validate custom component paths specified in plugin.json."""
     errors: list[str] = []
     plugin_name: str = plugin_dir.name
@@ -750,9 +717,7 @@ def check_custom_component_paths(plugin_dir: Path, plugin_data: dict[str, Any]) 
     # Check custom command paths
     custom_commands: Any = plugin_data.get("commands")
     if custom_commands:
-        paths: list[str] = (
-            [custom_commands] if isinstance(custom_commands, str) else list(custom_commands)
-        )
+        paths: list[str] = [custom_commands] if isinstance(custom_commands, str) else list(custom_commands)
         for path in paths:
             if not path.startswith("./"):
                 errors.append(f"{plugin_name}: Custom command path must start with './': {path}")
@@ -820,11 +785,7 @@ def check_manifest_conflicts(
         # Both exist and differ
         if market_value is not None and plugin_value is not None:
             # Special handling for keywords (order-insensitive)
-            if (
-                field == "keywords"
-                and isinstance(market_value, list)
-                and isinstance(plugin_value, list)
-            ):
+            if field == "keywords" and isinstance(market_value, list) and isinstance(plugin_value, list):
                 if set(market_value) != set(plugin_value):
                     warnings.append(
                         f"{plugin_name}: Conflict in '{field}' - "
@@ -847,7 +808,7 @@ def check_manifest_conflicts(
     return warnings, info_only
 
 
-def check_plugin_manifest(
+def check_plugin_manifest(  # noqa: C901
     plugin_dir: Path,
     marketplace_entry: dict[str, Any] | None = None,
     *,
@@ -903,20 +864,16 @@ def check_plugin_manifest(
                 with open(plugin_json, encoding="utf-8") as f:
                     data = json.load(f)
             except PermissionError:
-                results["manifest"].append(
-                    f"{plugin_dir.name}: Permission denied reading plugin.json"
-                )
+                results["manifest"].append(f"{plugin_dir.name}: Permission denied reading plugin.json")
                 data = {}  # Continue with component checks using empty dict
             except json.JSONDecodeError as e:
                 results["manifest"].append(
-                    f"{plugin_dir.name}: Invalid JSON in plugin.json\n"
-                    f"  Line {e.lineno}, column {e.colno}: {e.msg}"
+                    f"{plugin_dir.name}: Invalid JSON in plugin.json\n  Line {e.lineno}, column {e.colno}: {e.msg}"
                 )
                 data = {}  # Continue with component checks using empty dict
             except UnicodeDecodeError:
                 results["manifest"].append(
-                    f"{plugin_dir.name}: plugin.json is not valid UTF-8\n"
-                    f"  Ensure file is text, not binary"
+                    f"{plugin_dir.name}: plugin.json is not valid UTF-8\n  Ensure file is text, not binary"
                 )
                 data = {}  # Continue with component checks using empty dict
             except OSError as e:
@@ -935,20 +892,16 @@ def check_plugin_manifest(
                 with open(plugin_json, encoding="utf-8") as f:
                     data = json.load(f)
             except PermissionError:
-                results["manifest"].append(
-                    f"{plugin_dir.name}: Permission denied reading plugin.json"
-                )
+                results["manifest"].append(f"{plugin_dir.name}: Permission denied reading plugin.json")
                 data = {}  # Continue with component checks using empty dict
             except json.JSONDecodeError as e:
                 results["manifest"].append(
-                    f"{plugin_dir.name}: Invalid JSON in plugin.json\n"
-                    f"  Line {e.lineno}, column {e.colno}: {e.msg}"
+                    f"{plugin_dir.name}: Invalid JSON in plugin.json\n  Line {e.lineno}, column {e.colno}: {e.msg}"
                 )
                 data = {}  # Continue with component checks using empty dict
             except UnicodeDecodeError:
                 results["manifest"].append(
-                    f"{plugin_dir.name}: plugin.json is not valid UTF-8\n"
-                    f"  Ensure file is text, not binary"
+                    f"{plugin_dir.name}: plugin.json is not valid UTF-8\n  Ensure file is text, not binary"
                 )
                 data = {}  # Continue with component checks using empty dict
             except OSError as e:
@@ -964,9 +917,7 @@ def check_plugin_manifest(
 
     # Check for conflicts if both marketplace entry and plugin.json exist
     if marketplace_entry and plugin_json.exists():
-        conflict_warnings, conflict_info = check_manifest_conflicts(
-            plugin_dir.name, marketplace_entry, data
-        )
+        conflict_warnings, conflict_info = check_manifest_conflicts(plugin_dir.name, marketplace_entry, data)
         results["warnings"].extend(conflict_warnings)
         results["info_only"].extend(conflict_info)
 
@@ -986,7 +937,7 @@ def check_plugin_manifest(
     return results
 
 
-def check_marketplace_structure() -> dict[str, Any]:
+def check_marketplace_structure() -> dict[str, Any]:  # noqa: C901
     """Check overall marketplace structure.
 
     Returns dict with:
@@ -1016,9 +967,7 @@ def check_marketplace_structure() -> dict[str, Any]:
         with open(marketplace_json, encoding="utf-8") as f:
             marketplace_data: dict[str, Any] = json.load(f)
     except PermissionError:
-        result["marketplace_errors"].append(
-            "Permission denied reading .claude-plugin/marketplace.json"
-        )
+        result["marketplace_errors"].append("Permission denied reading .claude-plugin/marketplace.json")
         return result
     except json.JSONDecodeError as e:
         result["marketplace_errors"].append(
@@ -1026,9 +975,7 @@ def check_marketplace_structure() -> dict[str, Any]:
         )
         return result
     except UnicodeDecodeError:
-        result["marketplace_errors"].append(
-            "marketplace.json is not valid UTF-8\n  Ensure file is text, not binary"
-        )
+        result["marketplace_errors"].append("marketplace.json is not valid UTF-8\n  Ensure file is text, not binary")
         return result
     except OSError as e:
         result["marketplace_errors"].append(f"Cannot read marketplace.json: {e}")
@@ -1086,22 +1033,16 @@ def check_marketplace_structure() -> dict[str, Any]:
 
         # Resolve plugin directory - validate to prevent path traversal
         if not isinstance(plugin_source, str):
-            result["marketplace_errors"].append(
-                f"Plugin '{plugin_name}': source must be a string path"
-            )
+            result["marketplace_errors"].append(f"Plugin '{plugin_name}': source must be a string path")
             continue
 
-        plugin_dir, error = validate_plugin_path(
-            repo_root, plugin_source, f"Plugin '{plugin_name}'"
-        )
+        plugin_dir, error = validate_plugin_path(repo_root, plugin_source, f"Plugin '{plugin_name}'")
         if error:
             result["marketplace_errors"].append(error)
             continue
 
         if plugin_dir is None or not plugin_dir.exists():
-            result["marketplace_errors"].append(
-                f"Plugin '{plugin_name}' source directory not found: {plugin_source}"
-            )
+            result["marketplace_errors"].append(f"Plugin '{plugin_name}' source directory not found: {plugin_source}")
             continue
 
         # Check if plugin should be skipped entirely (e.g., dev sandbox)
@@ -1132,9 +1073,7 @@ def check_marketplace_structure() -> dict[str, Any]:
     return result
 
 
-def calculate_exit_code(
-    result: dict[str, Any], *, strict: bool = False
-) -> tuple[int, int, int, int]:
+def calculate_exit_code(result: dict[str, Any], *, strict: bool = False) -> tuple[int, int, int, int]:
     """Calculate exit code and totals based on errors and warnings.
 
     Args:
@@ -1163,12 +1102,12 @@ def calculate_exit_code(
 
     # Determine exit code
     # Strict mode: warnings are failures (but info_only never fails)
-    exit_code = 1 if strict and total_warnings > 0 or total_errors > 0 else 0
+    exit_code = 1 if (strict and total_warnings > 0) or total_errors > 0 else 0
 
     return exit_code, total_errors, total_warnings, total_info
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901
     """Run all verification checks."""
     parser = argparse.ArgumentParser(
         description="Verify Claude Code marketplace structure and plugins",
@@ -1183,9 +1122,7 @@ Examples:
   ./scripts/verify-structure.py --strict     # Strict mode (warnings fail)
         """,
     )
-    parser.add_argument(
-        "--strict", action="store_true", help="Treat warnings as errors (useful for CI/CD)"
-    )
+    parser.add_argument("--strict", action="store_true", help="Treat warnings as errors (useful for CI/CD)")
     args = parser.parse_args()
 
     mode_text = "[bold cyan]Verifying marketplace structure"
@@ -1197,9 +1134,7 @@ Examples:
     result = check_marketplace_structure()
 
     # Calculate exit code and totals (single source of truth)
-    exit_code, total_errors, total_warnings, total_info = calculate_exit_code(
-        result, strict=args.strict
-    )
+    exit_code, total_errors, total_warnings, total_info = calculate_exit_code(result, strict=args.strict)
 
     # Collect plugin errors, warnings, and info for display
     all_plugin_errors: dict[str, list[str]] = {}
@@ -1295,9 +1230,7 @@ Examples:
         warning_style: str = "yellow" if not args.strict else "red"
         warning_label: str = "Warnings" if not args.strict else "Warnings (treated as errors)"
 
-        console.print(
-            f"\n[bold {warning_style}]{warning_label} ({total_warnings}):[/bold {warning_style}]\n"
-        )
+        console.print(f"\n[bold {warning_style}]{warning_label} ({total_warnings}):[/bold {warning_style}]\n")
 
         for plugin_name, warnings in all_plugin_warnings.items():
             console.print(f"  [bold]{plugin_name}:[/bold]")
@@ -1324,8 +1257,7 @@ Examples:
         # Warnings-only failure in strict mode
         if total_errors == 0 and args.strict and total_warnings > 0:
             message = (
-                f"✗ Validation failed due to {total_warnings} warning(s) "
-                "(warnings treated as errors in strict mode)"
+                f"✗ Validation failed due to {total_warnings} warning(s) (warnings treated as errors in strict mode)"
             )
         else:
             message = f"✗ Validation failed with {total_errors} error(s)"

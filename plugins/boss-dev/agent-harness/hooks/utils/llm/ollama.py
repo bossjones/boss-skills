@@ -11,6 +11,7 @@
 import os
 import sys
 import traceback
+
 from dotenv import load_dotenv
 
 
@@ -62,13 +63,17 @@ def generate_completion_message():
     engineer_name = os.getenv("ENGINEER_NAME", "").strip()
 
     if engineer_name:
-        name_instruction = f"Sometimes (about 30% of the time) include the engineer's name '{engineer_name}' in a natural way."
+        name_instruction = (
+            f"Sometimes (about 30% of the time) include the engineer's name '{engineer_name}' in a natural way."
+        )
         examples = f"""Examples of the style: 
 - Standard: "Work complete!", "All done!", "Task finished!", "Ready for your next move!"
 - Personalized: "{engineer_name}, all set!", "Ready for you, {engineer_name}!", "Complete, {engineer_name}!", "{engineer_name}, we're done!" """
     else:
         name_instruction = ""
-        examples = """Examples of the style: "Work complete!", "All done!", "Task finished!", "Ready for your next move!" """
+        examples = (
+            """Examples of the style: "Work complete!", "All done!", "Task finished!", "Ready for your next move!" """
+        )
 
     prompt = f"""Generate a short, friendly completion message for when an AI coding assistant finishes a task. 
 
@@ -173,7 +178,6 @@ Name:"""
 
 def main():
     """Command line interface for testing."""
-    import json
 
     if len(sys.argv) > 1:
         if sys.argv[1] == "--completion":
@@ -194,9 +198,7 @@ def main():
             else:
                 print("Error calling Ollama API")
     else:
-        print(
-            "Usage: ./ollama.py 'your prompt here' or ./ollama.py --completion or ./ollama.py --agent-name"
-        )
+        print("Usage: ./ollama.py 'your prompt here' or ./ollama.py --completion or ./ollama.py --agent-name")
 
 
 if __name__ == "__main__":

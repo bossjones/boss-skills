@@ -9,13 +9,14 @@
 import argparse
 import json
 import os
-import sys
 import subprocess
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass  # dotenv is optional
@@ -28,7 +29,7 @@ def debug_log(message: str) -> None:
         os.makedirs(log_dir, exist_ok=True)
         debug_path = os.path.join(log_dir, "subagent_debug.log")
         timestamp = datetime.now().isoformat()
-        with open(debug_path, 'a') as f:
+        with open(debug_path, "a") as f:
             f.write(f"[{timestamp}] [START] {message}\n")
     except Exception:
         pass
@@ -44,13 +45,13 @@ def get_tts_script_path() -> str | None:
     tts_dir = script_dir / "utils" / "tts"
 
     # Check for ElevenLabs API key (highest priority)
-    if os.getenv('ELEVENLABS_API_KEY'):
+    if os.getenv("ELEVENLABS_API_KEY"):
         elevenlabs_script = tts_dir / "elevenlabs_tts.py"
         if elevenlabs_script.exists():
             return str(elevenlabs_script)
 
     # Check for OpenAI API key (second priority)
-    if os.getenv('OPENAI_API_KEY'):
+    if os.getenv("OPENAI_API_KEY"):
         openai_script = tts_dir / "openai_tts.py"
         if openai_script.exists():
             return str(openai_script)
@@ -75,11 +76,10 @@ def announce_subagent_start(message: str = "Subagent Started") -> None:
             return  # No TTS scripts available
 
         # Call the TTS script with the provided message
-        subprocess.run([
-            "uv", "run", tts_script, message
-        ],
-        capture_output=True,  # Suppress output
-        timeout=10  # 10-second timeout
+        subprocess.run(
+            ["uv", "run", tts_script, message],
+            capture_output=True,  # Suppress output
+            timeout=10,  # 10-second timeout
         )
 
     except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
@@ -96,8 +96,7 @@ def main() -> None:
         parser = argparse.ArgumentParser(
             description="SubagentStart hook - logs and optionally announces subagent spawn events"
         )
-        parser.add_argument('--notify', action='store_true',
-                            help='Enable TTS announcement when subagent starts')
+        parser.add_argument("--notify", action="store_true", help="Enable TTS announcement when subagent starts")
         args = parser.parse_args()
 
         # Read JSON input from stdin
@@ -117,7 +116,7 @@ def main() -> None:
 
         # Read existing log data or initialize empty list
         if os.path.exists(log_path):
-            with open(log_path, 'r') as f:
+            with open(log_path, "r") as f:
                 try:
                     log_data = json.load(f)
                 except (json.JSONDecodeError, ValueError):
@@ -129,7 +128,7 @@ def main() -> None:
         log_data.append(input_data)
 
         # Write back to file with formatting
-        with open(log_path, 'w') as f:
+        with open(log_path, "w") as f:
             json.dump(log_data, f, indent=2)
 
         debug_log(f"Logged SubagentStart: agent_id={agent_id}, agent_type={agent_type}")

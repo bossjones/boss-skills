@@ -44,6 +44,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass  # dotenv is optional
@@ -167,12 +168,7 @@ def create_allow_response(updated_input: dict | None = None, reason: str | None 
     if updated_input is not None:
         decision["updatedInput"] = updated_input
 
-    return {
-        "hookSpecificOutput": {
-            "hookEventName": "PermissionRequest",
-            "decision": decision
-        }
-    }
+    return {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": decision}}
 
 
 def create_deny_response(message: str, interrupt: bool = False) -> dict:
@@ -189,11 +185,7 @@ def create_deny_response(message: str, interrupt: bool = False) -> dict:
     return {
         "hookSpecificOutput": {
             "hookEventName": "PermissionRequest",
-            "decision": {
-                "behavior": "deny",
-                "message": message,
-                "interrupt": interrupt
-            }
+            "decision": {"behavior": "deny", "message": message, "interrupt": interrupt},
         }
     }
 
@@ -229,18 +221,14 @@ def log_permission_request(input_data: dict, log_dir: Path):
 def main():
     try:
         # Parse command line arguments
-        parser = argparse.ArgumentParser(
-            description="PermissionRequest hook for Claude Code"
-        )
+        parser = argparse.ArgumentParser(description="PermissionRequest hook for Claude Code")
         parser.add_argument(
             "--auto-allow",
             action="store_true",
-            help="Auto-allow read-only operations (Read, Glob, Grep, safe Bash commands)"
+            help="Auto-allow read-only operations (Read, Glob, Grep, safe Bash commands)",
         )
         parser.add_argument(
-            "--log-only",
-            action="store_true",
-            help="Only log permission requests, do not make decisions"
+            "--log-only", action="store_true", help="Only log permission requests, do not make decisions"
         )
         args = parser.parse_args()
 

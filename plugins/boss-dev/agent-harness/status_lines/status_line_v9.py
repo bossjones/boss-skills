@@ -13,9 +13,9 @@ Use Unicode powerline separators for minimal, clean, professional look
 """
 
 import json
-import sys
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 try:
@@ -58,12 +58,7 @@ RESET = "\033[0m"
 def get_git_branch():
     """Get the current git branch name."""
     try:
-        result = subprocess.run(
-            ["git", "branch", "--show-current"],
-            capture_output=True,
-            text=True,
-            timeout=1
-        )
+        result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True, timeout=1)
         if result.returncode == 0:
             branch = result.stdout.strip()
             if branch:
@@ -92,7 +87,7 @@ def shorten_path(path, max_length=20):
     # Replace home directory with ~
     home = str(Path.home())
     if path.startswith(home):
-        path = "~" + path[len(home):]
+        path = "~" + path[len(home) :]
 
     # If still too long, show only last parts
     if len(path) > max_length:

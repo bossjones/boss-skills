@@ -61,9 +61,7 @@ class TestCreateReelCanvas:
 
     def test_position_top(self, sample_tweet_screenshot: Path) -> None:
         """Screenshot should be at top with position='top'."""
-        canvas, metadata = create_reel_canvas(
-            str(sample_tweet_screenshot), position="top", padding=40
-        )
+        canvas, metadata = create_reel_canvas(str(sample_tweet_screenshot), position="top", padding=40)
 
         bounds = metadata["screenshot_bounds"]
         # Should be near top (y close to padding)
@@ -80,9 +78,7 @@ class TestCreateReelCanvas:
 
     def test_position_bottom(self, sample_tweet_screenshot: Path) -> None:
         """Screenshot should be at bottom with position='bottom'."""
-        canvas, metadata = create_reel_canvas(
-            str(sample_tweet_screenshot), position="bottom", padding=40
-        )
+        canvas, metadata = create_reel_canvas(str(sample_tweet_screenshot), position="bottom", padding=40)
 
         bounds = metadata["screenshot_bounds"]
         # Should be near bottom
@@ -91,9 +87,7 @@ class TestCreateReelCanvas:
 
     def test_video_area_calculated(self, sample_tweet_screenshot: Path) -> None:
         """Should calculate video area below screenshot for top position."""
-        canvas, metadata = create_reel_canvas(
-            str(sample_tweet_screenshot), position="top", padding=40
-        )
+        canvas, metadata = create_reel_canvas(str(sample_tweet_screenshot), position="top", padding=40)
 
         video_area = metadata["video_area"]
         screenshot_bounds = metadata["screenshot_bounds"]
@@ -106,9 +100,7 @@ class TestCreateReelCanvas:
     def test_padding_respected(self, sample_tweet_screenshot: Path) -> None:
         """Padding should be respected in layout."""
         padding = 60
-        canvas, metadata = create_reel_canvas(
-            str(sample_tweet_screenshot), padding=padding, position="top"
-        )
+        canvas, metadata = create_reel_canvas(str(sample_tweet_screenshot), padding=padding, position="top")
 
         bounds = metadata["screenshot_bounds"]
         video_area = metadata["video_area"]
@@ -347,9 +339,7 @@ class TestComposeVideo:
             )
 
     @patch("compose_video.check_ffmpeg")
-    def test_raises_if_screenshot_missing(
-        self, mock_check: MagicMock, sample_video_file: Path, tmp_path: Path
-    ) -> None:
+    def test_raises_if_screenshot_missing(self, mock_check: MagicMock, sample_video_file: Path, tmp_path: Path) -> None:
         """Should raise FileNotFoundError for missing screenshot."""
         mock_check.return_value = True
 

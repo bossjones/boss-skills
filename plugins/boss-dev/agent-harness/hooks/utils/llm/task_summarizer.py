@@ -16,8 +16,9 @@ Designed for TTS announcements to provide personalized feedback.
 
 import os
 import sys
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
 from dotenv import load_dotenv
 
 
@@ -28,7 +29,7 @@ def debug_log(message: str) -> None:
         os.makedirs(log_dir, exist_ok=True)
         debug_path = os.path.join(log_dir, "subagent_debug.log")
         timestamp = datetime.now().isoformat()
-        with open(debug_path, 'a') as f:
+        with open(debug_path, "a") as f:
             f.write(f"[{timestamp}] [SUMMARIZER] {message}\n")
     except Exception:
         pass
@@ -88,6 +89,7 @@ Generate ONE summary:"""
 
     try:
         import anthropic
+
         debug_log("Anthropic module imported successfully")
 
         client = anthropic.Anthropic(api_key=api_key)
@@ -125,21 +127,9 @@ def main() -> None:
     """Command line interface for testing."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Generate natural language summaries of subagent task completions"
-    )
-    parser.add_argument(
-        "task_description",
-        nargs="?",
-        help="Description of the completed task"
-    )
-    parser.add_argument(
-        "--agent-name",
-        "-a",
-        type=str,
-        default=None,
-        help="Name of the agent that completed the task"
-    )
+    parser = argparse.ArgumentParser(description="Generate natural language summaries of subagent task completions")
+    parser.add_argument("task_description", nargs="?", help="Description of the completed task")
+    parser.add_argument("--agent-name", "-a", type=str, default=None, help="Name of the agent that completed the task")
 
     args = parser.parse_args()
 

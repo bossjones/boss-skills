@@ -167,9 +167,7 @@ class TestScreenshotTweetMetadata:
 
         # Mock tweet element with bounding box
         mock_element = AsyncMock()
-        mock_element.bounding_box = AsyncMock(
-            return_value={"x": 0, "y": 0, "width": 550, "height": 400}
-        )
+        mock_element.bounding_box = AsyncMock(return_value={"x": 0, "y": 0, "width": 550, "height": 400})
         mock_page.query_selector = AsyncMock(return_value=mock_element)
 
         # Mock screenshot to actually create the file

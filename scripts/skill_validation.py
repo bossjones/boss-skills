@@ -86,25 +86,23 @@ MAX_NAME_LEN = 64
 MAX_DESC_LEN = 1024
 MAX_LINES = 500
 
-KNOWN_TOOLS: frozenset[str] = frozenset(
-    {
-        "Bash",
-        "Read",
-        "Write",
-        "Edit",
-        "Glob",
-        "Grep",
-        "WebSearch",
-        "WebFetch",
-        "Agent",
-        "TodoRead",
-        "TodoWrite",
-        "NotebookEdit",
-        "TaskCreate",
-        "TaskUpdate",
-        "AskUserQuestion",
-    }
-)
+KNOWN_TOOLS: frozenset[str] = frozenset({
+    "Bash",
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "WebSearch",
+    "WebFetch",
+    "Agent",
+    "TodoRead",
+    "TodoWrite",
+    "NotebookEdit",
+    "TaskCreate",
+    "TaskUpdate",
+    "AskUserQuestion",
+})
 
 VALID_MODELS: frozenset[str] = frozenset({"sonnet", "opus", "haiku"})
 
@@ -174,9 +172,7 @@ def check_frontmatter_valid(
     return []
 
 
-def check_name(
-    path: Path, fm: dict[str, Any] | None, _body: str, _lines: list[str]
-) -> list[CheckResult]:
+def check_name(path: Path, fm: dict[str, Any] | None, _body: str, _lines: list[str]) -> list[CheckResult]:
     """Rules 1-3: name exists, format valid, matches directory."""
     if fm is None:
         return []
@@ -218,9 +214,7 @@ def check_name(
     return results
 
 
-def check_description(
-    _path: Path, fm: dict[str, Any] | None, _body: str, _lines: list[str]
-) -> list[CheckResult]:
+def check_description(_path: Path, fm: dict[str, Any] | None, _body: str, _lines: list[str]) -> list[CheckResult]:
     """Rules 4-6: description exists, length, trigger keywords."""
     if fm is None:
         return []
@@ -228,9 +222,7 @@ def check_description(
     desc = fm.get("description")
 
     if desc is None:
-        results.append(
-            CheckResult("desc-exists", Level.ERROR, "missing required field: description")
-        )
+        results.append(CheckResult("desc-exists", Level.ERROR, "missing required field: description"))
         return results
 
     desc = str(desc)
@@ -250,17 +242,14 @@ def check_description(
             CheckResult(
                 "desc-trigger",
                 Level.WARNING,
-                "description should indicate when to use this skill "
-                "(e.g. 'Use when...', 'Use this to...')",
+                "description should indicate when to use this skill (e.g. 'Use when...', 'Use this to...')",
             )
         )
 
     return results
 
 
-def check_optional_fields(
-    _path: Path, fm: dict[str, Any] | None, _body: str, _lines: list[str]
-) -> list[CheckResult]:
+def check_optional_fields(_path: Path, fm: dict[str, Any] | None, _body: str, _lines: list[str]) -> list[CheckResult]:
     """Rules 7-8: allowed-tools and model format."""
     if fm is None:
         return []
@@ -322,9 +311,7 @@ def check_description_quality(
     return results
 
 
-def check_structure(
-    path: Path, _fm: dict[str, Any] | None, _body: str, lines: list[str]
-) -> list[CheckResult]:
+def check_structure(path: Path, _fm: dict[str, Any] | None, _body: str, lines: list[str]) -> list[CheckResult]:
     """Rules 10-11: line count and progressive disclosure."""
     results: list[CheckResult] = []
     count = len(lines)
@@ -344,8 +331,7 @@ def check_structure(
                 CheckResult(
                     "progressive-disclosure",
                     Level.WARNING,
-                    "over 500 lines with no scripts/, references/, or assets/ "
-                    "— consider progressive disclosure",
+                    "over 500 lines with no scripts/, references/, or assets/ — consider progressive disclosure",
                 )
             )
 
@@ -372,9 +358,7 @@ def check_directory_conventions(
     return results
 
 
-def check_body_content(
-    _path: Path, _fm: dict[str, Any] | None, body: str, _lines: list[str]
-) -> list[CheckResult]:
+def check_body_content(_path: Path, _fm: dict[str, Any] | None, body: str, _lines: list[str]) -> list[CheckResult]:
     """Rules 13-14: instructions and example commands."""
     results: list[CheckResult] = []
 
@@ -402,9 +386,7 @@ def check_body_content(
     return results
 
 
-def check_backtick_bang(
-    _path: Path, _fm: dict[str, Any] | None, body: str, _lines: list[str]
-) -> list[CheckResult]:
+def check_backtick_bang(_path: Path, _fm: dict[str, Any] | None, body: str, _lines: list[str]) -> list[CheckResult]:
     """Rule 15: no backtick-bang patterns in fenced code blocks (parser bug #12781)."""
     results: list[CheckResult] = []
     in_fence = False

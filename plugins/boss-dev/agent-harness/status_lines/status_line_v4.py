@@ -7,10 +7,9 @@
 # ///
 
 import json
-import os
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv
@@ -87,10 +86,7 @@ def get_prompt_icon(prompt):
         return "⚡"
     elif "?" in prompt:
         return "❓"
-    elif any(
-        word in prompt.lower()
-        for word in ["create", "write", "add", "implement", "build"]
-    ):
+    elif any(word in prompt.lower() for word in ["create", "write", "add", "implement", "build"]):
         return "💡"
     elif any(word in prompt.lower() for word in ["fix", "debug", "error", "issue"]):
         return "🐛"
@@ -104,7 +100,7 @@ def format_extras(extras):
     """Format extras dictionary into a compact string."""
     if not extras:
         return None
-    
+
     # Format each key-value pair
     pairs = []
     for key, value in extras.items():
@@ -113,7 +109,7 @@ def format_extras(extras):
         if len(str_value) > 20:
             str_value = str_value[:17] + "..."
         pairs.append(f"{key}:{str_value}")
-    
+
     return " ".join(pairs)
 
 

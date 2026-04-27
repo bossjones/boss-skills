@@ -154,9 +154,7 @@ def download_video_from_tweet(
         DebugConsole.debug(f"Created temp output dir: {output_dir}")
 
     # Locate downloader script (relative to this skill's location)
-    downloader_path = (
-        SCRIPT_DIR.parent.parent / "twitter-media-downloader" / "scripts" / "download.py"
-    )
+    downloader_path = SCRIPT_DIR.parent.parent / "twitter-media-downloader" / "scripts" / "download.py"
     DebugConsole.debug(f"Downloader script path: {downloader_path}")
     DebugConsole.debug(f"Downloader exists: {downloader_path.exists()}")
 
@@ -365,9 +363,7 @@ def create_reel(
             raise RuntimeError(f"Failed to screenshot tweet: {e}") from e
 
         detected_theme: str = screenshot_result["theme"]
-        print(
-            f"    Screenshot captured: {screenshot_result['width']}x{screenshot_result['height']}"
-        )
+        print(f"    Screenshot captured: {screenshot_result['width']}x{screenshot_result['height']}")
         print(f"    Theme detected: {detected_theme}")
 
         # Step 2 & 3: Create canvas and compose video
@@ -443,9 +439,7 @@ Examples:
         default="top",
         help="Tweet position on canvas (default: top)",
     )
-    layout_group.add_argument(
-        "--padding", type=int, default=40, help="Padding around elements in pixels (default: 40)"
-    )
+    layout_group.add_argument("--padding", type=int, default=40, help="Padding around elements in pixels (default: 40)")
 
     # Video options
     video_group = parser.add_argument_group("Video Options")

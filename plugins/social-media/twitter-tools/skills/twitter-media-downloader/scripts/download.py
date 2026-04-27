@@ -321,16 +321,14 @@ def filter_files_by_type(
     filtered = []
     for f in files:
         ext = Path(f).suffix.lower()
-        if videos_only and ext in VIDEO_EXTENSIONS or images_only and ext in IMAGE_EXTENSIONS:
+        if (videos_only and ext in VIDEO_EXTENSIONS) or (images_only and ext in IMAGE_EXTENSIONS):
             filtered.append(f)
 
     DebugConsole.debug(f"Filtered {len(files)} files to {len(filtered)} matching type filter")
     return filtered
 
 
-def find_downloaded_files(
-    output_dir: Path, videos_only: bool = False, images_only: bool = False
-) -> list[str]:
+def find_downloaded_files(output_dir: Path, videos_only: bool = False, images_only: bool = False) -> list[str]:
     """Scan output directory for downloaded media files.
 
     This is a fallback when --print doesn't capture paths correctly.
@@ -378,9 +376,7 @@ Examples:
 
     parser.add_argument("url", help="Twitter/X URL (tweet, user profile, likes, bookmarks, etc.)")
 
-    parser.add_argument(
-        "-o", "--output", default="./downloads", help="Output directory (default: ./downloads)"
-    )
+    parser.add_argument("-o", "--output", default="./downloads", help="Output directory (default: ./downloads)")
 
     # Authentication options
     auth_group = parser.add_argument_group("Authentication")
@@ -396,12 +392,8 @@ Examples:
     filter_group.add_argument("--videos-only", action="store_true", help="Download only videos")
     filter_group.add_argument("--images-only", action="store_true", help="Download only images")
     filter_group.add_argument("--limit", type=int, help="Limit number of items to download")
-    filter_group.add_argument(
-        "--retweets", action="store_true", help="Include retweets when downloading user timeline"
-    )
-    filter_group.add_argument(
-        "--replies", action="store_true", help="Include replies when downloading user timeline"
-    )
+    filter_group.add_argument("--retweets", action="store_true", help="Include retweets when downloading user timeline")
+    filter_group.add_argument("--replies", action="store_true", help="Include replies when downloading user timeline")
 
     # Rate limiting
     rate_group = parser.add_argument_group("Rate Limiting")
@@ -417,9 +409,7 @@ Examples:
         action="store_true",
         help="Simulate download without actually downloading",
     )
-    output_group.add_argument(
-        "-g", "--get-urls", action="store_true", help="Print URLs instead of downloading"
-    )
+    output_group.add_argument("-g", "--get-urls", action="store_true", help="Print URLs instead of downloading")
     output_group.add_argument(
         "--json",
         action="store_true",

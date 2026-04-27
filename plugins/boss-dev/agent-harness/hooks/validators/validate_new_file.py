@@ -26,7 +26,6 @@ import logging
 import subprocess
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 # Logging setup - log file next to this script
@@ -38,8 +37,8 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[
-        logging.FileHandler(LOG_FILE, mode='a'),
-    ]
+        logging.FileHandler(LOG_FILE, mode="a"),
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -60,17 +59,14 @@ def get_git_untracked_files(directory: str, extension: str) -> list[str]:
     """Get list of untracked files in directory from git."""
     try:
         result = subprocess.run(
-            ["git", "status", "--porcelain", f"{directory}/"],
-            capture_output=True,
-            text=True,
-            timeout=5
+            ["git", "status", "--porcelain", f"{directory}/"], capture_output=True, text=True, timeout=5
         )
         if result.returncode != 0:
             logger.info(f"git status returned non-zero: {result.returncode}")
             return []
 
         untracked = []
-        for line in result.stdout.strip().split('\n'):
+        for line in result.stdout.strip().split("\n"):
             if not line:
                 continue
             # Git status format: XY filename
@@ -79,7 +75,7 @@ def get_git_untracked_files(directory: str, extension: str) -> list[str]:
             filepath = line[3:].strip()
 
             # Check for new/untracked files with matching extension
-            if status in ('??', 'A ', ' A', 'AM') and filepath.endswith(extension):
+            if status in ("??", "A ", " A", "AM") and filepath.endswith(extension):
                 untracked.append(filepath)
 
         logger.info(f"Git untracked files: {untracked}")
@@ -100,7 +96,7 @@ def get_recent_files(directory: str, extension: str, max_age_minutes: int) -> li
     max_age_seconds = max_age_minutes * 60
 
     # Handle extension with or without leading dot
-    ext = extension if extension.startswith('.') else f'.{extension}'
+    ext = extension if extension.startswith(".") else f".{extension}"
     pattern = f"*{ext}"
 
     for filepath in target_dir.glob(pattern):
@@ -157,26 +153,26 @@ def validate_new_file(directory: str, extension: str, max_age_minutes: int) -> t
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Validate that a new file was created in a directory"
-    )
+    parser = argparse.ArgumentParser(description="Validate that a new file was created in a directory")
     parser.add_argument(
-        '-d', '--directory',
+        "-d",
+        "--directory",
         type=str,
         default=DEFAULT_DIRECTORY,
-        help=f'Directory to check for new files (default: {DEFAULT_DIRECTORY})'
+        help=f"Directory to check for new files (default: {DEFAULT_DIRECTORY})",
     )
     parser.add_argument(
-        '-e', '--extension',
+        "-e",
+        "--extension",
         type=str,
         default=DEFAULT_EXTENSION,
-        help=f'File extension to match (default: {DEFAULT_EXTENSION})'
+        help=f"File extension to match (default: {DEFAULT_EXTENSION})",
     )
     parser.add_argument(
-        '--max-age',
+        "--max-age",
         type=int,
         default=DEFAULT_MAX_AGE_MINUTES,
-        help=f'Maximum file age in minutes (default: {DEFAULT_MAX_AGE_MINUTES})'
+        help=f"Maximum file age in minutes (default: {DEFAULT_MAX_AGE_MINUTES})",
     )
     return parser.parse_args()
 
@@ -201,9 +197,7 @@ def main():
 
         # Run validation
         success, message = validate_new_file(
-            directory=args.directory,
-            extension=args.extension,
-            max_age_minutes=args.max_age
+            directory=args.directory, extension=args.extension, max_age_minutes=args.max_age
         )
 
         if success:
@@ -220,10 +214,7 @@ def main():
     except Exception as e:
         # On error, allow through but log
         logger.exception(f"Validation error: {e}")
-        print(json.dumps({
-            "result": "continue",
-            "message": f"Validation error (allowing through): {str(e)}"
-        }))
+        print(json.dumps({"result": "continue", "message": f"Validation error (allowing through): {str(e)}"}))
         sys.exit(0)
 
 

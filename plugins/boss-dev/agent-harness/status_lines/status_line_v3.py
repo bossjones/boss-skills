@@ -7,10 +7,9 @@
 # ///
 
 import json
-import os
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv
@@ -87,10 +86,7 @@ def get_prompt_icon(prompt):
         return "⚡"
     elif "?" in prompt:
         return "❓"
-    elif any(
-        word in prompt.lower()
-        for word in ["create", "write", "add", "implement", "build"]
-    ):
+    elif any(word in prompt.lower() for word in ["create", "write", "add", "implement", "build"]):
         return "💡"
     elif any(word in prompt.lower() for word in ["fix", "debug", "error", "issue"]):
         return "🐛"

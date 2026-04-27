@@ -14,8 +14,8 @@ Track session start time, show elapsed duration
 
 import json
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv

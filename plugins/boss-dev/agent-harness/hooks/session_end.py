@@ -9,11 +9,12 @@
 import argparse
 import json
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass  # dotenv is optional
@@ -24,11 +25,11 @@ def log_session_end(input_data):
     # Ensure logs directory exists
     log_dir = Path("logs")
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / 'session_end.json'
+    log_file = log_dir / "session_end.json"
 
     # Read existing log data or initialize empty list
     if log_file.exists():
-        with open(log_file, 'r') as f:
+        with open(log_file, "r") as f:
             try:
                 log_data = json.load(f)
             except (json.JSONDecodeError, ValueError):
@@ -37,13 +38,13 @@ def log_session_end(input_data):
         log_data = []
 
     # Add timestamp to the input data
-    input_data['logged_at'] = datetime.now().isoformat()
+    input_data["logged_at"] = datetime.now().isoformat()
 
     # Append the entire input data
     log_data.append(input_data)
 
     # Write back to file with formatting
-    with open(log_file, 'w') as f:
+    with open(log_file, "w") as f:
         json.dump(log_data, f, indent=2)
 
 
@@ -81,15 +82,14 @@ def main():
     try:
         # Parse command line arguments
         parser = argparse.ArgumentParser()
-        parser.add_argument('--cleanup', action='store_true',
-                          help='Perform cleanup tasks at session end')
+        parser.add_argument("--cleanup", action="store_true", help="Perform cleanup tasks at session end")
         args = parser.parse_args()
 
         # Read JSON input from stdin
         input_data = json.loads(sys.stdin.read())
 
         # Extract session_id for cleanup logging
-        session_id = input_data.get('session_id', 'unknown')
+        session_id = input_data.get("session_id", "unknown")
 
         # Log the session end event
         log_session_end(input_data)
@@ -102,14 +102,14 @@ def main():
                 cleanup_log = {
                     "session_id": session_id,
                     "cleanup_at": datetime.now().isoformat(),
-                    "actions": cleanup_actions
+                    "actions": cleanup_actions,
                 }
                 log_dir = Path("logs")
                 cleanup_file = log_dir / "cleanup.json"
 
                 # Read existing cleanup log
                 if cleanup_file.exists():
-                    with open(cleanup_file, 'r') as f:
+                    with open(cleanup_file, "r") as f:
                         try:
                             cleanup_data = json.load(f)
                         except (json.JSONDecodeError, ValueError):
@@ -119,7 +119,7 @@ def main():
 
                 cleanup_data.append(cleanup_log)
 
-                with open(cleanup_file, 'w') as f:
+                with open(cleanup_file, "w") as f:
                     json.dump(cleanup_data, f, indent=2)
 
         # Success
@@ -133,5 +133,5 @@ def main():
         sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

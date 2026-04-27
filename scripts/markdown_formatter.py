@@ -40,7 +40,7 @@ def detect_language(code: str) -> str:
     if re.search(r"^\s*[{\[]", s):
         try:
             json.loads(s)
-            return "json"
+            return "json"  # noqa: TRY300
         except json.JSONDecodeError:
             pass
 
@@ -49,15 +49,11 @@ def detect_language(code: str) -> str:
         return "python"
 
     # JavaScript detection
-    if re.search(r"\b(function\s+\w+\s*\(|const\s+\w+\s*=)", s) or re.search(
-        r"=>|console\.(log|error)", s
-    ):
+    if re.search(r"\b(function\s+\w+\s*\(|const\s+\w+\s*=)", s) or re.search(r"=>|console\.(log|error)", s):
         return "javascript"
 
     # Bash detection
-    if re.search(r"^#!.*\b(bash|sh)\b", s, re.M) or re.search(
-        r"\b(if|then|fi|for|in|do|done)\b", s
-    ):
+    if re.search(r"^#!.*\b(bash|sh)\b", s, re.M) or re.search(r"\b(if|then|fi|for|in|do|done)\b", s):
         return "bash"
 
     # SQL detection

@@ -8,10 +8,10 @@
 # ]
 # ///
 
+import asyncio
 import os
 import sys
-import asyncio
-from pathlib import Path
+
 from dotenv import load_dotenv
 
 

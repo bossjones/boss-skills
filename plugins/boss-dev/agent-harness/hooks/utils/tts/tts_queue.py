@@ -42,11 +42,7 @@ def _ensure_lock_dir() -> None:
 
 def _write_lock_info(agent_id: str) -> None:
     """Write lock metadata to the lock file."""
-    lock_info = {
-        "agent_id": agent_id,
-        "timestamp": datetime.now().isoformat(),
-        "pid": os.getpid()
-    }
+    lock_info = {"agent_id": agent_id, "timestamp": datetime.now().isoformat(), "pid": os.getpid()}
     with open(_LOCK_FILE, "w") as f:
         json.dump(lock_info, f)
 

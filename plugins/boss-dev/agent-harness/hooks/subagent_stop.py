@@ -10,14 +10,15 @@
 import argparse
 import json
 import os
-import sys
 import subprocess
+import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass  # dotenv is optional
@@ -30,24 +31,28 @@ def debug_log(message: str) -> None:
         os.makedirs(log_dir, exist_ok=True)
         debug_path = os.path.join(log_dir, "subagent_debug.log")
         timestamp = datetime.now().isoformat()
-        with open(debug_path, 'a') as f:
+        with open(debug_path, "a") as f:
             f.write(f"[{timestamp}] {message}\n")
     except Exception:
         pass
+
 
 # Add hooks directory to path for local imports
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from utils.tts.tts_queue import acquire_tts_lock, release_tts_lock, cleanup_stale_locks
+    from utils.tts.tts_queue import acquire_tts_lock, cleanup_stale_locks, release_tts_lock
 except ImportError:
     # Fallback if imports fail - provide no-op functions
     def acquire_tts_lock(agent_id: str, timeout: int = 30) -> bool:
         return True
+
     def release_tts_lock(agent_id: str) -> None:
         pass
+
     def cleanup_stale_locks(max_age_seconds: int = 60) -> None:
         pass
+
 
 try:
     from utils.llm.task_summarizer import summarize_subagent_task
@@ -67,13 +72,13 @@ def get_tts_script_path() -> Optional[str]:
     tts_dir = script_dir / "utils" / "tts"
 
     # Check for ElevenLabs API key (highest priority)
-    if os.getenv('ELEVENLABS_API_KEY'):
+    if os.getenv("ELEVENLABS_API_KEY"):
         elevenlabs_script = tts_dir / "elevenlabs_tts.py"
         if elevenlabs_script.exists():
             return str(elevenlabs_script)
 
     # Check for OpenAI API key (second priority)
-    if os.getenv('OPENAI_API_KEY'):
+    if os.getenv("OPENAI_API_KEY"):
         openai_script = tts_dir / "openai_tts.py"
         if openai_script.exists():
             return str(openai_script)
@@ -110,7 +115,7 @@ def extract_task_context(input_data: dict) -> str:
 
     try:
         # Read the JSONL transcript file
-        with open(transcript_path, 'r') as f:
+        with open(transcript_path, "r") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -173,11 +178,10 @@ def announce_subagent_completion(message: str = "Subagent Complete") -> None:
             return  # No TTS scripts available
 
         # Call the TTS script with the provided message
-        subprocess.run([
-            "uv", "run", tts_script, message
-        ],
-        capture_output=True,  # Suppress output
-        timeout=10  # 10-second timeout
+        subprocess.run(
+            ["uv", "run", tts_script, message],
+            capture_output=True,  # Suppress output
+            timeout=10,  # 10-second timeout
         )
 
     except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
@@ -192,12 +196,17 @@ def main() -> None:
     try:
         # Parse command line arguments
         parser = argparse.ArgumentParser()
-        parser.add_argument('--chat', action='store_true', help='Copy transcript to chat.json')
-        parser.add_argument('--notify', action='store_true', help='Enable TTS completion announcement')
-        parser.add_argument('--summarize', action='store_true', default=True,
-                            help='Generate AI summary of subagent task (default: on when --notify is used)')
-        parser.add_argument('--no-summarize', dest='summarize', action='store_false',
-                            help='Disable AI summary, use generic message')
+        parser.add_argument("--chat", action="store_true", help="Copy transcript to chat.json")
+        parser.add_argument("--notify", action="store_true", help="Enable TTS completion announcement")
+        parser.add_argument(
+            "--summarize",
+            action="store_true",
+            default=True,
+            help="Generate AI summary of subagent task (default: on when --notify is used)",
+        )
+        parser.add_argument(
+            "--no-summarize", dest="summarize", action="store_false", help="Disable AI summary, use generic message"
+        )
         args = parser.parse_args()
 
         # Read JSON input from stdin
@@ -214,7 +223,7 @@ def main() -> None:
 
         # Read existing log data or initialize empty list
         if os.path.exists(log_path):
-            with open(log_path, 'r') as f:
+            with open(log_path, "r") as f:
                 try:
                     log_data = json.load(f)
                 except (json.JSONDecodeError, ValueError):
@@ -226,17 +235,17 @@ def main() -> None:
         log_data.append(input_data)
 
         # Write back to file with formatting
-        with open(log_path, 'w') as f:
+        with open(log_path, "w") as f:
             json.dump(log_data, f, indent=2)
 
         # Handle --chat switch (same as stop.py)
-        if args.chat and 'transcript_path' in input_data:
-            transcript_path = input_data['transcript_path']
+        if args.chat and "transcript_path" in input_data:
+            transcript_path = input_data["transcript_path"]
             if os.path.exists(transcript_path):
                 # Read .jsonl file and convert to JSON array
                 chat_data = []
                 try:
-                    with open(transcript_path, 'r') as f:
+                    with open(transcript_path, "r") as f:
                         for line in f:
                             line = line.strip()
                             if line:
@@ -246,8 +255,8 @@ def main() -> None:
                                     pass  # Skip invalid lines
 
                     # Write to logs/chat.json
-                    chat_file = os.path.join(log_dir, 'chat.json')
-                    with open(chat_file, 'w') as f:
+                    chat_file = os.path.join(log_dir, "chat.json")
+                    with open(chat_file, "w") as f:
                         json.dump(chat_data, f, indent=2)
                 except Exception:
                     pass  # Fail silently
