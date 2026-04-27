@@ -1,0 +1,98 @@
+[
+  {
+    "name": "luacheck_failure",
+    "description": "Diagnose and fix a luacheck CI failure (undefined global variable)",
+    "prompt": "/debug-ci",
+    "setup": [
+      "echo 'local unused_var = 1' >> lua/user/plugins.lua",
+      "echo 'print(undefined_global_var)' >> lua/user/plugins.lua"
+    ],
+    "teardown": [
+      "git checkout -- lua/user/plugins.lua"
+    ],
+    "expected_behaviors": [
+      {
+        "description": "Identifies the luacheck failure category",
+        "assertion": "output contains reference to luacheck errors or warnings"
+      },
+      {
+        "description": "Fixes the unused variable warning",
+        "assertion": "the unused variable is either removed or prefixed with underscore"
+      },
+      {
+        "description": "Fixes the undefined global",
+        "assertion": "the undefined global reference is removed or the global is declared"
+      },
+      {
+        "description": "Runs local validation before pushing",
+        "assertion": "luacheck is run locally and passes before any git push"
+      },
+      {
+        "description": "Uses conventional commit prefix",
+        "assertion": "commit message starts with fix: or style:"
+      },
+      {
+        "description": "Stages specific files only",
+        "assertion": "git add uses specific file names, not -A or ."
+      }
+    ]
+  },
+  {
+    "name": "stylua_formatting_drift",
+    "description": "Diagnose and fix a stylua formatting CI failure",
+    "prompt": "/debug-ci",
+    "setup": [
+      "sed -i '' 's/^local /    local /' lua/user/keybindings.lua"
+    ],
+    "teardown": [
+      "git checkout -- lua/user/keybindings.lua"
+    ],
+    "expected_behaviors": [
+      {
+        "description": "Identifies the stylua failure category",
+        "assertion": "output references stylua formatting issues"
+      },
+      {
+        "description": "Runs stylua to auto-format",
+        "assertion": "stylua command is executed to fix formatting"
+      },
+      {
+        "description": "Validates formatting passes locally",
+        "assertion": "stylua --check is run and passes before pushing"
+      },
+      {
+        "description": "Uses style: commit prefix",
+        "assertion": "commit message starts with style:"
+      },
+      {
+        "description": "Polls for new CI run by commit SHA",
+        "assertion": "after pushing, the new run is identified by matching headSha, not by picking the latest run"
+      }
+    ]
+  },
+  {
+    "name": "no_failures_clean_exit",
+    "description": "When all CI runs are passing, report clean status and exit early",
+    "prompt": "/debug-ci",
+    "setup": [],
+    "teardown": [],
+    "expected_behaviors": [
+      {
+        "description": "Checks recent CI runs",
+        "assertion": "gh run list is called to check recent runs"
+      },
+      {
+        "description": "Reports all green",
+        "assertion": "output indicates all CI runs are passing or green"
+      },
+      {
+        "description": "Does not attempt fixes",
+        "assertion": "no git commits or pushes are made"
+      },
+      {
+        "description": "Exits early",
+        "assertion": "command completes without entering fix phases"
+      }
+    ]
+  }
+]

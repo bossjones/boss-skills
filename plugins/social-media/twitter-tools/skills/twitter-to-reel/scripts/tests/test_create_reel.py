@@ -267,9 +267,7 @@ class TestCreateReel:
 
     @patch("create_reel.check_playwright")
     @patch("create_reel.check_ffmpeg")
-    def test_raises_without_playwright(
-        self, mock_ffmpeg: MagicMock, mock_playwright: MagicMock
-    ) -> None:
+    def test_raises_without_playwright(self, mock_ffmpeg: MagicMock, mock_playwright: MagicMock) -> None:
         """Should raise RuntimeError if Playwright not available."""
         mock_ffmpeg.return_value = True
         mock_playwright.return_value = False
@@ -284,9 +282,7 @@ class TestCreateReel:
 
     @patch("create_reel.check_playwright")
     @patch("create_reel.check_ffmpeg")
-    def test_raises_for_invalid_url(
-        self, mock_ffmpeg: MagicMock, mock_playwright: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_raises_for_invalid_url(self, mock_ffmpeg: MagicMock, mock_playwright: MagicMock, tmp_path: Path) -> None:
         """Should raise ValueError for URL without tweet ID."""
         mock_ffmpeg.return_value = True
         mock_playwright.return_value = True

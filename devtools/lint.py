@@ -7,6 +7,9 @@ from rich import print as rprint
 # Update as needed.
 SRC_PATHS = ["devtools", "scripts", "plugins"]
 DOC_PATHS = ["README.md"]
+# Type-checked paths (kept narrower than SRC_PATHS while plugins are scaffolding).
+# Add plugin subdirectories here as they exit scaffolding and gain type annotations.
+TYPE_CHECK_PATHS = ["devtools", "scripts"]
 
 
 reconfigure(emoji=not get_console().options.legacy_windows)  # No emojis on legacy windows.
@@ -19,7 +22,7 @@ def main():
     errcount += run(["codespell", "--write-changes", *SRC_PATHS, *DOC_PATHS])
     errcount += run(["ruff", "check", "--fix", *SRC_PATHS])
     errcount += run(["ruff", "format", *SRC_PATHS])
-    errcount += run(["basedpyright", "--stats", *SRC_PATHS])
+    errcount += run(["basedpyright", "--stats", *TYPE_CHECK_PATHS])
 
     rprint()
 
@@ -38,7 +41,7 @@ def run(cmd: list[str]) -> int:
     rprint(f"[bold green]>> {' '.join(cmd)}[/bold green]")
     errcount = 0
     try:
-        subprocess.run(cmd, text=True, check=True)
+        subprocess.run(cmd, text=True, check=True)  # noqa: S603
     except KeyboardInterrupt:
         rprint("[yellow]Keyboard interrupt - Cancelled[/yellow]")
         errcount = 1

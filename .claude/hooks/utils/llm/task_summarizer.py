@@ -70,7 +70,7 @@ Task completed: {task_description}
 Context: {agent_context}
 
 Requirements:
-- Address the user as "Dan" directly (but not always at the start)
+- Address the user as "bossjones" directly (but not always at the start)
 - Keep it under 20 words
 - Focus on the outcome and value delivered
 - Be conversational and personalized
@@ -79,10 +79,10 @@ Requirements:
 - Return ONLY the summary text
 
 Example styles:
-- "Dan, authentication is ready with secure JWT token support."
+- "bossjones, authentication is ready with secure JWT token support."
 - "Your file watcher is now monitoring for changes."
 - "Builder finished setting up the TTS queue with file locks."
-- "Dan, the new API endpoints are live and tested."
+- "bossjones, the new API endpoints are live and tested."
 
 Generate ONE summary:"""
 

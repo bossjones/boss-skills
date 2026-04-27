@@ -118,9 +118,7 @@ def create_reel_canvas(
         y_offset = padding
 
     # Paste screenshot onto canvas
-    canvas.paste(
-        screenshot, (x_offset, y_offset), screenshot if screenshot.mode == "RGBA" else None
-    )
+    canvas.paste(screenshot, (x_offset, y_offset), screenshot if screenshot.mode == "RGBA" else None)
 
     # Calculate video overlay area
     # We'll place the video below the tweet if at top, or find media area
@@ -353,9 +351,7 @@ def main():
         help="Tweet position on canvas (default: top)",
     )
 
-    parser.add_argument(
-        "--padding", type=int, default=40, help="Padding around elements in pixels (default: 40)"
-    )
+    parser.add_argument("--padding", type=int, default=40, help="Padding around elements in pixels (default: 40)")
 
     parser.add_argument("--duration", type=float, help="Maximum output duration in seconds")
 

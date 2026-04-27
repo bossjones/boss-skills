@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Boss Skills Repo and Lab for my personal Claude Code configs and skills"
 requires-python = ">=3.13"
 authors = [
-    { name="Malcolm Jones", email="bossjones@theblacktonystark.com" },
+    { name = "Malcolm Jones", email = "bossjones@theblacktonystark.com" },
 ]
 readme = "README.md"
 license = "MIT"
@@ -42,3 +42,101 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.ty.environment]
+python = "./.venv"
+python-version = "3.10"
+
+[tool.ty.src]
+exclude = [".claude/"]
+
+[tool.ty.rules]
+unresolved-import = "ignore"
+
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+fix = true
+exclude = [".claude/"]
+
+[tool.ruff.lint]
+select = [
+    # flake8-2020
+    "YTT",
+    # flake8-bandit
+    "S",
+    # flake8-bugbear
+    "B",
+    # flake8-builtins
+    "A",
+    # flake8-comprehensions
+    "C4",
+    # flake8-debugger
+    "T10",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # mccabe
+    "C90",
+    # pycodestyle
+    "E",
+    "W",
+    # pyflakes
+    "F",
+    # pygrep-hooks
+    "PGH",
+    # pyupgrade
+    "UP",
+    # ruff
+    "RUF",
+    # tryceratops
+    "TRY",
+]
+ignore = [
+    # LineTooLong
+    "E501",
+    # DoNotAssignLambda
+    "E731",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+"**/tests/**" = ["S101", "S108"]
+"plugins/boss-dev/agent-harness/**" = [
+    "S",      # security rules (subprocess, try/pass, random) — vendored hooks
+    "SIM",    # simplify — stylistic, refine after scaffolding stabilizes
+    "TRY",    # tryceratops — exception-handling patterns differ in vendored hooks
+    "C901",   # function complexity — scaffolding code
+    "F841",   # unused locals — scaffolding placeholders
+    "B",      # flake8-bugbear — refine after scaffolding stabilizes
+    "UP",     # pyupgrade — refine after scaffolding stabilizes
+    "RUF",    # ruff-specific — refine after scaffolding stabilizes
+    "E402",   # module-level imports — sys.path tweaks in scripts
+    "W291",   # trailing whitespace — defer to scaffolding cleanup
+    "W293",   # whitespace on blank line — defer to scaffolding cleanup
+]
+"plugins/social-media/twitter-tools/**" = [
+    "S",      # subprocess/assert — playwright + gallery-dl scripts
+    "SIM",    # simplify — stylistic
+    "TRY",    # tryceratops — exception-handling patterns differ
+    "C901",   # function complexity
+    "RUF",    # ruff-specific (unused unpack in tests, etc.)
+    "E402",   # module-level imports — sys.path tweaks before imports
+    "W291",   # trailing whitespace
+    "W293",   # whitespace on blank line
+]
+
+[tool.ruff.format]
+preview = true
+
+[tool.basedpyright]
+# devtools/lint.py invokes basedpyright on a curated path list (not the full
+# plugins/ tree). Both currently-scaffolding plugins are excluded; re-add them
+# here and to the lint.py path list when they exit scaffolding.
+exclude = [
+    ".claude/",
+    "plugins/boss-dev/agent-harness/",
+    "plugins/social-media/twitter-tools/",
+]
