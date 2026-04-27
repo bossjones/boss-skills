@@ -30,6 +30,7 @@ plugins/<category>/<plugin-name>/
 - `infrastructure/` - Infrastructure as Code tools (Terraform, Ansible, Proxmox)
 - `devops/` - Container orchestration and DevOps tools (Kubernetes, Docker)
 - `homelab/` - Homelab-specific utilities (NetBox, PowerDNS)
+- `boss-dev/` - Personal developer-experience tools and agent harnessing
 
 ## Plugin Manifest (plugin.json)
 
