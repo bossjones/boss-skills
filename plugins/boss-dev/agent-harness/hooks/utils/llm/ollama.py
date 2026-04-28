@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# requires-python = ">=3.8"
+# requires-python = ">=3.13"
 # dependencies = [
 #     "openai",
 #     "python-dotenv",
@@ -66,7 +66,7 @@ def generate_completion_message():
         name_instruction = (
             f"Sometimes (about 30% of the time) include the engineer's name '{engineer_name}' in a natural way."
         )
-        examples = f"""Examples of the style: 
+        examples = f"""Examples of the style:
 - Standard: "Work complete!", "All done!", "Task finished!", "Ready for your next move!"
 - Personalized: "{engineer_name}, all set!", "Ready for you, {engineer_name}!", "Complete, {engineer_name}!", "{engineer_name}, we're done!" """
     else:
@@ -75,7 +75,7 @@ def generate_completion_message():
             """Examples of the style: "Work complete!", "All done!", "Task finished!", "Ready for your next move!" """
         )
 
-    prompt = f"""Generate a short, friendly completion message for when an AI coding assistant finishes a task. 
+    prompt = f"""Generate a short, friendly completion message for when an AI coding assistant finishes a task.
 
 Requirements:
 - Keep it under 10 words
