@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci smoke smoke-debug smoke-help
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci smoke smoke-debug smoke-help logs
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -205,3 +205,7 @@ smoke-help: ## Show smoke test usage
 	@echo "  make smoke"
 	@echo "  make smoke-debug"
 	@echo "  make smoke SMOKE_URL='https://x.com/user/status/123'"
+
+.PHONY: logs
+logs: ## Tail logs/*.json and show notification_type and message via jq
+	tail -f logs/*.json | ccze -A
