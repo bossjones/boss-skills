@@ -2,7 +2,7 @@
 name = "boss-skills"
 version = "0.1.0"
 description = "Boss Skills Repo and Lab for my personal Claude Code configs and skills"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 authors = [
     { name = "Malcolm Jones", email = "bossjones@theblacktonystark.com" },
 ]
