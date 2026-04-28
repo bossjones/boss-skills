@@ -160,7 +160,7 @@ The local validator requires both `description` and `capabilities` for agent fro
 ```markdown
 ---
 name: example
-description: Example skill — replace with a real one
+description: Example skill Use this skill when the user asks to [trigger pattern] (replace with real triggers)
 ---
 
 # Example Skill
