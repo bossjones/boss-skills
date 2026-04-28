@@ -1,3 +1,7 @@
+---
+description: Fan out a fixed parallel batch of seven sub-agent tasks (crypto analysis, AI research, and several meta-agent generations) to exercise parallel execution.
+---
+
 Run these 7 sub agent tasks simultaneously in parallel:
 
 1. crypto-coin-analyzer: Analyze DOGE with full technical and sentiment analysis
