@@ -105,27 +105,27 @@ ignore = [
 "tests/*" = ["S101"]
 "**/tests/**" = ["S101", "S108"]
 "plugins/boss-dev/agent-harness/**" = [
-    "S",      # security rules (subprocess, try/pass, random) — vendored hooks
-    "SIM",    # simplify — stylistic, refine after scaffolding stabilizes
-    "TRY",    # tryceratops — exception-handling patterns differ in vendored hooks
-    "C901",   # function complexity — scaffolding code
-    "F841",   # unused locals — scaffolding placeholders
-    "B",      # flake8-bugbear — refine after scaffolding stabilizes
-    "UP",     # pyupgrade — refine after scaffolding stabilizes
-    "RUF",    # ruff-specific — refine after scaffolding stabilizes
-    "E402",   # module-level imports — sys.path tweaks in scripts
-    "W291",   # trailing whitespace — defer to scaffolding cleanup
-    "W293",   # whitespace on blank line — defer to scaffolding cleanup
+    "S",    # security rules (subprocess, try/pass, random) — vendored hooks
+    "SIM",  # simplify — stylistic, refine after scaffolding stabilizes
+    "TRY",  # tryceratops — exception-handling patterns differ in vendored hooks
+    "C901", # function complexity — scaffolding code
+    "F841", # unused locals — scaffolding placeholders
+    "B",    # flake8-bugbear — refine after scaffolding stabilizes
+    "UP",   # pyupgrade — refine after scaffolding stabilizes
+    "RUF",  # ruff-specific — refine after scaffolding stabilizes
+    "E402", # module-level imports — sys.path tweaks in scripts
+    "W291", # trailing whitespace — defer to scaffolding cleanup
+    "W293", # whitespace on blank line — defer to scaffolding cleanup
 ]
 "plugins/social-media/twitter-tools/**" = [
-    "S",      # subprocess/assert — playwright + gallery-dl scripts
-    "SIM",    # simplify — stylistic
-    "TRY",    # tryceratops — exception-handling patterns differ
-    "C901",   # function complexity
-    "RUF",    # ruff-specific (unused unpack in tests, etc.)
-    "E402",   # module-level imports — sys.path tweaks before imports
-    "W291",   # trailing whitespace
-    "W293",   # whitespace on blank line
+    "S",    # subprocess/assert — playwright + gallery-dl scripts
+    "SIM",  # simplify — stylistic
+    "TRY",  # tryceratops — exception-handling patterns differ
+    "C901", # function complexity
+    "RUF",  # ruff-specific (unused unpack in tests, etc.)
+    "E402", # module-level imports — sys.path tweaks before imports
+    "W291", # trailing whitespace
+    "W293", # whitespace on blank line
 ]
 
 [tool.ruff.format]

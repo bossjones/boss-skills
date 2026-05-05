@@ -52,6 +52,30 @@
         "name": "Malcolm Jones",
         "email": "bossjones@theblacktonystark.com"
       }
+    },
+    {
+      "name": "python-dev",
+      "source": "./plugins/boss-dev/python-dev",
+      "description": "Python development tooling for Claude Code: debug GitHub Actions CI failures end-to-end and ship changes via conventional-commit PRs. Assumes a uv-based project with ruff, ty, deptry, pre-commit, and mkdocs.",
+      "version": "0.1.0",
+      "category": "boss-dev",
+      "keywords": [
+        "python",
+        "ci",
+        "github-actions",
+        "debug",
+        "uv",
+        "ruff",
+        "pytest",
+        "gh-cli",
+        "commit",
+        "pr",
+        "workflow"
+      ],
+      "author": {
+        "name": "Malcolm Jones",
+        "email": "bossjones@theblacktonystark.com"
+      }
     }
   ]
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# requires-python = ">=3.8"
+# requires-python = ">=3.13"
 # dependencies = [
 #     "anthropic",
 #     "python-dotenv",
@@ -34,7 +34,7 @@ def prompt_llm(prompt_text):
         client = anthropic.Anthropic(api_key=api_key)
 
         message = client.messages.create(
-            model="claude-3-5-haiku-20241022",  # Fastest Anthropic model
+            model="claude-haiku-4-5-20251001",  # Fastest Anthropic model
             max_tokens=100,
             temperature=0.7,
             messages=[{"role": "user", "content": prompt_text}],
@@ -57,14 +57,14 @@ def generate_completion_message():
 
     if engineer_name:
         name_instruction = f"Sometimes (about 30% of the time) include the engineer's name '{engineer_name}' in a natural way."
-        examples = f"""Examples of the style: 
+        examples = f"""Examples of the style:
 - Standard: "Work complete!", "All done!", "Task finished!", "Ready for your next move!"
 - Personalized: "{engineer_name}, all set!", "Ready for you, {engineer_name}!", "Complete, {engineer_name}!", "{engineer_name}, we're done!" """
     else:
         name_instruction = ""
         examples = """Examples of the style: "Work complete!", "All done!", "Task finished!", "Ready for your next move!" """
 
-    prompt = f"""Generate a short, friendly completion message for when an AI coding assistant finishes a task. 
+    prompt = f"""Generate a short, friendly completion message for when an AI coding assistant finishes a task.
 
 Requirements:
 - Keep it under 10 words
@@ -93,26 +93,26 @@ Generate ONE completion message:"""
 def generate_agent_name():
     """
     Generate a one-word agent name using Anthropic.
-    
+
     Returns:
         str: A single-word agent name, or fallback name if error
     """
     import random
-    
+
     # Example names to guide generation
     example_names = [
-        "Phoenix", "Sage", "Nova", "Echo", "Atlas", "Cipher", "Nexus", 
+        "Phoenix", "Sage", "Nova", "Echo", "Atlas", "Cipher", "Nexus",
         "Oracle", "Quantum", "Zenith", "Aurora", "Vortex", "Nebula",
         "Catalyst", "Prism", "Axiom", "Helix", "Flux", "Synth", "Vertex"
     ]
-    
+
     # If no API key, return random fallback
     if not os.getenv("ANTHROPIC_API_KEY"):
         return random.choice(example_names)
-    
+
     # Create examples string
     examples_str = ", ".join(example_names[:10])  # Use first 10 as examples
-    
+
     prompt_text = f"""Generate exactly ONE unique agent/assistant name.
 
 Requirements:
@@ -125,24 +125,24 @@ Requirements:
 Generate a NEW name (not from the examples). Respond with ONLY the name, nothing else.
 
 Name:"""
-    
+
     try:
         # Use faster Haiku model with lower tokens for name generation
         load_dotenv()
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             raise Exception("No API key")
-        
+
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
-        
+
         message = client.messages.create(
-            model="claude-3-5-haiku-20241022",  # Fast model
+            model="claude-haiku-4-5-20251001",  # Fast model
             max_tokens=20,
             temperature=0.7,
             messages=[{"role": "user", "content": prompt_text}],
         )
-        
+
         # Extract and clean the name
         name = message.content[0].text.strip()
         # Ensure it's a single word
@@ -151,13 +151,13 @@ Name:"""
         name = ''.join(c for c in name if c.isalnum())
         # Capitalize first letter
         name = name.capitalize() if name else "Agent"
-        
+
         # Validate it's not empty and reasonable length
         if name and 3 <= len(name) <= 20:
             return name
         else:
             raise Exception("Invalid name generated")
-        
+
     except Exception:
         # Return random fallback name
         return random.choice(example_names)
@@ -166,7 +166,7 @@ Name:"""
 def main():
     """Command line interface for testing."""
     import json
-    
+
     if len(sys.argv) > 1:
         if sys.argv[1] == "--completion":
             message = generate_completion_message()

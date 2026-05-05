@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.13"
 # dependencies = [
 #     "python-dotenv",
 # ]
@@ -104,7 +104,7 @@ def format_extras(extras):
     """Format extras dictionary into a compact string."""
     if not extras:
         return None
-    
+
     # Format each key-value pair
     pairs = []
     for key, value in extras.items():
@@ -113,7 +113,7 @@ def format_extras(extras):
         if len(str_value) > 20:
             str_value = str_value[:17] + "..."
         pairs.append(f"{key}:{str_value}")
-    
+
     return " ".join(pairs)
 
 

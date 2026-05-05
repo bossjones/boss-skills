@@ -1,6 +1,7 @@
 ---
 name: hello-world-agent
 description: Simple greeting agent, use proactively when greeting the user. If they say 'hi claude' or 'hi cc' or 'hi claude code' use this agent.
+capabilities: ["greeting"]
 tools: WebSearch
 color: green
 ---

@@ -1,3 +1,8 @@
+---
+description: Upsert a key/value pair into a session's status line data file at .claude/data/sessions/{session_id}.json.
+argument-hint: "<session_id> <key> <value>"
+---
+
 # Update Status Line Data
 
 ## Purpose

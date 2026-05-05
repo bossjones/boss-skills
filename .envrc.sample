@@ -1,0 +1,2 @@
+# FIXME: need to fix .claude/hooks/utils/llm/anth.py to use the correct model, for now just make sure this isn't set so tts works.
+unset ANTHROPIC_API_KEY

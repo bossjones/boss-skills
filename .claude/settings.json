@@ -18,7 +18,7 @@
     },
     "statusLine": {
         "type": "command",
-        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/status_lines/status_line_v6.py",
+        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/status_lines/status_line_v10.py",
         "padding": 0
     },
     "hooks": {

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.13"
 # dependencies = [
 #     "python-dotenv",
 # ]
@@ -26,7 +26,7 @@ def log_status_line(input_data, status_line_output):
     log_dir = Path("logs")
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / 'status_line.json'
-    
+
     # Read existing log data or initialize empty list
     if log_file.exists():
         with open(log_file, 'r') as f:
@@ -36,17 +36,17 @@ def log_status_line(input_data, status_line_output):
                 log_data = []
     else:
         log_data = []
-    
+
     # Create log entry with input data and generated output
     log_entry = {
         "timestamp": datetime.now().isoformat(),
         "input_data": input_data,
         "status_line_output": status_line_output
     }
-    
+
     # Append the log entry
     log_data.append(log_entry)
-    
+
     # Write back to file with formatting
     with open(log_file, 'w') as f:
         json.dump(log_data, f, indent=2)
@@ -91,19 +91,19 @@ def get_git_status():
 def generate_status_line(input_data):
     """Generate the status line based on input data."""
     parts = []
-    
+
     # Model display name
     model_info = input_data.get('model', {})
     model_name = model_info.get('display_name', 'Claude')
     parts.append(f"\033[36m[{model_name}]\033[0m")  # Cyan color
-    
+
     # Current directory
     workspace = input_data.get('workspace', {})
     current_dir = workspace.get('current_dir', '')
     if current_dir:
         dir_name = os.path.basename(current_dir)
         parts.append(f"\033[34m📁 {dir_name}\033[0m")  # Blue color
-    
+
     # Git branch and status
     git_branch = get_git_branch()
     if git_branch:
@@ -112,12 +112,12 @@ def generate_status_line(input_data):
         if git_status:
             git_info += f" {git_status}"
         parts.append(f"\033[32m{git_info}\033[0m")  # Green color
-    
+
     # Version info (optional, smaller)
     version = input_data.get('version', '')
     if version:
         parts.append(f"\033[90mv{version}\033[0m")  # Gray color
-    
+
     return " | ".join(parts)
 
 
@@ -125,19 +125,19 @@ def main():
     try:
         # Read JSON input from stdin
         input_data = json.loads(sys.stdin.read())
-        
+
         # Generate status line
         status_line = generate_status_line(input_data)
-        
+
         # Log the status line event
         log_status_line(input_data, status_line)
-        
+
         # Output the status line (first line of stdout becomes the status line)
         print(status_line)
-        
+
         # Success
         sys.exit(0)
-        
+
     except json.JSONDecodeError:
         # Handle JSON decode errors gracefully - output basic status
         print("\033[31m[Claude] 📁 Unknown\033[0m")
