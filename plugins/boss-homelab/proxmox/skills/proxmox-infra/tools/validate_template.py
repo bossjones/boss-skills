@@ -175,12 +175,8 @@ class TemplateValidator:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Validate Proxmox VM template health and configuration"
-    )
-    parser.add_argument(
-        "--template-id", type=int, required=True, help="Template VM ID (e.g., 9000)"
-    )
+    parser = argparse.ArgumentParser(description="Validate Proxmox VM template health and configuration")
+    parser.add_argument("--template-id", type=int, required=True, help="Template VM ID (e.g., 9000)")
     parser.add_argument("--node", help="Specific Proxmox node to check (default: search all nodes)")
     parser.add_argument("--all-nodes", action="store_true", help="Search all nodes in cluster")
 

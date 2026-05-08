@@ -95,9 +95,7 @@ class ClusterMonitor:
         cluster_info = next((item for item in cluster_status if item["type"] == "cluster"), None)
         if cluster_info:
             print(f"\n📊 Cluster: {cluster_info.get('name', 'N/A')}")
-            print(
-                f"   Quorum: {cluster_info.get('quorate', 0)} (nodes: {cluster_info.get('nodes', 0)})"
-            )
+            print(f"   Quorum: {cluster_info.get('quorate', 0)} (nodes: {cluster_info.get('nodes', 0)})")
 
         # Node statuses
         nodes = [item for item in cluster_status if item["type"] == "node"]
@@ -195,9 +193,7 @@ class ClusterMonitor:
                 mem = vm.get("mem", 0) / (1024**2) if vm.get("status") == "running" else 0  # MB
 
                 status_icon = "▶️" if status == "running" else "⏸️"
-                print(
-                    f"   {vmid:<8} {name:<25} {status_icon} {status:<8} {cpu_pct:>6.1f}% {mem:>8.0f} MB"
-                )
+                print(f"   {vmid:<8} {name:<25} {status_icon} {status:<8} {cpu_pct:>6.1f}% {mem:>8.0f} MB")
         else:
             print("   No VMs found")
 
@@ -205,9 +201,7 @@ class ClusterMonitor:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Display Proxmox cluster health and resource usage"
-    )
+    parser = argparse.ArgumentParser(description="Display Proxmox cluster health and resource usage")
     parser.add_argument("--node", help="Show detailed info for specific node")
     parser.add_argument("--detailed", action="store_true", help="Show detailed info for all nodes")
 

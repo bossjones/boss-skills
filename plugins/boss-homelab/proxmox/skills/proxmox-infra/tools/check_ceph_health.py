@@ -140,14 +140,12 @@ class CEPHHealthChecker:
     def _validate_node(self, node: str) -> bool:
         """Validate node is a valid hostname or IP address"""
         # Allow valid hostnames and IPv4/IPv6 addresses
-        hostname_pattern = r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$"
+        hostname_pattern = (
+            r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$"
+        )
         ipv4_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
         ipv6_pattern = r"^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$"
-        return bool(
-            re.match(hostname_pattern, node)
-            or re.match(ipv4_pattern, node)
-            or re.match(ipv6_pattern, node)
-        )
+        return bool(re.match(hostname_pattern, node) or re.match(ipv4_pattern, node) or re.match(ipv6_pattern, node))
 
     def run_command(self, command: str) -> str:
         """Execute command on remote node via SSH"""
@@ -268,16 +266,12 @@ class CEPHHealthChecker:
             active_name = mgr_data.get("active_name", "")
             active_addr = mgr_data.get("active_addr", "")
             if active_name:
-                self.health.managers.append(
-                    ManagerStatus(name=active_name, active=True, address=active_addr)
-                )
+                self.health.managers.append(ManagerStatus(name=active_name, active=True, address=active_addr))
 
             # Standby managers
             for standby in mgr_data.get("standbys", []):
                 self.health.managers.append(
-                    ManagerStatus(
-                        name=standby.get("name", ""), active=False, address=standby.get("gid", "")
-                    )
+                    ManagerStatus(name=standby.get("name", ""), active=False, address=standby.get("gid", ""))
                 )
 
         except (json.JSONDecodeError, KeyError) as e:
@@ -389,13 +383,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument(
-        "--node", default="pve1", help="Node to check (default: pve1)"
-    )
+    parser.add_argument("--node", default="pve1", help="Node to check (default: pve1)")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
-    parser.add_argument(
-        "--min-osds", type=int, help="Minimum expected OSD count (error if below this)"
-    )
+    parser.add_argument("--min-osds", type=int, help="Minimum expected OSD count (error if below this)")
 
     args = parser.parse_args()
 
@@ -417,9 +407,7 @@ def main():
         print("CEPH Cluster Health Check")
         print("=" * 60)
         print(f"Overall Status: {health.status}")
-        print(
-            f"OSDs: {health.num_up_osds}/{health.num_osds} up, {health.num_in_osds}/{health.num_osds} in"
-        )
+        print(f"OSDs: {health.num_up_osds}/{health.num_osds} up, {health.num_in_osds}/{health.num_osds} in")
         print(f"PGs: {health.num_active_clean_pgs}/{health.num_pgs} active+clean")
         print(
             f"Usage: {health.percent_used:.1f}% ({human_readable_size(health.used_bytes)}/{human_readable_size(health.data_bytes)})"

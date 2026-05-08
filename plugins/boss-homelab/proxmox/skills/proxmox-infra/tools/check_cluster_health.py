@@ -98,14 +98,12 @@ class ClusterHealthChecker:
         import re
 
         # Allow valid hostnames and IPv4/IPv6 addresses
-        hostname_pattern = r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$"
+        hostname_pattern = (
+            r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$"
+        )
         ipv4_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
         ipv6_pattern = r"^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$"
-        return bool(
-            re.match(hostname_pattern, node)
-            or re.match(ipv4_pattern, node)
-            or re.match(ipv6_pattern, node)
-        )
+        return bool(re.match(hostname_pattern, node) or re.match(ipv4_pattern, node) or re.match(ipv6_pattern, node))
 
     def run_command(self, command: str) -> str:
         """Execute command on remote node via SSH"""
@@ -163,9 +161,7 @@ class ClusterHealthChecker:
 
         # Check if we have majority
         if self.health.total_votes < (self.health.expected_votes // 2 + 1):
-            self.health.errors.append(
-                f"Insufficient votes: {self.health.total_votes}/{self.health.expected_votes}"
-            )
+            self.health.errors.append(f"Insufficient votes: {self.health.total_votes}/{self.health.expected_votes}")
 
     def check_nodes(self):
         """Check node membership"""
@@ -189,9 +185,7 @@ class ClusterHealthChecker:
                     ip = parts[3] if len(parts) >= 4 else "unknown"
                     online = True  # If in list, assumed online
 
-                    self.health.nodes.append(
-                        NodeStatus(name=name, online=online, node_id=node_id, ip=ip)
-                    )
+                    self.health.nodes.append(NodeStatus(name=name, online=online, node_id=node_id, ip=ip))
                 except (ValueError, IndexError) as e:
                     self.health.warnings.append(f"Failed to parse node line: {line}: {e}")
 
@@ -279,9 +273,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument(
-        "--node", default="pve1", help="Node to check (default: pve1)"
-    )
+    parser.add_argument("--node", default="pve1", help="Node to check (default: pve1)")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     args = parser.parse_args()
