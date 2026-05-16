@@ -36,18 +36,6 @@ def get_tts_script_path():
     script_dir = Path(__file__).parent
     tts_dir = script_dir / "utils" / "tts"
 
-    # Check for ElevenLabs API key (highest priority)
-    if os.getenv("ELEVENLABS_API_KEY"):
-        elevenlabs_script = tts_dir / "elevenlabs_tts.py"
-        if elevenlabs_script.exists():
-            return str(elevenlabs_script)
-
-    # Check for OpenAI API key (second priority)
-    if os.getenv("OPENAI_API_KEY"):
-        openai_script = tts_dir / "openai_tts.py"
-        if openai_script.exists():
-            return str(openai_script)
-
     # Fall back to pyttsx3 (no API key required)
     pyttsx3_script = tts_dir / "pyttsx3_tts.py"
     if pyttsx3_script.exists():
