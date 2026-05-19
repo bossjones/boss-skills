@@ -30,6 +30,19 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Required because this repo's .claude/settings.json wires every
+      # lifecycle hook to `uv run ...`; without uv the hooks fail with
+      # "uv: not found". Mirrors the uv setup in ci.yml.
+      - name: Install uv (official Astral action)
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.15"
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Set up Python (using uv)
+        run: uv python install
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
