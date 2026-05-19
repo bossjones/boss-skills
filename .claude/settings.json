@@ -99,6 +99,14 @@
                     {
                         "type": "command",
                         "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/post_tool_use.py"
+                    },
+                    {
+                        "type": "command",
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/skill-edit-review.py"
+                    },
+                    {
+                        "type": "command",
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/version-bump-reviewer.py"
                     }
                 ]
             }

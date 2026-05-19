@@ -1,6 +1,7 @@
 # agent-harness
 
-Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build and operate agentic dev workflows.
+Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
+and operate agentic dev workflows.
 
 ## Installation
 
@@ -32,4 +33,5 @@ _Coming soon._ Helper scripts will live under `scripts/`; tooling under `tools/`
 
 ## Status
 
-Early scaffolding — no components shipped yet. See the boss-skills marketplace entry under `plugins/boss-dev/agent-harness/` to track progress.
+Early scaffolding — no components shipped yet. See the boss-skills marketplace entry under
+`plugins/boss-dev/agent-harness/` to track progress.

@@ -1,6 +1,8 @@
 # proxmox
 
-Homelab Proxmox VE tooling for Claude Code: skills for managing nodes, VMs, LXC containers, storage, and networking via the proxmoxer Python library, Ansible (`community.general.proxmox`), and Terraform/OpenTofu (Telmate provider).
+Homelab Proxmox VE tooling for Claude Code: skills for managing nodes, VMs, LXC containers, storage, and
+networking via the proxmoxer Python library, Ansible (`community.general.proxmox`), and Terraform/OpenTofu
+(Telmate provider).
 
 ## Installation
 
@@ -12,7 +14,9 @@ Homelab Proxmox VE tooling for Claude Code: skills for managing nodes, VMs, LXC 
 
 ### Skills
 
-- **proxmox-infrastructure** — VM/LXC provisioning, cloud-init templates, storage, and networking. Bundles Python helpers under `tools/`, recipe references under `reference/`, working `examples/`, and multi-step `workflows/`.
+- **proxmox-infrastructure** — VM/LXC provisioning, cloud-init templates, storage, and networking.
+  Bundles Python helpers under `tools/`, recipe references under `reference/`, working `examples/`,
+  and multi-step `workflows/`.
 
 ## Status
 
