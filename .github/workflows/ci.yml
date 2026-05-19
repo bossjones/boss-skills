@@ -60,5 +60,10 @@ jobs:
       - name: Run linting
         run: uv run python devtools/lint.py
 
+      - name: Evaluate skill quality
+        # Static depth only: deterministic, no LLM, no secrets. Run once.
+        if: matrix.python-version == '3.13'
+        run: make eval-ci
+
       - name: Run tests
         run: make ci

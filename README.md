@@ -94,6 +94,49 @@ make test
 make
 ```
 
+### Skill Quality
+
+Skills are quality-gated with [`plugin-eval`](https://github.com/wshobson/agents/tree/main/plugins/plugin-eval),
+pulled on demand from upstream via `uvx` (nothing is vendored or submoduled, so
+you always get the latest version).
+
+```bash
+# Report static scores for every skill (never fails)
+make eval
+
+# Quality gate used by CI: fail if any skill < EVAL_THRESHOLD
+make eval-ci
+
+# Override the floor ad hoc
+make eval-ci EVAL_THRESHOLD=70
+
+# Deep-dive one skill at standard depth (LLM judge; uses Claude Code Max)
+make eval-skill SKILL=plugins/social-media/twitter-tools/skills/twitter-to-reel
+```
+
+`make eval-ci` runs in CI at static (`quick`) depth — deterministic, no API key
+required. `EVAL_THRESHOLD` (in the `Makefile`) is a regression floor set to
+`min(baseline scores) - 5`; bump it as skills improve.
+
+For interactive use, install the Claude Code plugin from the already-registered
+marketplace (these are user-typed slash commands, not repo scripts):
+
+```text
+/plugin install plugin-eval@claude-code-workflows
+/plugin marketplace update claude-code-workflows   # pull the latest on demand
+```
+
+Enable autoUpdate on the `claude-code-workflows` marketplace if you want plugin
+updates without the manual `marketplace update`. This gives you `/eval`,
+`/certify`, and `/compare` while iterating on skills.
+
+**Escape hatch:** if upstream `plugin-eval` changes ever make the gate flaky,
+pin a known-good revision without editing code:
+
+```bash
+PLUGIN_EVAL_SOURCE='git+https://github.com/wshobson/agents.git@<sha>#subdirectory=plugins/plugin-eval' make eval-ci
+```
+
 ### Project Structure
 
 ```text

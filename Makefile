@@ -4,7 +4,13 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci smoke smoke-debug smoke-help logs
+# Skill quality regression floor for `make eval-ci`. Baseline (2026-05-19):
+# proxmox-infra 62.3, twitter-media-downloader 73.7, twitter-to-reel 66.5.
+# Set to min(observed) - 5 as a safety margin. Re-baseline with `make eval`
+# and bump this when skills genuinely improve.
+EVAL_THRESHOLD ?= 57
+
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -169,6 +175,26 @@ verify-structure: ## Verify Claude Code marketplace structure and validate plugi
 verify-structure-strict: ## Verify marketplace structure in strict mode (warnings treated as errors)
 	@echo "🚀 Verifying marketplace structure in strict mode"
 	@uv run scripts/verify-structure.py --strict
+
+.PHONY: eval
+eval: ## Score all skills with plugin-eval (static depth, report only, never fails)
+	@echo "🚀 Scoring skills with plugin-eval (quick depth)"
+	@./scripts/eval-skills.py
+
+.PHONY: eval-ci
+eval-ci: ## Quality gate: fail if any skill scores below EVAL_THRESHOLD
+	@echo "🚀 Quality gate: skills must score >= $(EVAL_THRESHOLD)"
+	@./scripts/eval-skills.py --threshold $(EVAL_THRESHOLD)
+
+.PHONY: eval-skill
+eval-skill: ## Deep-dive one skill at standard depth (usage: make eval-skill SKILL=plugins/.../foo)
+	@if [ -z "$(SKILL)" ]; then \
+		echo "❌ Set SKILL=<path>, e.g. make eval-skill SKILL=plugins/social-media/twitter-tools/skills/twitter-to-reel"; \
+		exit 1; \
+	fi
+	@echo "🚀 Evaluating $(SKILL) at standard depth (uses Claude Code Max via claude-agent-sdk)"
+	@uvx --from "plugin-eval[llm] @ git+https://github.com/wshobson/agents.git#subdirectory=plugins/plugin-eval" \
+		plugin-eval score "$(SKILL)" --depth standard --output markdown
 
 .PHONY: test-twitter-downloader
 test-twitter-downloader: ## Run twitter-media-downloader tests
