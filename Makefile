@@ -206,8 +206,13 @@ test-twitter-reel: ## Run twitter-to-reel tests
 	@echo "🚀 Running twitter-to-reel tests"
 	@uv run pytest plugins/social-media/twitter-tools/skills/twitter-to-reel/scripts/tests/ -v
 
+.PHONY: test-scripts
+test-scripts: ## Run the root tests/ suite (scripts + hooks)
+	@echo "🚀 Running tests/ suite"
+	@uv run pytest tests/ -v
+
 .PHONY: ci
-ci: test-twitter-downloader test-twitter-reel ## Run all twitter-tools tests (CI target)
+ci: test-scripts test-twitter-downloader test-twitter-reel ## Run all repo tests (CI target)
 
 # Default test tweet URL (a public tweet with video)
 SMOKE_URL ?= https://x.com/KameronBennett/status/2008195824304672928

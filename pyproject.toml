@@ -40,6 +40,12 @@ dev = [
     "ty>=0.0.8",
 ]
 
+[tool.pytest.ini_options]
+# importlib mode + no __init__.py in test dirs: avoids the duplicate
+# `tests.conftest` ImportPathMismatchError between the twitter skill suites.
+addopts = "--import-mode=importlib"
+testpaths = ["tests", "plugins"]
+
 [tool.uv]
 package = false
 

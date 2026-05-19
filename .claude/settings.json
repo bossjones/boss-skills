@@ -72,7 +72,9 @@
         ],
         "deny": [],
         "additionalDirectories": [
-            "/Users/bossjones/dev/wshobson/agents"
+            "/Users/bossjones/dev/wshobson/agents",
+            "/Users/bossjones/dev/mlflow/",
+            "/Users/bossjones/dev/FlorianBruniaux/claude-code-ultimate-guide"
         ]
     },
     "statusLine": {
