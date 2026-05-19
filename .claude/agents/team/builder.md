@@ -9,10 +9,10 @@ hooks:
       hooks:
         - type: command
           command: >-
-            uv run $CLAUDE_PROJECT_DIR/.claude/hooks/validators/ruff-validator.py
+            uv run $CLAUDE_PROJECT_DIR/.claude/hooks/validators/ruff_validator.py
         - type: command
           command: >-
-            uv run $CLAUDE_PROJECT_DIR/.claude/hooks/validators/ty-validator.py
+            uv run $CLAUDE_PROJECT_DIR/.claude/hooks/validators/ty_validator.py
 ---
 
 # Builder
