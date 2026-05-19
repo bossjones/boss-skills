@@ -127,9 +127,26 @@ ignore = [
     "W291", # trailing whitespace
     "W293", # whitespace on blank line
 ]
+"plugins/boss-homelab/proxmox/**" = [
+    "S",    # subprocess + SSH invocations of `ssh`/`ceph` — validated inputs
+    "SIM",  # simplify — stylistic, refine after scaffolding stabilizes
+    "TRY",  # tryceratops — exception-handling patterns differ in CLI tools
+    "C901", # function complexity — scaffolding code
+    "B",    # flake8-bugbear — refine after scaffolding stabilizes
+    "UP",   # pyupgrade — refine after scaffolding stabilizes
+    "RUF",  # ruff-specific (e.g., implicit Optional) — refine after scaffolding
+    "E402", # module-level imports — sys.path tweaks in scripts
+    "W291", # trailing whitespace — defer to scaffolding cleanup
+    "W293", # whitespace on blank line — defer to scaffolding cleanup
+]
 
 [tool.ruff.format]
 preview = true
+
+[tool.codespell]
+# Ignore brand names and other valid terms that codespell flags.
+# - cruzer: SanDisk Cruzer USB drive product line.
+ignore-words-list = "cruzer"
 
 [tool.basedpyright]
 # devtools/lint.py invokes basedpyright on a curated path list (not the full

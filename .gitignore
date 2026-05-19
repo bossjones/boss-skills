@@ -285,3 +285,8 @@ coverage/
 .cache/
 tmp/
 temp/
+.claude/worktrees/
+.git/worktrees/
+
+# Skill port artifact (not part of the repo)
+skills.zip

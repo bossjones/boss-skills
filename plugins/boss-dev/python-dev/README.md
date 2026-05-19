@@ -1,6 +1,7 @@
 # python-dev
 
-Python development tooling for Claude Code: debug GitHub Actions CI failures end-to-end and ship changes via conventional-commit PRs.
+Python development tooling for Claude Code: debug GitHub Actions CI failures end-to-end and ship
+changes via conventional-commit PRs.
 
 ## Installation
 
@@ -12,8 +13,11 @@ Python development tooling for Claude Code: debug GitHub Actions CI failures end
 
 ### Commands
 
-- **`/python-dev:debug-ci`** — Diagnose a failed GitHub Actions run, fix the issues locally (ruff, ty, deptry, pre-commit, pytest, mkdocs), validate, commit, push, and poll until the new run passes. Up to 3 outer retry cycles.
-- **`/python-dev:commit-push-pr`** — Stage modified files (skipping secrets), write a conventional commit, push to the remote, and open or update a GitHub PR via `gh`.
+- **`/python-dev:debug-ci`** — Diagnose a failed GitHub Actions run, fix the issues locally (ruff, ty,
+  deptry, pre-commit, pytest, mkdocs), validate, commit, push, and poll until the new run passes. Up to
+  3 outer retry cycles.
+- **`/python-dev:commit-push-pr`** — Stage modified files (skipping secrets), write a conventional
+  commit, push to the remote, and open or update a GitHub PR via `gh`.
 
 ## Project Assumptions
 
