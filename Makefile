@@ -12,7 +12,7 @@
 # this when skills genuinely improve.
 EVAL_THRESHOLD ?= 57
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill eval-llm-judge eval-monte-carlo
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -200,6 +200,26 @@ eval-skill: ## Deep-dive one skill at standard depth (usage: make eval-skill SKI
 	@echo "🚀 Evaluating $(SKILL) at standard depth (uses Claude Code Max via claude-agent-sdk)"
 	@uvx --from "plugin-eval[llm] @ git+https://github.com/wshobson/agents.git#subdirectory=plugins/plugin-eval" \
 		plugin-eval score "$(SKILL)" --depth standard --output markdown
+
+.PHONY: eval-llm-judge
+eval-llm-judge: ## LLM-judge eval all skills, or one with SKILL=<path> (~30s + 4 LLM calls per skill)
+	@if [ -n "$(SKILL)" ]; then \
+		echo "🚀 LLM-judge evaluating $(SKILL) (uses Claude Code Max via claude-agent-sdk)"; \
+		./scripts/eval-skills.py --skill "$(SKILL)" --layer llm-judge; \
+	else \
+		echo "🚀 LLM-judge evaluating all skills at llm-judge layer (~30s + 4 LLM calls each)"; \
+		./scripts/eval-skills.py --layer llm-judge; \
+	fi
+
+.PHONY: eval-monte-carlo
+eval-monte-carlo: ## Monte-carlo eval all skills, or one with SKILL=<path> (~2-5 min per skill)
+	@if [ -n "$(SKILL)" ]; then \
+		echo "🚀 Monte-carlo evaluating $(SKILL) (uses Claude Code Max via claude-agent-sdk)"; \
+		./scripts/eval-skills.py --skill "$(SKILL)" --layer monte-carlo; \
+	else \
+		echo "🚀 Monte-carlo evaluating all skills at monte-carlo layer (~2-5 min each)"; \
+		./scripts/eval-skills.py --layer monte-carlo; \
+	fi
 
 .PHONY: test-twitter-downloader
 test-twitter-downloader: ## Run twitter-media-downloader tests

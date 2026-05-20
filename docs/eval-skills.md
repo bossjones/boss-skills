@@ -243,19 +243,36 @@ PLUGIN_EVAL_SOURCE='git+https://github.com/wshobson/agents.git@<sha>#subdirector
 
 ## Makefile integration
 
-Three targets wrap the script:
+Five targets wrap the script:
 
-| Target            | Command                                              | Use                                |
-|-------------------|------------------------------------------------------|------------------------------------|
-| `make eval`       | `./scripts/eval-skills.py`                           | Report all skills, static depth, never fails. |
-| `make eval-ci`    | `./scripts/eval-skills.py --threshold $(EVAL_THRESHOLD)` | Quality gate.                  |
-| `make eval-skill` | `plugin-eval score "$(SKILL)" --depth standard` (direct `uvx`) | Deep-dive one skill at standard depth. |
+| Target                 | Command                                              | Use                                |
+|------------------------|------------------------------------------------------|------------------------------------|
+| `make eval`            | `./scripts/eval-skills.py`                           | Report all skills, static depth, never fails. |
+| `make eval-ci`         | `./scripts/eval-skills.py --threshold $(EVAL_THRESHOLD)` | Quality gate.             |
+| `make eval-skill`      | `plugin-eval score "$(SKILL)" --depth standard` (direct `uvx`) | Deep-dive one skill at standard depth, streamed markdown report. |
+| `make eval-llm-judge`  | `./scripts/eval-skills.py --layer llm-judge` (with optional `--skill`) | LLM-judge layer for all skills, or one with `SKILL=<path>`; wrapper's score table. |
+| `make eval-monte-carlo` | `./scripts/eval-skills.py --layer monte-carlo` (with optional `--skill`) | Monte-carlo layer for all skills, or one with `SKILL=<path>`; wrapper's score table. |
 
 ```text
 make eval
 make eval-ci
 make eval-skill SKILL=plugins/social-media/twitter-tools/skills/twitter-to-reel
+make eval-llm-judge                                                                  # all skills, llm-judge layer
+make eval-llm-judge SKILL=plugins/social-media/twitter-tools/skills/twitter-to-reel   # one skill
+make eval-monte-carlo                                                                # all skills, monte-carlo layer
+make eval-monte-carlo SKILL=plugins/social-media/twitter-tools/skills/twitter-to-reel # one skill
 ```
+
+`eval-llm-judge` runs the `llm-judge` layer (~30s and ~4 LLM calls per skill, so
+the all-skills run is the slow, costly path) and needs Claude Code Max via
+`claude-agent-sdk`. With no `SKILL`, it discovers and scores every skill; with
+`SKILL=<path>` it scores just that one. Unlike `eval-skill`, it goes through the
+wrapper, so the output is the parsed score table rather than a streamed markdown
+report.
+
+`eval-monte-carlo` works the same way at the `monte-carlo` layer (static plus
+judge plus 50 Monte Carlo samples, ~2–5 min per skill) — running it across all
+skills is the slowest path and also needs Claude Code Max via `claude-agent-sdk`.
 
 `EVAL_THRESHOLD` defaults to `57` — set as `min(observed baseline) - 5` as a
 safety margin, and never lowered below `57`. The 2026-05-20 baseline (12 skills,
