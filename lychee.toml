@@ -112,6 +112,9 @@ exclude_path = [
     "(^|/)\\.pytest_cache/",
     # Exclude test fixtures that may contain example URLs
     "(^|/)tests/fixtures/",
+    # Exclude scraped third-party docs (point-in-time copies of code.claude.com);
+    # their #anchor cross-references drift from the live Mintlify site.
+    "(^|/)ai_docs/",
     # Exclude lychee report file (contains old broken links)
     "(^|/)\\.lychee-report\\.md$",
 ]

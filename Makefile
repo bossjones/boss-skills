@@ -118,15 +118,18 @@ intelligent-lint-dry-run: ## Analyze markdown linting errors (no fixes)
 	@echo "🚀 Analyzing markdown linting errors (no fixes)"
 	@uv run python ./scripts/intelligent-markdown-lint.py --dry-run
 
+# lychee scrapes github.com HTML unauthenticated by default, which rate-limits
+# into spurious 404s. Passing a token makes lychee use the GitHub API instead.
+# Falls back to `gh auth token`, then to empty (unauthenticated) if neither.
 .PHONY: link-check
 link-check: ## Check all links in markdown files using lychee
 	@echo "🚀 Checking all links in markdown files using lychee"
-	@lychee --config lychee.toml '**/*.md'
+	@GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" lychee --config lychee.toml '**/*.md'
 
 .PHONY: link-check-verbose
 link-check-verbose: ## Check all links in markdown files with verbose output
 	@echo "🚀 Checking all links in markdown files with verbose output"
-	@lychee --config lychee.toml --verbose debug '**/*.md'
+	@GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" lychee --config lychee.toml --verbose debug '**/*.md'
 
 .PHONY: test-plugins
 test-plugins: ## Test plugins locally using claude --plugin-dir (usage: make test-plugins PLUGIN_DIR=./plugins/social-media/twitter-tools)
