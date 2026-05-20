@@ -21,8 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write # required so the reviewer can post review/inline comments
       issues: read
+      actions: read # let the reviewer read CI results on the PR
       id-token: write
 
     steps:
@@ -51,7 +52,15 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          # --comment is required: without it the plugin runs the review but
+          # posts nothing (see code-review.md step 7).
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment'
+          # Pin the review model. claude_args is the docs-recommended way to set
+          # the model and takes precedence over `settings`.
+          # To switch models, comment out the active claude_args line below and
+          # uncomment the other (keep exactly one active):
+          claude_args: '--model claude-sonnet-4-6' # Sonnet 4.6 — faster, cheaper
+          # claude_args: '--model claude-opus-4-7'   # Opus 4.7 — stronger reasoning
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
