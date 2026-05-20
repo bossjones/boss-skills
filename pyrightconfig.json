@@ -29,7 +29,8 @@
     "plugins/**/examples/**",
     "plugins/**/assets/templates/**",
     "plugins/**/tools/**",
-    "plugins/**/scripts/**"
+    "plugins/social-media/twitter-tools/**",
+    "plugins/**/scripts/tests/**"
   ],
 
 

@@ -97,6 +97,7 @@ KNOWN_TOOLS: frozenset[str] = frozenset({
     "WebSearch",
     "WebFetch",
     "Agent",
+    "Skill",
     "TodoRead",
     "TodoWrite",
     "NotebookEdit",
@@ -258,9 +259,14 @@ def check_optional_fields(_path: Path, fm: dict[str, Any] | None, _body: str, _l
 
     allowed = fm.get("allowed-tools")
     if allowed is not None:
-        tools = [t.strip() for t in str(allowed).split(",")]
-        for tool in tools:
-            if tool and tool not in KNOWN_TOOLS and not tool.startswith("mcp__"):
+        # allowed-tools may be a YAML list or a comma-separated string. Each
+        # entry may carry a scope, e.g. "Bash(gh api:*)" — strip it before the
+        # known-tool check, since the scope is the permission, not the tool.
+        raw_tools = allowed if isinstance(allowed, list) else str(allowed).split(",")
+        for raw in raw_tools:
+            tool = str(raw).strip()
+            base = tool.split("(", 1)[0].strip()
+            if base and base not in KNOWN_TOOLS and not base.startswith("mcp__"):
                 results.append(
                     CheckResult(
                         "allowed-tools",

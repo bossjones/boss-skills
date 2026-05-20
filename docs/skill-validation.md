@@ -262,13 +262,18 @@ The thresholds and word lists driving the rules are module-level constants in
 | `MAX_NAME_LEN` | `64` | 85 | `name-length` |
 | `MAX_DESC_LEN` | `1024` | 86 | `desc-length` |
 | `MAX_LINES` | `500` | 87 | `line-count`, `progressive-disclosure` |
-| `KNOWN_TOOLS` | `Bash`, `Read`, `Write`, `Edit`, `Glob`, `Grep`, `WebSearch`, `WebFetch`, `Agent`, `TodoRead`, `TodoWrite`, `NotebookEdit`, `TaskCreate`, `TaskUpdate`, `AskUserQuestion` | 89–105 | `allowed-tools` |
+| `KNOWN_TOOLS` | `Bash`, `Read`, `Write`, `Edit`, `Glob`, `Grep`, `WebSearch`, `WebFetch`, `Agent`, `Skill`, `TodoRead`, `TodoWrite`, `NotebookEdit`, `TaskCreate`, `TaskUpdate`, `AskUserQuestion` | 90–107 | `allowed-tools` |
 | `VALID_MODELS` | `sonnet`, `opus`, `haiku` | 107 | `model-valid` |
 | `TRIGGER_KEYWORDS` | `use when`, `trigger when`, `activate when`, `invoke when`, `use this`, `use for`, `use to` | 109–117 | `desc-trigger` |
 | `VAGUE_PHRASES` | `when needed`, `as appropriate`, `if necessary`, `as required`, `when applicable` | 119–125 | `desc-vague` |
 
 Any tool name beginning with `mcp__` is accepted by `allowed-tools` even
 though it is not in `KNOWN_TOOLS`.
+
+`allowed-tools` may be written as a YAML list or a comma-separated string, and
+each entry may carry a scope — e.g. `Bash(gh api:*)`. The scope is stripped
+before the `KNOWN_TOOLS` check, so a scoped `Bash(...)` entry validates as
+`Bash`.
 
 ## CI integration
 

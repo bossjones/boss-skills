@@ -258,9 +258,11 @@ make eval-skill SKILL=plugins/social-media/twitter-tools/skills/twitter-to-reel
 ```
 
 `EVAL_THRESHOLD` defaults to `57` — set as `min(observed baseline) - 5` as a
-safety margin. The baseline recorded on 2026-05-19 was: proxmox-infra 62.3,
-twitter-media-downloader 73.7, twitter-to-reel 66.5. Re-baseline with
-`make eval` and raise `EVAL_THRESHOLD` when skills genuinely improve.
+safety margin, and never lowered below `57`. The 2026-05-20 baseline (12 skills,
+static depth) had its lowest scores at fetch-unresolved-comments 60.9 and
+fetch-diff 61.3, so `min(observed) - 5` is 55.9 and the floor stays at `57`.
+Re-baseline with `make eval` and raise `EVAL_THRESHOLD` when skills genuinely
+improve.
 
 Override the threshold ad hoc:
 

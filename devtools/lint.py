@@ -9,7 +9,16 @@ SRC_PATHS = ["devtools", "scripts", "plugins"]
 DOC_PATHS = ["README.md"]
 # Type-checked paths (kept narrower than SRC_PATHS while plugins are scaffolding).
 # Add plugin subdirectories here as they exit scaffolding and gain type annotations.
-TYPE_CHECK_PATHS = ["devtools", "scripts"]
+# The agent-harness skill scripts below are fully annotated PEP 723 scripts; their
+# test directories use sys.path shims and stay excluded via pyrightconfig.json.
+_AGENT_HARNESS_SKILLS = "plugins/boss-dev/agent-harness/skills"
+TYPE_CHECK_PATHS = [
+    "devtools",
+    "scripts",
+    f"{_AGENT_HARNESS_SKILLS}/fetch-diff/scripts/fetch_diff.py",
+    f"{_AGENT_HARNESS_SKILLS}/fetch-unresolved-comments/scripts/fetch_unresolved_comments.py",
+    f"{_AGENT_HARNESS_SKILLS}/pr-review/scripts/validate_review.py",
+]
 
 
 reconfigure(emoji=not get_console().options.legacy_windows)  # No emojis on legacy windows.

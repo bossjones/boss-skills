@@ -4,10 +4,12 @@
 
 .DEFAULT_GOAL := help
 
-# Skill quality regression floor for `make eval-ci`. Baseline (2026-05-19):
-# proxmox-infra 62.3, twitter-media-downloader 73.7, twitter-to-reel 66.5.
-# Set to min(observed) - 5 as a safety margin. Re-baseline with `make eval`
-# and bump this when skills genuinely improve.
+# Skill quality regression floor for `make eval-ci`. Baseline (2026-05-20,
+# 12 skills, static depth): lowest are fetch-unresolved-comments 60.9,
+# fetch-diff 61.3, proxmox-infra 62.3, add-review-comment 62.8; highest is
+# release-notes-generator 82.1. min(observed) - 5 = 55.9, so the floor stays at
+# 57 — it is never lowered below 57. Re-baseline with `make eval` and raise
+# this when skills genuinely improve.
 EVAL_THRESHOLD ?= 57
 
 .PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill
