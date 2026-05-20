@@ -76,6 +76,12 @@ they cannot be used by the boss-skills marketplace as-is:
    directory, and the GitHub #12781 backtick-bang parser bug is checked. Ported
    skills must pass these.
 
+5. **boss-skills runs a `plugin-eval` quality gate.** `make eval-ci` scores
+   every `plugins/**/SKILL.md` and fails the build for any skill below
+   `EVAL_THRESHOLD` (57); CI runs it at static depth on Python 3.13. Porting
+   ten skills into `plugins/` adds them to that discovered set — each must
+   clear the threshold, and the Makefile's baseline comment must be refreshed.
+
 ## Solution Approach
 
 ### Evaluation: porting the `src/skills` package — three options
@@ -174,6 +180,44 @@ uv run "${CLAUDE_SKILL_DIR}/scripts/fetch_diff.py" <pr_url> [--files <pattern> .
   WARNING-level findings for these, which `make` tolerates in non-strict mode;
   Step 9 optionally hardens the validator to recognize them.
 
+### Validation & eval feedback loop
+
+Two fast, fully offline gates form the feedback loop applied to every ported
+skill. Both are instant and need no LLM — the "fastest validation possible":
+
+1. **Structural validation — `scripts/skill_validation.py`** (see
+   `docs/skill-validation.md`). Deterministic, offline. Checks the 17 rule IDs:
+   `name` matches its directory, `description` has a trigger phrase and no
+   vague filler, frontmatter parses, no backtick-bang #12781, body has
+   instructions and an example. ERROR findings fail; `--strict` also fails on
+   WARNINGs.
+2. **Quality score — `scripts/eval-skills.py` at the `static` layer** (see
+   `docs/eval-skills.md`). The default layer: instant, free, offline, no LLM.
+   Runs `plugin-eval` and prints a composite score, badge, and anti-pattern
+   count per skill. `make eval` reports; `make eval-ci` gates at
+   `EVAL_THRESHOLD` (currently 57).
+
+**Per-skill loop** — for each of the ten skills, after writing its `SKILL.md`:
+
+1. `uv run scripts/skill_validation.py <skill-dir> --strict` — fix every
+   ERROR; triage each WARNING (fix it, or note why it is accepted).
+2. `uv run scripts/eval-skills.py --skill <skill-dir>` — read the static
+   score, badge, and anti-pattern count.
+3. Revise the `SKILL.md` and repeat until validation is ERROR-clean and the
+   static score is at or above `EVAL_THRESHOLD` (57).
+
+`eval-skills.py` discovers skills by globbing `plugins/**/SKILL.md`, so the ten
+new skills join the scored set automatically the moment their `SKILL.md` lands.
+CI runs `make eval-ci` (static depth, Python 3.13) — **every ported skill must
+clear `EVAL_THRESHOLD` at static depth or the build breaks.** The per-skill
+loop exists to guarantee that before a skill is considered done.
+
+The deeper, LLM-backed layers (`llm-judge`, `monte-carlo`, `all`, `make
+eval-skill`, and `plugin-eval certify`) are deliberately **out of scope** here.
+They belong to a future "enhance-a-skill" subagent or slash command that will
+wrap a richer, judged feedback loop; this plan keeps the cycle to the fastest
+offline layers only.
+
 ## Relevant Files
 
 Use these files to complete the task:
@@ -207,6 +251,13 @@ Use these files to complete the task:
 - `scripts/verify-structure.py` — marketplace/plugin manifest validator (gate)
 - `devtools/lint.py` — lints `devtools`, `scripts`, `plugins` with ruff; type-checks only `devtools`, `scripts`
 - `CLAUDE.md` — PEP 723 + code-standards reference
+- `docs/skill-validation.md` — criteria reference for `scripts/skill_validation.py`
+  (the 17 rule IDs, severities, frontmatter short-circuit, worked pass/fail example)
+- `docs/eval-skills.md` — reference for `scripts/eval-skills.py` / `plugin-eval`
+  (layers, thresholds, skill discovery, Makefile + CI integration)
+- `scripts/eval-skills.py` — the `plugin-eval` quality-gate wrapper
+- `Makefile` — `eval`, `eval-ci`, `eval-skill` targets and `EVAL_THRESHOLD`
+- `.github/workflows/ci.yml` — runs `make eval-ci` at static depth, Python 3.13
 
 **Repo files to modify:**
 
@@ -214,6 +265,8 @@ Use these files to complete the task:
 - `.claude-plugin/marketplace.json` — sync `agent-harness` entry `version` to `0.2.0`
 - `plugins/boss-dev/agent-harness/README.md` — replace "Skills — _Coming soon._" with the skill list
 - `scripts/skill_validation.py` — optional Step 9 hardening for scoped `allowed-tools`
+- `Makefile` — re-baseline `EVAL_THRESHOLD` and its baseline comment after the
+  ten skills are ported (Step 11)
 
 ### New Files
 
@@ -259,7 +312,10 @@ plugins/boss-dev/agent-harness/skills/
 
 Create the `skills/` directory tree under `agent-harness`, study the source
 files in depth, and confirm the boss-skills validation gates so later phases
-have a clear pass/fail target. Port the four "documentation-only" git-worktree
+have a clear pass/fail target. Read `docs/skill-validation.md` and
+`docs/eval-skills.md`, then run `make eval` and `skill_validation.py` once to
+record the pre-port baseline (the three existing skills) — later steps measure
+ported skills against it. Port the four "documentation-only" git-worktree
 skills first — they are pure markdown and exercise the normalization rules
 (cross-link rewrites, frontmatter) with no Python risk.
 
@@ -272,13 +328,17 @@ the four mlflow skills. The mlflow skills are the high-risk work: convert the
 trimmed GitHub client, and rewrite each SKILL.md to the `${CLAUDE_SKILL_DIR}`
 invocation form. Write tests alongside the scripts (TDD: the pure functions —
 `filter_diff`, `is_autogenerated_file`, `format_comments`, schema validation —
-get tests written before/with the port).
+get tests written before/with the port). Each ported skill passes through the
+per-skill feedback loop (strict structural validation + static `plugin-eval`
+score) before the next skill is started.
 
 ### Phase 3: Integration & Polish
 
 Bump the `agent-harness` plugin version and sync the marketplace entry, update
 the plugin README, run the full validation suite, and fix every error. Optionally
-harden `skill_validation.py` for scoped `allowed-tools`.
+harden `skill_validation.py` for scoped `allowed-tools`. Re-baseline
+`EVAL_THRESHOLD` across all thirteen skills and run `make eval-ci` as part of
+the final gate.
 
 ## Step by Step Tasks
 
@@ -295,6 +355,11 @@ IMPORTANT: Execute every step in order, top to bottom.
   to pass: `name` matches directory, description ≤1024 chars, no vague phrases
   ("when needed", "as appropriate"), no backtick-bang patterns inside fenced
   code blocks (#12781).
+- Read `docs/skill-validation.md` and `docs/eval-skills.md` in full — they
+  define the two feedback-loop gates and how a `SKILL.md` passes each.
+- Run `make eval` now to record the pre-port static-score baseline for the
+  three existing skills; this is the reference the ten ported skills are
+  measured against.
 
 ### 2. Port the four git-worktree skills (markdown only)
 
@@ -310,6 +375,11 @@ IMPORTANT: Execute every step in order, top to bottom.
 - Verify each `description` is concrete and contains a trigger phrase
   ("Use when…"); tighten any that read as vague.
 - Leave the `$ARGUMENTS` trailers as-is — these skills are command-style.
+- Feedback loop: for each of the four skills, run
+  `uv run scripts/skill_validation.py <skill-dir> --strict` then
+  `uv run scripts/eval-skills.py --skill <skill-dir>`; revise the `SKILL.md`
+  until it is ERROR-clean and its static score is ≥ `EVAL_THRESHOLD` (see
+  *Validation & eval feedback loop*).
 
 ### 3. Port the two release-notes skills
 
@@ -323,6 +393,11 @@ IMPORTANT: Execute every step in order, top to bottom.
   inspirations — otherwise `make link-check` / reviewers flag dead references.
 - Confirm both `description` fields stay ≤1024 chars (the generator's is long —
   measure it).
+- Feedback loop: for each of the two skills, run
+  `uv run scripts/skill_validation.py <skill-dir> --strict` then
+  `uv run scripts/eval-skills.py --skill <skill-dir>`; revise the `SKILL.md`
+  until it is ERROR-clean and its static score is ≥ `EVAL_THRESHOLD` (see
+  *Validation & eval feedback loop*).
 
 ### 4. Port `add-review-comment` (no script)
 
@@ -331,6 +406,11 @@ IMPORTANT: Execute every step in order, top to bottom.
 - Verify the `allowed-tools` list. mlflow uses YAML-list form with scoped
   entries (`Bash(gh api:*)`, etc.); keep them. They produce only WARNING-level
   validator findings (see Step 9).
+- Feedback loop: run
+  `uv run scripts/skill_validation.py plugins/boss-dev/agent-harness/skills/add-review-comment --strict`
+  then `uv run scripts/eval-skills.py --skill plugins/boss-dev/agent-harness/skills/add-review-comment`;
+  revise the `SKILL.md` until it is ERROR-clean and its static score is ≥
+  `EVAL_THRESHOLD` (see *Validation & eval feedback loop*).
 
 ### 5. Build the `fetch-diff` PEP 723 script
 
@@ -391,6 +471,11 @@ IMPORTANT: Execute every step in order, top to bottom.
   - Remove mlflow-only path references (`.github/instructions/…`,
     `.claude/rules/`); reword the style-guide bullet to be repo-agnostic.
   - Keep `disable-model-invocation: true`, `argument-hint`, `arguments`.
+- Feedback loop: run
+  `uv run scripts/skill_validation.py plugins/boss-dev/agent-harness/skills/pr-review --strict`
+  then `uv run scripts/eval-skills.py --skill plugins/boss-dev/agent-harness/skills/pr-review`;
+  revise the `SKILL.md` until it is ERROR-clean and its static score is ≥
+  `EVAL_THRESHOLD` (see *Validation & eval feedback loop*).
 
 ### 8. Rewrite the mlflow SKILL.md invocations
 
@@ -401,6 +486,11 @@ IMPORTANT: Execute every step in order, top to bottom.
   `Bash(uv run:*)` or bare `Bash` — see Step 9 for the WARNING trade-off).
 - Keep the rich "Output Example" / "Example Output" sections; verify no
   fenced code block contains a backtick-bang pattern (#12781).
+- Feedback loop: for `fetch-diff` and `fetch-unresolved-comments`, run
+  `uv run scripts/skill_validation.py <skill-dir> --strict` then
+  `uv run scripts/eval-skills.py --skill <skill-dir>`; revise the `SKILL.md`
+  until it is ERROR-clean and its static score is ≥ `EVAL_THRESHOLD` (see
+  *Validation & eval feedback loop*).
 
 ### 9. (Optional) Harden the skill validator for scoped tools
 
@@ -425,12 +515,25 @@ IMPORTANT: Execute every step in order, top to bottom.
 - Consider running the repo's `version-bump-reviewer` skill to confirm the bump
   tier and produce the conventional commit.
 
-### 11. Validate, test, and fix
+### 11. Re-baseline the eval quality gate
+
+- Run `make eval` to score all thirteen skills (the three originals plus the
+  ten ported) at static depth and record each score.
+- Update the baseline comment block above `EVAL_THRESHOLD` in the `Makefile`:
+  refresh the date to the port date and list the new minimum.
+- Set `EVAL_THRESHOLD` to `min(all 13 static scores) - 5`, BUT never lower it
+  below the current 57 — re-baselining may *raise* the floor when every skill
+  clears a higher mark; it must not be lowered to accommodate a weak port. If a
+  ported skill scores below 57 at static depth, fix the skill (loop back to its
+  port step), do not weaken the gate.
+- Run `make eval-ci` and confirm it exits 0 with all thirteen skills passing.
+
+### 12. Validate, test, and fix
 
 - Run the full validation suite (see *Validation Commands*).
 - Fix every error and address warnings until `skill_validation.py`,
-  `verify-structure.py`, `make lint`, `make markdown-lint`, and `make test`
-  all pass.
+  `verify-structure.py`, `make lint`, `make markdown-lint`, `make eval-ci`, and
+  `make test` all pass.
 - Smoke-test each PEP 723 script with `--help` to confirm `uv` resolves the
   inline dependencies and `argparse` wiring is correct.
 
@@ -482,6 +585,14 @@ Network-dependent code paths (`GitHubClient` HTTP/GraphQL calls,
 wrappers over `aiohttp`/`subprocess`. Coverage of those is the `--help`
 smoke-test plus a manual run against a real public PR during review.
 
+### Skill-quality validation (the feedback loop)
+
+Beyond pytest, every ported skill is validated through the two-gate loop in
+*Validation & eval feedback loop*: strict `skill_validation.py` plus static
+`eval-skills.py --skill`. It is run per skill during porting and re-run as a
+whole-repo gate (`make eval-ci`) in Step 12. This is structural/quality
+validation, not unit testing — kept to the fastest offline layers only.
+
 ## Acceptance Criteria
 
 - `plugins/boss-dev/agent-harness/skills/` contains all ten skill directories,
@@ -494,9 +605,15 @@ smoke-test plus a manual run against a real public PR during review.
 - `pr-review/review-payload.schema.json` exists and `validate_review.py` resolves
   it as the default schema with no `--schema` argument.
 - `uv run scripts/skill_validation.py plugins/boss-dev/agent-harness/skills`
-  reports zero ERROR-level findings.
+  reports zero ERROR-level findings; under `--strict` every remaining WARNING is
+  either fixed or explicitly documented in the PR.
 - `uv run scripts/verify-structure.py` passes (marketplace + manifests valid).
 - `make lint`, `make markdown-lint`, and `make test` all pass with zero errors.
+- `make eval-ci` exits 0 — every skill under `plugins/**` (the three originals
+  plus the ten ported) scores at or above `EVAL_THRESHOLD` at static depth.
+- The `Makefile` `EVAL_THRESHOLD` value and baseline comment reflect the
+  post-port static-score baseline across all thirteen skills, and the threshold
+  is not lower than 57.
 - All new tests pass and meaningfully exercise `filter_diff`,
   `is_autogenerated_file`, `extract_stacked_pr_base_sha`, `format_comments`, and
   `validate_review`.
@@ -510,6 +627,12 @@ Execute these commands from the repo root to validate the task is complete:
 
 - `uv run scripts/skill_validation.py plugins/boss-dev/agent-harness/skills` —
   validate all ten SKILL.md files against the 16-rule standard (zero errors)
+- `uv run scripts/skill_validation.py plugins/boss-dev/agent-harness/skills --strict` —
+  strict structural pass (warnings surfaced as the authoring feedback signal)
+- `uv run scripts/eval-skills.py --skill plugins/boss-dev/agent-harness/skills/<name>` —
+  static `plugin-eval` score for one skill (the per-skill loop command)
+- `make eval` — score all thirteen skills at static depth (report only)
+- `make eval-ci` — quality gate; every skill must score ≥ `EVAL_THRESHOLD`
 - `uv run scripts/verify-structure.py` — validate marketplace.json + plugin
   manifests after the version bump
 - `uv run python -m py_compile plugins/boss-dev/agent-harness/skills/fetch-diff/scripts/fetch_diff.py plugins/boss-dev/agent-harness/skills/fetch-unresolved-comments/scripts/fetch_unresolved_comments.py plugins/boss-dev/agent-harness/skills/pr-review/scripts/validate_review.py` —
@@ -558,3 +681,18 @@ Execute these commands from the repo root to validate the task is complete:
   from `FlorianBruniaux/claude-code-ultimate-guide`; the mlflow skills come from
   the Apache-2.0 mlflow repo. Add a one-line attribution comment to each ported
   SKILL.md (or to the plugin README) noting the upstream source.
+- **Future "enhance-a-skill" workflow.** The deeper feedback loop —
+  `eval-skills.py --layer llm-judge` / `monte-carlo`, `make eval-skill`
+  (standard depth via Claude Code Max), and `plugin-eval certify` — is
+  intentionally not used in this plan. It is reserved for a future subagent or
+  slash command that iteratively "enhances" a skill against a judged rubric.
+  This plan keeps the cycle to the fastest offline layers — static
+  `plugin-eval` plus `skill_validation.py`.
+- **Do not weaken the eval gate.** `static` depth is largely structural, so the
+  mature mlflow and ultimate-guide skills should clear `EVAL_THRESHOLD` (57)
+  comfortably. If one does not after revision, surface it to the user — do not
+  lower `EVAL_THRESHOLD` to make CI pass.
+- **Validator hardening vs. the strict loop:** Step 9's `skill_validation.py`
+  hardening interacts with the `--strict` half of the feedback loop — scoped
+  `Bash(...)` and `Skill` entries in `allowed-tools` produce WARNINGs under
+  `--strict`. Either land Step 9 or document each accepted warning in the PR.
