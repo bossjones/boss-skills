@@ -3,17 +3,32 @@
 # requires-python = ">=3.13"
 # dependencies = []
 # ///
-"""Quality-gate boss-skills skills with plugin-eval (static depth).
+"""Quality-gate boss-skills skills with plugin-eval.
 
-Discovers every directory containing a ``SKILL.md`` under ``plugins/``, runs
-``plugin-eval score --depth quick`` against each via ``uvx`` (pulled on demand
-from the wshobson/agents git subdirectory — nothing is vendored), prints a
-score table, and exits non-zero if any skill scores below ``--threshold``.
+Multi-mode wrapper around ``plugin-eval`` (pulled on demand via ``uvx`` from
+the wshobson/agents git subdirectory — nothing is vendored).
+
+``score`` (default) discovers every directory containing a ``SKILL.md`` under
+``plugins/`` (or one ``--skill``), evaluates each, prints a score table, and
+exits non-zero if any skill is below ``--threshold``. ``certify`` / ``compare``
+/ ``init`` stream plugin-eval's native output for explicit positional targets.
+
+``--layer`` is a friendly alias for plugin-eval's ``--depth``:
+
+    layer                   depth      layers run                  cost
+    static, static-analysis quick      static                      instant, free
+    llm-judge               standard   static + judge              ~30s, 4 LLM calls
+    monte-carlo             deep       static + judge + MC (50)    ~2-5 min
+    all                     thorough   static + judge + MC (100)   slowest
 
 Usage:
-    scripts/eval-skills.py                         # report all skills, never fails
-    scripts/eval-skills.py --threshold 60          # fail if any skill < 60
-    scripts/eval-skills.py --skill plugins/.../foo  # single skill
+    scripts/eval-skills.py                              # report all skills, never fails
+    scripts/eval-skills.py --threshold 60               # fail if any skill < 60
+    scripts/eval-skills.py --skill plugins/.../foo      # single skill
+    scripts/eval-skills.py --skill plugins/.../foo --layer llm-judge
+    scripts/eval-skills.py --command certify plugins/.../foo
+    scripts/eval-skills.py --command compare plugins/.../a plugins/.../b
+    scripts/eval-skills.py --command init plugins/
 
 Escape hatch (upstream churn): pin a specific revision without editing code by
 setting PLUGIN_EVAL_SOURCE, e.g.
@@ -33,6 +48,25 @@ from pathlib import Path
 DEFAULT_SOURCE = "git+https://github.com/wshobson/agents.git#subdirectory=plugins/plugin-eval"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGINS_DIR = REPO_ROOT / "plugins"
+
+# Friendly --layer alias -> plugin-eval --depth.
+LAYER_TO_DEPTH = {
+    "static": "quick",
+    "static-analysis": "quick",
+    "llm-judge": "standard",
+    "monte-carlo": "deep",
+    "all": "thorough",
+}
+
+
+def resolve_source(base: str, needs_llm: bool) -> str:
+    """uvx --from value; wrap a bare git/path source with the [llm] extra when needed."""
+    if not needs_llm:
+        return base
+    # Already a PEP 508 spec (e.g. user-set PLUGIN_EVAL_SOURCE with extras): use as-is.
+    if base.startswith("plugin-eval"):
+        return base
+    return f"plugin-eval[llm] @ {base}"
 
 
 class SkillResult:
@@ -65,8 +99,8 @@ def discover_skills() -> list[Path]:
     return sorted({p.parent for p in PLUGINS_DIR.rglob("SKILL.md")})
 
 
-def score_skill(skill_dir: Path, source: str) -> SkillResult:
-    """Run plugin-eval at quick depth and parse the composite score."""
+def score_skill(skill_dir: Path, source: str, depth: str) -> SkillResult:
+    """Run plugin-eval at the given depth and parse the composite score."""
     cmd = [
         "uvx",
         "--from",
@@ -75,7 +109,7 @@ def score_skill(skill_dir: Path, source: str) -> SkillResult:
         "score",
         str(skill_dir),
         "--depth",
-        "quick",
+        depth,
         "--output",
         "json",
     ]
@@ -95,6 +129,11 @@ def score_skill(skill_dir: Path, source: str) -> SkillResult:
     return SkillResult(skill_dir, score, badge, anti, None)
 
 
+def run_passthrough(cmd: list[str]) -> int:
+    """Run plugin-eval inheriting stdout/stderr; return its exit code."""
+    return subprocess.run(cmd, check=False).returncode  # noqa: S603
+
+
 def print_table(results: list[SkillResult]) -> None:
     """Print an aligned score table."""
     width = max((len(r.rel) for r in results), default=20)
@@ -109,24 +148,8 @@ def print_table(results: list[SkillResult]) -> None:
         print(f"{r.rel:<{width}}  {score_txt:>6}  {r.badge:<9}  {r.anti_patterns:>4}  ok")
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Quality-gate skills with plugin-eval.")
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=None,
-        help="Minimum composite score; exit 1 if any skill is below it.",
-    )
-    parser.add_argument(
-        "--skill",
-        type=Path,
-        default=None,
-        help="Evaluate a single skill directory instead of discovering all.",
-    )
-    args = parser.parse_args()
-
-    source = os.environ.get("PLUGIN_EVAL_SOURCE", DEFAULT_SOURCE)
-
+def run_score(args: argparse.Namespace, source: str, depth: str) -> int:
+    """Discover-or-single-skill scoring with the table + threshold gate."""
     if args.skill is not None:
         skill_dir = args.skill if args.skill.is_absolute() else REPO_ROOT / args.skill
         if not (skill_dir / "SKILL.md").is_file():
@@ -140,7 +163,7 @@ def main() -> int:
         print("No skills found under plugins/.", file=sys.stderr)
         return 2
 
-    results = [score_skill(d, source) for d in skills]
+    results = [score_skill(d, source, depth) for d in skills]
     print_table(results)
 
     failures = [
@@ -157,6 +180,134 @@ def main() -> int:
     if args.threshold is not None:
         print(f"\nPASS: all skills >= threshold {args.threshold:.1f}.")
     return 0
+
+
+def _resolve_target(p: Path) -> str:
+    """Resolve a positional target relative to the repo root when not absolute."""
+    return str(p if p.is_absolute() else REPO_ROOT / p)
+
+
+def run_certify(args: argparse.Namespace, source: str) -> int:
+    """Stream `plugin-eval certify` for exactly one target (always deep upstream)."""
+    if len(args.targets) != 1:
+        print(
+            "error: --command certify requires exactly one target directory.",
+            file=sys.stderr,
+        )
+        return 2
+    cmd = [
+        "uvx",
+        "--from",
+        source,
+        "plugin-eval",
+        "certify",
+        _resolve_target(args.targets[0]),
+        "--output",
+        "markdown",
+    ]
+    if args.threshold is not None:
+        cmd += ["--threshold", str(args.threshold)]
+    return run_passthrough(cmd)
+
+
+def run_compare(args: argparse.Namespace, source: str, depth: str) -> int:
+    """Stream `plugin-eval compare` for exactly two targets."""
+    if len(args.targets) != 2:
+        print(
+            "error: --command compare requires exactly two target directories.",
+            file=sys.stderr,
+        )
+        return 2
+    cmd = [
+        "uvx",
+        "--from",
+        source,
+        "plugin-eval",
+        "compare",
+        _resolve_target(args.targets[0]),
+        _resolve_target(args.targets[1]),
+        "--depth",
+        depth,
+        "--output",
+        "markdown",
+    ]
+    return run_passthrough(cmd)
+
+
+def run_init(args: argparse.Namespace, source: str) -> int:
+    """Stream `plugin-eval init` to build a corpus index from one target directory."""
+    if len(args.targets) != 1:
+        print(
+            "error: --command init requires exactly one plugins directory target.",
+            file=sys.stderr,
+        )
+        return 2
+    cmd = [
+        "uvx",
+        "--from",
+        source,
+        "plugin-eval",
+        "init",
+        _resolve_target(args.targets[0]),
+    ]
+    if args.corpus_dir is not None:
+        cmd += ["--corpus-dir", str(args.corpus_dir)]
+    return run_passthrough(cmd)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Quality-gate skills with plugin-eval.")
+    parser.add_argument(
+        "--command",
+        choices=["score", "certify", "compare", "init"],
+        default="score",
+        help="plugin-eval subcommand to run (default: score).",
+    )
+    parser.add_argument(
+        "--layer",
+        choices=sorted(LAYER_TO_DEPTH),
+        default="static",
+        help="Evaluation layer alias for plugin-eval --depth (default: static). "
+        "Ignored by certify (always deep upstream) and init.",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=None,
+        help="Minimum composite score; exit 1 if any skill is below it (score; also forwarded to certify).",
+    )
+    parser.add_argument(
+        "--skill",
+        type=Path,
+        default=None,
+        help="Evaluate a single skill directory instead of discovering all (score only).",
+    )
+    parser.add_argument(
+        "--corpus-dir",
+        type=Path,
+        default=None,
+        help="Where init stores the corpus index (default: plugin-eval's own default).",
+    )
+    parser.add_argument(
+        "targets",
+        nargs="*",
+        type=Path,
+        help="Positional target(s) for certify (1 dir), compare (2 dirs), init (1 dir).",
+    )
+    args = parser.parse_args()
+
+    base = os.environ.get("PLUGIN_EVAL_SOURCE", DEFAULT_SOURCE)
+    depth = LAYER_TO_DEPTH[args.layer]
+    needs_llm = depth != "quick" or args.command == "certify"
+    source = resolve_source(base, needs_llm)
+
+    if args.command == "score":
+        return run_score(args, source, depth)
+    if args.command == "certify":
+        return run_certify(args, source)
+    if args.command == "compare":
+        return run_compare(args, source, depth)
+    return run_init(args, source)
 
 
 if __name__ == "__main__":

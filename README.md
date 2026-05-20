@@ -18,6 +18,9 @@ Then install individual plugins:
 
 ## Available Plugins
 
+Full per-plugin documentation — components, install commands, and usage examples — lives in
+[`docs/plugins/`](docs/plugins/README.md).
+
 ### social-media/twitter-tools
 
 Twitter/X social media tools for downloading media and converting tweets to Instagram Reels format.

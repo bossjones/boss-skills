@@ -35,6 +35,7 @@ from typing import Any
 
 import yaml
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -96,6 +97,7 @@ KNOWN_TOOLS: frozenset[str] = frozenset({
     "WebSearch",
     "WebFetch",
     "Agent",
+    "Skill",
     "TodoRead",
     "TodoWrite",
     "NotebookEdit",
@@ -257,9 +259,14 @@ def check_optional_fields(_path: Path, fm: dict[str, Any] | None, _body: str, _l
 
     allowed = fm.get("allowed-tools")
     if allowed is not None:
-        tools = [t.strip() for t in str(allowed).split(",")]
-        for tool in tools:
-            if tool and tool not in KNOWN_TOOLS and not tool.startswith("mcp__"):
+        # allowed-tools may be a YAML list or a comma-separated string. Each
+        # entry may carry a scope, e.g. "Bash(gh api:*)" — strip it before the
+        # known-tool check, since the scope is the permission, not the tool.
+        raw_tools = allowed if isinstance(allowed, list) else str(allowed).split(",")
+        for raw in raw_tools:
+            tool = str(raw).strip()
+            base = tool.split("(", 1)[0].strip()
+            if base and base not in KNOWN_TOOLS and not base.startswith("mcp__"):
                 results.append(
                     CheckResult(
                         "allowed-tools",
@@ -465,10 +472,10 @@ def print_file_report(report: FileReport) -> None:
         console.print(f"  [green]PASS[/green]  {rel}")
         return
 
-    console.print(f"\n  [bold]{rel}[/bold]")
+    console.print(f"\n  [bold]{escape(str(rel))}[/bold]")
     for result in report.results:
         style, icon = LEVEL_STYLE[result.level]
-        console.print(f"    [{style}][{icon}][/{style}] {result.rule}: {result.message}")
+        console.print(f"    [{style}]\\[{icon}][/{style}] {escape(result.rule)}: {escape(result.message)}")
 
 
 def print_summary(reports: list[FileReport], strict: bool) -> int:

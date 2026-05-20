@@ -4,10 +4,12 @@
 
 .DEFAULT_GOAL := help
 
-# Skill quality regression floor for `make eval-ci`. Baseline (2026-05-19):
-# proxmox-infra 62.3, twitter-media-downloader 73.7, twitter-to-reel 66.5.
-# Set to min(observed) - 5 as a safety margin. Re-baseline with `make eval`
-# and bump this when skills genuinely improve.
+# Skill quality regression floor for `make eval-ci`. Baseline (2026-05-20,
+# 12 skills, static depth): lowest are fetch-unresolved-comments 60.9,
+# fetch-diff 61.3, proxmox-infra 62.3, add-review-comment 62.8; highest is
+# release-notes-generator 82.1. min(observed) - 5 = 55.9, so the floor stays at
+# 57 — it is never lowered below 57. Re-baseline with `make eval` and raise
+# this when skills genuinely improve.
 EVAL_THRESHOLD ?= 57
 
 .PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill
@@ -118,15 +120,18 @@ intelligent-lint-dry-run: ## Analyze markdown linting errors (no fixes)
 	@echo "🚀 Analyzing markdown linting errors (no fixes)"
 	@uv run python ./scripts/intelligent-markdown-lint.py --dry-run
 
+# lychee scrapes github.com HTML unauthenticated by default, which rate-limits
+# into spurious 404s. Passing a token makes lychee use the GitHub API instead.
+# Falls back to `gh auth token`, then to empty (unauthenticated) if neither.
 .PHONY: link-check
 link-check: ## Check all links in markdown files using lychee
 	@echo "🚀 Checking all links in markdown files using lychee"
-	@lychee --config lychee.toml '**/*.md'
+	@GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" lychee --config lychee.toml '**/*.md'
 
 .PHONY: link-check-verbose
 link-check-verbose: ## Check all links in markdown files with verbose output
 	@echo "🚀 Checking all links in markdown files with verbose output"
-	@lychee --config lychee.toml --verbose debug '**/*.md'
+	@GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" lychee --config lychee.toml --verbose debug '**/*.md'
 
 .PHONY: test-plugins
 test-plugins: ## Test plugins locally using claude --plugin-dir (usage: make test-plugins PLUGIN_DIR=./plugins/social-media/twitter-tools)
@@ -206,8 +211,13 @@ test-twitter-reel: ## Run twitter-to-reel tests
 	@echo "🚀 Running twitter-to-reel tests"
 	@uv run pytest plugins/social-media/twitter-tools/skills/twitter-to-reel/scripts/tests/ -v
 
+.PHONY: test-scripts
+test-scripts: ## Run the root tests/ suite (scripts + hooks)
+	@echo "🚀 Running tests/ suite"
+	@uv run pytest tests/ -v
+
 .PHONY: ci
-ci: test-twitter-downloader test-twitter-reel ## Run all twitter-tools tests (CI target)
+ci: test-scripts test-twitter-downloader test-twitter-reel ## Run all repo tests (CI target)
 
 # Default test tweet URL (a public tweet with video)
 SMOKE_URL ?= https://x.com/KameronBennett/status/2008195824304672928

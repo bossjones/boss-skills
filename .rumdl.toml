@@ -11,6 +11,7 @@ include = [
     "plugins/*/*/README.md",
     "docs/architecture/*.md",
     "docs/checklists/*.md",
+    "docs/plugins/*.md",
 ]
 
 [MD013]

@@ -37,7 +37,7 @@
       "name": "agent-harness",
       "source": "./plugins/boss-dev/agent-harness",
       "description": "Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build and operate agentic dev workflows.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "boss-dev",
       "keywords": [
         "agent",
@@ -71,6 +71,30 @@
         "commit",
         "pr",
         "workflow"
+      ],
+      "author": {
+        "name": "Malcolm Jones",
+        "email": "bossjones@theblacktonystark.com"
+      }
+    },
+    {
+      "name": "proxmox-infra",
+      "source": "./plugins/boss-homelab/proxmox-infra",
+      "description": "Homelab Proxmox VE tooling for Claude Code: skills for managing nodes, VMs, LXC containers, storage, and networking via the proxmoxer Python library, Ansible community.general.proxmox modules, and Terraform/OpenTofu Telmate provider.",
+      "version": "0.1.0",
+      "category": "boss-homelab",
+      "keywords": [
+        "proxmox",
+        "proxmoxer",
+        "homelab",
+        "infrastructure",
+        "virtualization",
+        "lxc",
+        "kvm",
+        "iac",
+        "ansible",
+        "terraform",
+        "opentofu"
       ],
       "author": {
         "name": "Malcolm Jones",

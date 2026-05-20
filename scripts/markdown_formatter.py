@@ -83,71 +83,77 @@ def format_markdown(content: str) -> str:
     return content.rstrip() + "\n"
 
 
-# Main execution
-try:
-    # Parse arguments
-    blocking = False
-    file_paths = []
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
+    """Entry point. Returns the process exit code (0 non-blocking, 2 blocking-with-changes)."""
+    try:
+        # Parse arguments
+        blocking = False
+        file_paths: list[str] = []
 
-    if len(sys.argv) > 1:
-        # CLI mode: parse arguments
-        args = sys.argv[1:]
-        if "--blocking" in args:
-            blocking = True
-            args.remove("--blocking")
-        file_paths = args
-    else:
-        # Hook mode: Read from stdin
-        try:
-            input_data = json.load(sys.stdin)
-            file_path = input_data.get("tool_input", {}).get("file_path", "")
-            if file_path:
-                file_paths = [file_path]
-        except json.JSONDecodeError as e:
-            print(f"Error: Invalid JSON input from stdin: {e}", file=sys.stderr)
-            sys.exit(0)  # Non-blocking even on errors
+        args = sys.argv[1:] if argv is None else list(argv)
 
-    # Track if any changes were made
-    any_changes = False
+        if args:
+            # CLI mode: parse arguments
+            if "--blocking" in args:
+                blocking = True
+                args.remove("--blocking")
+            file_paths = args
+        else:
+            # Hook mode: Read from stdin
+            try:
+                input_data = json.load(sys.stdin)
+                file_path = input_data.get("tool_input", {}).get("file_path", "")
+                if file_path:
+                    file_paths = [file_path]
+            except json.JSONDecodeError as e:
+                print(f"Error: Invalid JSON input from stdin: {e}", file=sys.stderr)
+                return 0  # Non-blocking even on errors
 
-    # Process each file
-    for file_path in file_paths:
-        # Skip non-markdown files
-        if not file_path.endswith((".md", ".mdx")):
-            continue
+        # Track if any changes were made
+        any_changes = False
 
-        if not os.path.exists(file_path):
-            print(f"⚠ File not found: {file_path}", file=sys.stderr)
-            continue
+        # Process each file
+        for file_path in file_paths:
+            # Skip non-markdown files
+            if not file_path.endswith((".md", ".mdx")):
+                continue
 
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                content = f.read()
+            if not os.path.exists(file_path):
+                print(f"⚠ File not found: {file_path}", file=sys.stderr)
+                continue
 
-            formatted = format_markdown(content)
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    content = f.read()
 
-            if formatted != content:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(formatted)
+                formatted = format_markdown(content)
 
-                message = f"✓ Fixed markdown formatting in {file_path}"
-                if blocking:
-                    print(message, file=sys.stderr)
-                else:
-                    print(message)
+                if formatted != content:
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(formatted)
 
-                any_changes = True
+                    message = f"✓ Fixed markdown formatting in {file_path}"
+                    if blocking:
+                        print(message, file=sys.stderr)
+                    else:
+                        print(message)
 
-        except Exception as e:
-            print(f"Error formatting {file_path}: {e}", file=sys.stderr)
+                    any_changes = True
 
-    # In blocking mode, exit with code 2 if changes were made
-    if blocking and any_changes:
-        sys.exit(2)
+            except Exception as e:
+                print(f"Error formatting {file_path}: {e}", file=sys.stderr)
 
-    # Always exit 0 to be non-blocking (unless blocking mode with changes)
-    sys.exit(0)
+        # In blocking mode, exit with code 2 if changes were made
+        if blocking and any_changes:
+            return 2
 
-except Exception as e:
-    print(f"Error in markdown formatter: {e}", file=sys.stderr)
-    sys.exit(0)  # Non-blocking even on errors
+        # Always exit 0 to be non-blocking (unless blocking mode with changes)
+        return 0  # noqa: TRY300
+
+    except Exception as e:
+        print(f"Error in markdown formatter: {e}", file=sys.stderr)
+        return 0  # Non-blocking even on errors
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

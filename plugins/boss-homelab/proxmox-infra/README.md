@@ -1,4 +1,4 @@
-# proxmox
+# proxmox-infra
 
 Homelab Proxmox VE tooling for Claude Code: skills for managing nodes, VMs, LXC containers, storage, and
 networking via the proxmoxer Python library, Ansible (`community.general.proxmox`), and Terraform/OpenTofu
@@ -7,7 +7,7 @@ networking via the proxmoxer Python library, Ansible (`community.general.proxmox
 ## Installation
 
 ```bash
-/plugin install proxmox@boss-skills
+/plugin install proxmox-infra@boss-skills
 ```
 
 ## Components
