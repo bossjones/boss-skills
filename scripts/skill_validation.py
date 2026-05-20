@@ -35,6 +35,7 @@ from typing import Any
 
 import yaml
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -465,10 +466,10 @@ def print_file_report(report: FileReport) -> None:
         console.print(f"  [green]PASS[/green]  {rel}")
         return
 
-    console.print(f"\n  [bold]{rel}[/bold]")
+    console.print(f"\n  [bold]{escape(str(rel))}[/bold]")
     for result in report.results:
         style, icon = LEVEL_STYLE[result.level]
-        console.print(f"    [{style}][{icon}][/{style}] {result.rule}: {result.message}")
+        console.print(f"    [{style}]\\[{icon}][/{style}] {escape(result.rule)}: {escape(result.message)}")
 
 
 def print_summary(reports: list[FileReport], strict: bool) -> int:
