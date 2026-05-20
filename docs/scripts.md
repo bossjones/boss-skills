@@ -76,6 +76,9 @@ Recursively finds all `SKILL.md` files under a directory and validates them agai
 | 0 | All checks passed (warnings OK in normal mode) |
 | 1 | Errors found, or warnings in strict mode |
 
+See [`skill-validation.md`](skill-validation.md) for the full rule reference,
+severity model, and before/after `SKILL.md` examples.
+
 ### verify-structure.py
 
 Validates marketplace.json, plugin.json manifests, skill/command/agent/hook definitions, and MCP server configs.
