@@ -50,11 +50,6 @@ after the marketplace changes:
 | twitter-tools | `social-media` | 0.1.0 | Download X/Twitter media and convert tweets to Reels | [twitter-tools.md](twitter-tools.md) |
 | proxmox-infra | `boss-homelab` | 0.1.0 | Manage Proxmox VE homelab infrastructure and IaC | [proxmox-infra.md](proxmox-infra.md) |
 
-> **Note:** `proxmox-infra` lives under `plugins/boss-homelab/proxmox/` but is not yet
-> registered in `.claude-plugin/marketplace.json`. Until it is, the `@boss-skills` install
-> shorthand will not resolve it — see [proxmox-infra.md](proxmox-infra.md) for the local
-> install path.
-
 ## Source layout
 
 ```text
@@ -63,7 +58,7 @@ plugins/
 │   ├── agent-harness/   # 9 skills, 9 commands, 6 agents
 │   └── python-dev/      # 2 commands
 ├── boss-homelab/
-│   └── proxmox/         # 1 skill (proxmox-infra)
+│   └── proxmox-infra/   # 1 skill (proxmox-infrastructure)
 └── social-media/
     └── twitter-tools/   # 2 skills
 ```

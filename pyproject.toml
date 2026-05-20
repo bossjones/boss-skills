@@ -133,7 +133,7 @@ ignore = [
     "W291", # trailing whitespace
     "W293", # whitespace on blank line
 ]
-"plugins/boss-homelab/proxmox/**" = [
+"plugins/boss-homelab/proxmox-infra/**" = [
     "S",    # subprocess + SSH invocations of `ssh`/`ceph` — validated inputs
     "SIM",  # simplify — stylistic, refine after scaffolding stabilizes
     "TRY",  # tryceratops — exception-handling patterns differ in CLI tools

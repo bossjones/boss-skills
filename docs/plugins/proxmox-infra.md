@@ -1,6 +1,6 @@
 # proxmox-infra
 
-> `boss-homelab` · v0.1.0 · [plugin source](../../plugins/boss-homelab/proxmox/)
+> `boss-homelab` · v0.1.0 · [plugin source](../../plugins/boss-homelab/proxmox-infra/)
 
 Homelab Proxmox VE tooling for Claude Code: a single comprehensive skill for managing
 nodes, VMs, LXC containers, storage, and networking via the
@@ -9,21 +9,10 @@ nodes, VMs, LXC containers, storage, and networking via the
 
 ## Installation
 
-> **Not yet registered in the marketplace.** This plugin lives at
-> `plugins/boss-homelab/proxmox/` but is not yet listed in
-> `.claude-plugin/marketplace.json`, so the `@boss-skills` install shorthand will not
-> resolve it.
-
-Once it is registered, install it with:
-
 ```bash
 /plugin marketplace add bossjones/boss-skills   # once
 /plugin install proxmox-infra@boss-skills
 ```
-
-To use it before registration, point the `/plugin` marketplace at a local checkout of this
-repository and install from there. Note the directory is `proxmox/` while the plugin
-**name** (from `plugin.json`) is `proxmox-infra` — installs use the name.
 
 ## Skills
 
@@ -102,5 +91,5 @@ over SSH.
 
 ## See also
 
-- Plugin source: [`plugins/boss-homelab/proxmox/`](../../plugins/boss-homelab/proxmox/)
-- Plugin README: [`plugins/boss-homelab/proxmox/README.md`](../../plugins/boss-homelab/proxmox/README.md)
+- Plugin source: [`plugins/boss-homelab/proxmox-infra/`](../../plugins/boss-homelab/proxmox-infra/)
+- Plugin README: [`plugins/boss-homelab/proxmox-infra/README.md`](../../plugins/boss-homelab/proxmox-infra/README.md)

@@ -61,8 +61,8 @@ Rewrite the skill around two skill classes and a `plugin-eval` evidence signal:
      - the matching entry in `.claude-plugin/marketplace.json` `plugins[]`, located
        by `source == "./plugins/<cat>/<plugin>"` → `version`
      - Edge: a plugin with a `plugin.json` but no marketplace entry (e.g.
-       `proxmox-infra` today) → bump `plugin.json` only and surface a finding that
-       the plugin is unregistered.
+       `proxmox-infra` when this spec was written) → bump `plugin.json` only and
+       surface a finding that the plugin is unregistered.
    - **Repo-internal skill** → add/bump `metadata.version` in the SKILL.md
      frontmatter (introduce the field at `0.1.0` if absent). No marketplace or
      plugin.json artifact applies.
@@ -354,9 +354,9 @@ IMPORTANT: Execute every step in order, top to bottom.
 - **No-bump case:** invoke against a no-op touch and confirm the skill reports
   "no bump needed" and stops without editing.
 - **Edge: unregistered plugin:** dry-run against a
-  `plugins/boss-homelab/proxmox/skills/.../SKILL.md` edit (proxmox-infra is not in
-  marketplace.json) and confirm the skill bumps `plugin.json` only and surfaces
-  the unregistered-plugin finding.
+  `plugins/boss-homelab/proxmox-infra/skills/proxmox-infrastructure/SKILL.md` edit
+  (proxmox-infra was unregistered when this spec was written) and confirm the skill
+  bumps `plugin.json` only and surfaces the unregistered-plugin finding.
 - **plugin-eval self-score:** the rewritten SKILL.md itself scores cleanly at
   `--depth quick` (no new anti-patterns vs. the ported baseline).
 

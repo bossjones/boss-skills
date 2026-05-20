@@ -489,8 +489,11 @@ def check_skills_directory(plugin_dir: Path) -> list[str]:
         errors.append(f"{plugin_name}: skills/ exists but is not a directory")
         return errors
 
-    # Check each skill subdirectory
-    skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir()]
+    # Check each skill subdirectory. Hook-log output (gitignored, see .gitignore)
+    # can appear under skills/ but is not a skill — exclude it so it isn't
+    # flagged as missing a SKILL.md.
+    non_skill_dirs = {"logs"}
+    skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir() and d.name not in non_skill_dirs]
 
     if not skill_dirs:
         errors.append(f"{plugin_name}/skills/: Directory exists but contains no skill subdirectories")

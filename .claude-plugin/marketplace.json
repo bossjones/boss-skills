@@ -76,6 +76,30 @@
         "name": "Malcolm Jones",
         "email": "bossjones@theblacktonystark.com"
       }
+    },
+    {
+      "name": "proxmox-infra",
+      "source": "./plugins/boss-homelab/proxmox-infra",
+      "description": "Homelab Proxmox VE tooling for Claude Code: skills for managing nodes, VMs, LXC containers, storage, and networking via the proxmoxer Python library, Ansible community.general.proxmox modules, and Terraform/OpenTofu Telmate provider.",
+      "version": "0.1.0",
+      "category": "boss-homelab",
+      "keywords": [
+        "proxmox",
+        "proxmoxer",
+        "homelab",
+        "infrastructure",
+        "virtualization",
+        "lxc",
+        "kvm",
+        "iac",
+        "ansible",
+        "terraform",
+        "opentofu"
+      ],
+      "author": {
+        "name": "Malcolm Jones",
+        "email": "bossjones@theblacktonystark.com"
+      }
     }
   ]
 }

@@ -246,7 +246,7 @@ Use these files to complete the task:
 **Repo files to read for conventions:**
 
 - `plugins/social-media/twitter-tools/skills/twitter-media-downloader/` — reference for `scripts/` + `scripts/tests/` layout
-- `plugins/boss-homelab/proxmox/skills/proxmox-infra/SKILL.md` — reference for `${CLAUDE_SKILL_DIR}` invocation
+- `plugins/boss-homelab/proxmox-infra/skills/proxmox-infrastructure/SKILL.md` — reference for `${CLAUDE_SKILL_DIR}` invocation
 - `scripts/skill_validation.py` — the 16-rule skill validator (gate)
 - `scripts/verify-structure.py` — marketplace/plugin manifest validator (gate)
 - `devtools/lint.py` — lints `devtools`, `scripts`, `plugins` with ruff; type-checks only `devtools`, `scripts`

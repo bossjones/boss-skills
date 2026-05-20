@@ -167,7 +167,7 @@ Sample output:
 ```text
 SKILL                                                          SCORE  BADGE      ANTI  STATUS
 -----------------------------------------------------------------------------------------------
-plugins/boss-homelab/proxmox/skills/proxmox-infra                62.3  bronze        2  ok
+plugins/boss-homelab/proxmox-infra/skills/proxmox-infrastructure   62.3  bronze        2  ok
 plugins/social-media/twitter-tools/skills/twitter-media-downloader  73.7  silver     0  ok
 plugins/social-media/twitter-tools/skills/twitter-to-reel        66.5  bronze        1  ok
 ```
@@ -196,7 +196,7 @@ prints a `FAIL:` line naming the count below threshold and exits `1`.
 ```text
 # LLM judge layer (~30s, needs LLM access)
 ./scripts/eval-skills.py \
-  --skill plugins/boss-homelab/proxmox/skills/proxmox-infra \
+  --skill plugins/boss-homelab/proxmox-infra/skills/proxmox-infrastructure \
   --layer llm-judge
 
 # Monte-carlo layer (~2-5 min)
@@ -212,11 +212,11 @@ prints a `FAIL:` line naming the count below threshold and exits `1`.
 
 ```text
 # Always deep upstream; --layer is ignored
-./scripts/eval-skills.py --command certify plugins/boss-homelab/proxmox/skills/proxmox-infra
+./scripts/eval-skills.py --command certify plugins/boss-homelab/proxmox-infra/skills/proxmox-infrastructure
 
 # Forward a pass mark to the certification
 ./scripts/eval-skills.py --command certify \
-  plugins/boss-homelab/proxmox/skills/proxmox-infra --threshold 70
+  plugins/boss-homelab/proxmox-infra/skills/proxmox-infrastructure --threshold 70
 ```
 
 ### Compare two skills

@@ -34,7 +34,7 @@ HOOKS = {name: _load_hook(path) for name, path in HOOK_FILES.items()}
 
 MATCHING_PATHS = [
     "plugins/social-media/twitter-tools/skills/twitter-to-reel/SKILL.md",
-    "plugins/boss-homelab/proxmox/skills/proxmox-admin/SKILL.md",
+    "plugins/boss-homelab/proxmox-infra/skills/proxmox-infrastructure/SKILL.md",
     ".claude/skills/doc-generator/SKILL.md",
     ".claude/skills/version-bump-reviewer/SKILL.md",
 ]
