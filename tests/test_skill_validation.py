@@ -7,6 +7,7 @@ Loaded by path via importlib for consistency with the other script suites
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -401,3 +402,177 @@ class TestMain:
     def test_missing_directory_returns_1(self, tmp_path: Path, mocker: MockerFixture) -> None:
         self._argv(mocker, str(tmp_path / "does-not-exist"))
         assert sv.main() == 1
+
+    def test_rules_report_passing_fixture_keeps_exit_0(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        self._write(tmp_path, "valid-skill")
+        self._argv(mocker, str(tmp_path))
+        assert sv.main() == 0
+        self._argv(mocker, str(tmp_path), "--rules-report")
+        assert sv.main() == 0
+
+    def test_rules_report_failing_fixture_keeps_exit_1(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        d = tmp_path / "dirname"
+        d.mkdir()
+        (d / "SKILL.md").write_text("---\nname: wrongname\n---\nbody\n")
+        self._argv(mocker, str(tmp_path))
+        assert sv.main() == 1
+        self._argv(mocker, str(tmp_path), "--rules-report")
+        assert sv.main() == 1
+
+    def test_rules_report_with_strict_returns_1(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        d = tmp_path / "warnskill"
+        d.mkdir()
+        # Missing trigger keyword + no code block => warnings, no errors.
+        (d / "SKILL.md").write_text(
+            "---\nname: warnskill\ndescription: plain description text\n---\n## H\n\ntext\n"
+        )
+        self._argv(mocker, str(tmp_path), "--rules-report", "--strict")
+        assert sv.main() == 1
+
+
+# --------------------------------------------------------------------------- #
+# RULE_REGISTRY (rules report flag)
+# --------------------------------------------------------------------------- #
+class TestRuleRegistry:
+    def test_registry_non_empty_rulespecs(self) -> None:
+        assert sv.RULE_REGISTRY
+        assert all(isinstance(s, sv.RuleSpec) for s in sv.RULE_REGISTRY)
+
+    def test_rule_ids_unique(self) -> None:
+        ids = [s.rule_id for s in sv.RULE_REGISTRY]
+        assert len(ids) == len(set(ids))
+
+    def test_every_level_is_a_level(self) -> None:
+        assert all(isinstance(s.level, Level) for s in sv.RULE_REGISTRY)
+
+    def test_registry_matches_emitted_rules(self) -> None:
+        """Drift guard: RULE_REGISTRY must list exactly the rule IDs that the
+        check_* functions emit as ``CheckResult`` literals."""
+        source = SCRIPT.read_text(encoding="utf-8")
+        emitted = set(re.findall(r"""CheckResult\(\s*["']([a-z0-9-]+)["']""", source))
+        registered = {s.rule_id for s in sv.RULE_REGISTRY}
+        assert emitted == registered
+
+
+# --------------------------------------------------------------------------- #
+# build_file_rules_report (per-file rules report)
+# --------------------------------------------------------------------------- #
+class TestBuildFileRulesReport:
+    def test_clean_file_all_rows_ok(self, tmp_path: Path) -> None:
+        rows = sv.build_file_rules_report(sv.FileReport(path=tmp_path / "SKILL.md"))
+        assert len(rows) == len(sv.RULE_REGISTRY)
+        assert all(row.fired is False for row in rows)
+        assert all(row.findings == [] for row in rows)
+
+    def test_row_order_matches_registry(self, tmp_path: Path) -> None:
+        rows = sv.build_file_rules_report(sv.FileReport(path=tmp_path / "SKILL.md"))
+        assert [row.spec.rule_id for row in rows] == [s.rule_id for s in sv.RULE_REGISTRY]
+
+    def test_finding_marks_only_its_rule_fired(self, tmp_path: Path) -> None:
+        report = sv.FileReport(path=tmp_path / "SKILL.md")
+        report.results.append(sv.CheckResult("name-matches-dir", Level.ERROR, "mismatch"))
+        rows = sv.build_file_rules_report(report)
+        fired = [row for row in rows if row.fired]
+        assert len(fired) == 1
+        assert fired[0].spec.rule_id == "name-matches-dir"
+        assert fired[0].findings[0].message == "mismatch"
+
+    def test_multiple_findings_for_one_rule_collected(self, tmp_path: Path) -> None:
+        report = sv.FileReport(path=tmp_path / "SKILL.md")
+        report.results.append(sv.CheckResult("dir-conventions", Level.INFO, "no scripts/"))
+        report.results.append(sv.CheckResult("dir-conventions", Level.INFO, "no assets/"))
+        rows = {row.spec.rule_id: row for row in sv.build_file_rules_report(report)}
+        assert len(rows["dir-conventions"].findings) == 2
+
+
+# --------------------------------------------------------------------------- #
+# build_rules_report (aggregate rules report)
+# --------------------------------------------------------------------------- #
+class TestBuildRulesReport:
+    def _report(self, path: Path, *findings: tuple[str, object]) -> object:
+        rep = sv.FileReport(path=path)
+        for rule, level in findings:
+            rep.results.append(sv.CheckResult(rule, level, "m"))
+        return rep
+
+    def test_empty_reports_all_ok(self) -> None:
+        outcomes = sv.build_rules_report([])
+        assert len(outcomes) == len(sv.RULE_REGISTRY)
+        assert all(o.ok for o in outcomes)
+        assert all(o.passing_files == [] and o.failing_files == [] for o in outcomes)
+
+    def test_one_failing_one_clean(self, tmp_path: Path) -> None:
+        failing = self._report(tmp_path / "bad" / "SKILL.md", ("name-exists", Level.ERROR))
+        clean = self._report(tmp_path / "good" / "SKILL.md")
+        outcomes = {o.spec.rule_id: o for o in sv.build_rules_report([failing, clean])}
+        ne = outcomes["name-exists"]
+        assert ne.failing_files == [tmp_path / "bad" / "SKILL.md"]
+        assert ne.passing_files == [tmp_path / "good" / "SKILL.md"]
+        assert ne.ok is False
+        # An untouched rule passes for both files.
+        assert outcomes["body-examples"].ok is True
+        assert len(outcomes["body-examples"].passing_files) == 2
+
+    def test_mixed_counts(self, tmp_path: Path) -> None:
+        reports = [
+            self._report(tmp_path / f"s{i}" / "SKILL.md", ("desc-trigger", Level.WARNING))
+            for i in range(3)
+        ]
+        reports += [self._report(tmp_path / f"c{i}" / "SKILL.md") for i in range(2)]
+        outcomes = {o.spec.rule_id: o for o in sv.build_rules_report(reports)}
+        assert len(outcomes["desc-trigger"].failing_files) == 3
+        assert len(outcomes["desc-trigger"].passing_files) == 2
+
+    def test_info_rule_fired_is_not_ok(self, tmp_path: Path) -> None:
+        rep = self._report(tmp_path / "s" / "SKILL.md", ("dir-conventions", Level.INFO))
+        outcomes = {o.spec.rule_id: o for o in sv.build_rules_report([rep])}
+        dc = outcomes["dir-conventions"]
+        assert dc.ok is False
+        assert sv.rule_status(dc.spec, fired=True) == "INFO"
+
+
+# --------------------------------------------------------------------------- #
+# rule_status / print_file_rules_report / print_rules_report
+# --------------------------------------------------------------------------- #
+class TestRulesReportDisplay:
+    @pytest.mark.parametrize(
+        ("level", "fired", "expected"),
+        [
+            (Level.ERROR, False, "OK"),
+            (Level.WARNING, False, "OK"),
+            (Level.INFO, False, "OK"),
+            (Level.ERROR, True, "NOT OK"),
+            (Level.WARNING, True, "NOT OK"),
+            (Level.INFO, True, "INFO"),
+        ],
+    )
+    def test_rule_status(self, level: object, fired: bool, expected: str) -> None:
+        spec = sv.RuleSpec("x", "x", level)
+        assert sv.rule_status(spec, fired=fired) == expected
+
+    def test_print_file_rules_report_clean(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        mocker.patch.object(sv, "console")
+        report = sv.FileReport(path=tmp_path / "skill" / "SKILL.md")
+        sv.print_file_rules_report(report, sv.build_file_rules_report(report))
+        sv.console.print.assert_called()
+
+    def test_print_file_rules_report_with_findings(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        mocker.patch.object(sv, "console")
+        report = sv.FileReport(path=tmp_path / "skill" / "SKILL.md")
+        report.results.append(sv.CheckResult("name-exists", Level.ERROR, "missing [name]"))
+        sv.print_file_rules_report(report, sv.build_file_rules_report(report))
+        sv.console.print.assert_called()
+
+    def test_print_rules_report_empty(self, mocker: MockerFixture) -> None:
+        mocker.patch.object(sv, "console")
+        sv.print_rules_report(sv.build_rules_report([]))
+        sv.console.print.assert_called()
+
+    def test_print_rules_report_mixed(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        mocker.patch.object(sv, "console")
+        bad = sv.FileReport(path=tmp_path / "bad" / "SKILL.md")
+        bad.results.append(sv.CheckResult("name-exists", Level.ERROR, "missing"))
+        bad.results.append(sv.CheckResult("dir-conventions", Level.INFO, "no assets/"))
+        good = sv.FileReport(path=tmp_path / "good" / "SKILL.md")
+        sv.print_rules_report(sv.build_rules_report([bad, good]))
+        sv.console.print.assert_called()
