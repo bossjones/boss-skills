@@ -489,7 +489,7 @@ class TestBuildFileRulesReport:
 # build_rules_report (aggregate rules report)
 # --------------------------------------------------------------------------- #
 class TestBuildRulesReport:
-    def _report(self, path: Path, *findings: tuple[str, object]) -> object:
+    def _report(self, path: Path, *findings: tuple[str, Level]) -> sv.FileReport:
         rep = sv.FileReport(path=path)
         for rule, level in findings:
             rep.results.append(sv.CheckResult(rule, level, "m"))
@@ -546,7 +546,7 @@ class TestRulesReportDisplay:
             (Level.INFO, True, "INFO"),
         ],
     )
-    def test_rule_status(self, level: object, fired: bool, expected: str) -> None:
+    def test_rule_status(self, level: Level, fired: bool, expected: str) -> None:
         spec = sv.RuleSpec("x", "x", level)
         assert sv.rule_status(spec, fired=fired) == expected
 

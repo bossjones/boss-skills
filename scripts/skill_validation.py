@@ -162,7 +162,11 @@ RULE_REGISTRY: tuple[RuleSpec, ...] = (
     RuleSpec("dir-conventions", "recommended scripts/references/assets directories are present", Level.INFO),
     RuleSpec("body-instructions", "body contains step-by-step instructions", Level.WARNING),
     RuleSpec("body-examples", "body contains example code blocks", Level.WARNING),
-    RuleSpec("backtick-bang", "no backtick-bang patterns in fenced code blocks (parser bug #12781)", Level.ERROR),
+    RuleSpec(
+        "backtick-bang",
+        "no backtick-bang patterns in fenced code blocks (parser bug #12781); use $ command instead",
+        Level.ERROR,
+    ),
 )
 
 
@@ -657,7 +661,7 @@ def print_file_rules_report(report: FileReport, rows: list[FileRuleRow]) -> None
         status_style = _status_style(row.spec, status)
         detail = "; ".join(escape(f.message) for f in row.findings) or "[dim]—[/dim]"
         table.add_row(
-            escape(row.spec.rule_id),
+            escape(row.spec.title),
             f"[{sev_style}]{row.spec.level.value.upper()}[/{sev_style}]",
             f"[{status_style}]{status}[/{status_style}]",
             detail,
@@ -685,7 +689,7 @@ def print_rules_report(outcomes: list[RuleOutcome]) -> None:
         status_style = _status_style(outcome.spec, status)
         failing = ", ".join(escape(_relpath(p)) for p in outcome.failing_files) or "[dim]—[/dim]"
         table.add_row(
-            escape(outcome.spec.rule_id),
+            escape(outcome.spec.title),
             f"[{sev_style}]{outcome.spec.level.value.upper()}[/{sev_style}]",
             f"[{status_style}]{status}[/{status_style}]",
             str(len(outcome.passing_files)),
