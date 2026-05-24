@@ -290,3 +290,4 @@ temp/
 
 # Skill port artifact (not part of the repo)
 skills.zip
+plugins/boss-dev/agent-harness/.claude/

@@ -54,7 +54,7 @@ Current skills:
 
 ### Development Tools (`/devtools/`)
 
-- `lint.py`: Runs codespell, ruff check/format, basedpyright on `devtools/` and `.claude/skills/`
+- `lint.py` (`make lint`): codespell + `ruff check --fix` + `ruff format` on `devtools/`, `scripts/`, `plugins/`; `basedpyright` on `devtools/`, `scripts/` (plus select agent-harness scripts). Does NOT cover `tests/` or `.claude/` (ruff excludes `.claude/`).
 
 ## Code Standards
 
@@ -81,8 +81,8 @@ Standalone scripts use inline metadata:
 
 ### Linting
 
-- Formatter: ruff format (100 char line length)
-- Linter: ruff check (E, F, UP, B, SIM, I rules)
+- Formatter: ruff format (120 char line length; config in `pyproject.toml`)
+- Linter: ruff check — rule set in `pyproject.toml` `[tool.ruff.lint]` (E/W, F, UP, B, SIM, I, S, RUF, TRY, C4, C90, A, YTT, T10, PGH)
 - Type checker: basedpyright (recommended mode)
 
 Zero linter warnings/errors required before task completion.
@@ -106,3 +106,4 @@ The skill parser executes backtick patterns inside fenced code blocks. Never use
 - Simple inline tests can go below `## Tests` comment in source files
 - Run with `uv run pytest -s` to see output
 - No trivial tests for obvious functionality
+- PEP 723 scripts are tested by loading them with `importlib.util.spec_from_file_location` (the `if __name__ == "__main__"` guard makes import side-effect-free)
