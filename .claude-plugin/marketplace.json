@@ -13,7 +13,7 @@
       "name": "twitter-tools",
       "source": "./plugins/social-media/twitter-tools",
       "description": "Twitter/X social media tools for downloading media and converting tweets to Instagram Reels format. Includes gallery-dl integration for media downloads and video composition tools for vertical content creation.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "social-media",
       "keywords": [
         "twitter",
@@ -30,7 +30,8 @@
       ],
       "author": {
         "name": "Malcolm Jones",
-        "email": "bossjones@theblacktonystark.com"
+        "email": "bossjones@theblacktonystark.com",
+        "url": "https://github.com/bossjones"
       }
     },
     {
