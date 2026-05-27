@@ -268,6 +268,14 @@ PLUGIN_MANIFEST_SCHEMA = {
             "description": "Unique identifier (kebab-case, no spaces)",
         },
         # Optional metadata
+        "$schema": {
+            "type": "string",
+            "description": "JSON Schema URL for editor autocomplete (ignored at load time)",
+        },
+        "displayName": {
+            "type": "string",
+            "description": "Human-readable name shown in /plugin picker (v2.1.143+)",
+        },
         "version": {
             "type": "string",
             "pattern": "^\\d+\\.\\d+\\.\\d+$",
@@ -288,21 +296,85 @@ PLUGIN_MANIFEST_SCHEMA = {
         "license": {"type": "string", "description": "License identifier"},
         "keywords": {"type": "array", "items": {"type": "string"}, "description": "Discovery tags"},
         # Component paths
+        "skills": {
+            "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}],
+            "description": "Custom skill directories (adds to default skills/)",
+        },
         "commands": {
             "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}],
-            "description": "Additional command files/directories",
+            "description": "Custom flat skill files or directories (replaces default commands/)",
         },
         "agents": {
             "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}],
-            "description": "Additional agent files",
+            "description": "Custom agent files (replaces default agents/)",
         },
         "hooks": {
-            "oneOf": [{"type": "string"}, {"type": "object"}],
-            "description": "Hook config path or inline config",
+            "oneOf": [
+                {"type": "string"},
+                {"type": "array", "items": {"type": "string"}},
+                {"type": "object"},
+            ],
+            "description": "Hook config paths or inline config",
         },
         "mcpServers": {
-            "oneOf": [{"type": "string"}, {"type": "object"}],
-            "description": "MCP config path or inline config",
+            "oneOf": [
+                {"type": "string"},
+                {"type": "array", "items": {"type": "string"}},
+                {"type": "object"},
+            ],
+            "description": "MCP config paths or inline config",
+        },
+        "outputStyles": {
+            "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}],
+            "description": "Custom output style files/directories (replaces default output-styles/)",
+        },
+        "lspServers": {
+            "oneOf": [
+                {"type": "string"},
+                {"type": "array", "items": {"type": "string"}},
+                {"type": "object"},
+            ],
+            "description": "LSP server configs for code intelligence",
+        },
+        "experimental": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "themes": {
+                    "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}],
+                    "description": "Color theme files/directories (replaces default themes/)",
+                },
+                "monitors": {
+                    "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}],
+                    "description": "Background monitor configurations",
+                },
+            },
+        },
+        "userConfig": {
+            "type": "object",
+            "description": "User-configurable values prompted at enable time",
+        },
+        "channels": {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": "Channel declarations for message injection (Telegram, Slack, etc.)",
+        },
+        "dependencies": {
+            "type": "array",
+            "items": {
+                "oneOf": [
+                    {"type": "string"},
+                    {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "version": {"type": "string"},
+                        },
+                    },
+                ]
+            },
+            "description": "Other plugins this plugin requires (with optional semver constraints)",
         },
     },
 }
