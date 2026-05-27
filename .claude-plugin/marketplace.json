@@ -13,7 +13,7 @@
       "name": "twitter-tools",
       "source": "./plugins/social-media/twitter-tools",
       "description": "Twitter/X social media tools for downloading media and converting tweets to Instagram Reels format. Includes gallery-dl integration for media downloads and video composition tools for vertical content creation.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "social-media",
       "keywords": [
         "twitter",
@@ -30,14 +30,15 @@
       ],
       "author": {
         "name": "Malcolm Jones",
-        "email": "bossjones@theblacktonystark.com"
+        "email": "bossjones@theblacktonystark.com",
+        "url": "https://github.com/bossjones"
       }
     },
     {
       "name": "agent-harness",
       "source": "./plugins/boss-dev/agent-harness",
       "description": "Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build and operate agentic dev workflows.",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "category": "boss-dev",
       "keywords": [
         "agent",
@@ -50,14 +51,15 @@
       ],
       "author": {
         "name": "Malcolm Jones",
-        "email": "bossjones@theblacktonystark.com"
+        "email": "bossjones@theblacktonystark.com",
+        "url": "https://github.com/bossjones"
       }
     },
     {
       "name": "python-dev",
       "source": "./plugins/boss-dev/python-dev",
       "description": "Python development tooling for Claude Code: debug GitHub Actions CI failures end-to-end and ship changes via conventional-commit PRs. Assumes a uv-based project with ruff, ty, deptry, pre-commit, and mkdocs.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "boss-dev",
       "keywords": [
         "python",
@@ -74,14 +76,15 @@
       ],
       "author": {
         "name": "Malcolm Jones",
-        "email": "bossjones@theblacktonystark.com"
+        "email": "bossjones@theblacktonystark.com",
+        "url": "https://github.com/bossjones"
       }
     },
     {
       "name": "basedpyright-lsp",
       "source": "./plugins/boss-dev/basedpyright-lsp",
       "description": "LSP plugin wiring up basedpyright-langserver for Python real-time diagnostics, hover docs, go-to-definition, and find-references in Claude Code. Requires basedpyright installed separately (`uv tool install basedpyright` or `pip install basedpyright`).",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "boss-dev",
       "keywords": [
         "python",
@@ -93,14 +96,15 @@
       ],
       "author": {
         "name": "Malcolm Jones",
-        "email": "bossjones@theblacktonystark.com"
+        "email": "bossjones@theblacktonystark.com",
+        "url": "https://github.com/bossjones"
       }
     },
     {
       "name": "proxmox-infra",
       "source": "./plugins/boss-homelab/proxmox-infra",
       "description": "Homelab Proxmox VE tooling for Claude Code: skills for managing nodes, VMs, LXC containers, storage, and networking via the proxmoxer Python library, Ansible community.general.proxmox modules, and Terraform/OpenTofu Telmate provider.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "boss-homelab",
       "keywords": [
         "proxmox",
@@ -117,7 +121,8 @@
       ],
       "author": {
         "name": "Malcolm Jones",
-        "email": "bossjones@theblacktonystark.com"
+        "email": "bossjones@theblacktonystark.com",
+        "url": "https://github.com/bossjones"
       }
     }
   ]

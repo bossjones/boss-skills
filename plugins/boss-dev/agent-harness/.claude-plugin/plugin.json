@@ -1,11 +1,17 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-harness",
-  "version": "0.2.0",
+  "displayName": "Agent Harness",
+  "version": "0.2.1",
   "description": "Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build and operate agentic dev workflows.",
   "author": {
     "name": "Malcolm Jones",
-    "email": "bossjones@theblacktonystark.com"
+    "email": "bossjones@theblacktonystark.com",
+    "url": "https://github.com/bossjones"
   },
+  "homepage": "https://github.com/bossjones/boss-skills",
+  "repository": "https://github.com/bossjones/boss-skills",
+  "license": "MIT",
   "keywords": [
     "agent",
     "harness",
@@ -14,6 +20,5 @@
     "boss-dev",
     "dev-tools",
     "automation"
-  ],
-  "homepage": "https://github.com/bossjones/boss-skills"
+  ]
 }

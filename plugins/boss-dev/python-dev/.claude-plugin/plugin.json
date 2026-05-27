@@ -1,11 +1,17 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "python-dev",
-  "version": "0.1.0",
+  "displayName": "Python Dev",
+  "version": "0.1.1",
   "description": "Python development tooling for Claude Code: debug GitHub Actions CI failures end-to-end and ship changes via conventional-commit PRs. Assumes a uv-based project with ruff, ty, deptry, pre-commit, and mkdocs.",
   "author": {
     "name": "Malcolm Jones",
-    "email": "bossjones@theblacktonystark.com"
+    "email": "bossjones@theblacktonystark.com",
+    "url": "https://github.com/bossjones"
   },
+  "homepage": "https://github.com/bossjones/boss-skills",
+  "repository": "https://github.com/bossjones/boss-skills",
+  "license": "MIT",
   "keywords": [
     "python",
     "ci",
@@ -18,6 +24,5 @@
     "commit",
     "pr",
     "workflow"
-  ],
-  "homepage": "https://github.com/bossjones/boss-skills"
+  ]
 }

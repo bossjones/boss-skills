@@ -1,11 +1,28 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "twitter-tools",
-  "version": "0.1.0",
+  "displayName": "Twitter Tools",
+  "version": "0.1.1",
   "description": "Twitter/X social media tools for downloading media and converting tweets to Instagram Reels format. Includes gallery-dl integration for media downloads and video composition tools for vertical content creation.",
   "author": {
     "name": "Malcolm Jones",
-    "email": "bossjones@theblacktonystark.com"
+    "email": "bossjones@theblacktonystark.com",
+    "url": "https://github.com/bossjones"
   },
-  "keywords": ["twitter", "x", "social-media", "media-download", "gallery-dl", "reel", "instagram", "video", "screenshot", "content-creation", "vertical-video"],
-  "homepage": "https://github.com/bossjones/boss-skills"
+  "homepage": "https://github.com/bossjones/boss-skills",
+  "repository": "https://github.com/bossjones/boss-skills",
+  "license": "MIT",
+  "keywords": [
+    "twitter",
+    "x",
+    "social-media",
+    "media-download",
+    "gallery-dl",
+    "reel",
+    "instagram",
+    "video",
+    "screenshot",
+    "content-creation",
+    "vertical-video"
+  ]
 }
