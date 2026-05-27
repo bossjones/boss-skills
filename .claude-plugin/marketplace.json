@@ -78,6 +78,25 @@
       }
     },
     {
+      "name": "basedpyright-lsp",
+      "source": "./plugins/boss-dev/basedpyright-lsp",
+      "description": "LSP plugin wiring up basedpyright-langserver for Python real-time diagnostics, hover docs, go-to-definition, and find-references in Claude Code. Requires basedpyright installed separately (`uv tool install basedpyright` or `pip install basedpyright`).",
+      "version": "0.1.0",
+      "category": "boss-dev",
+      "keywords": [
+        "python",
+        "lsp",
+        "basedpyright",
+        "type-checker",
+        "language-server",
+        "diagnostics"
+      ],
+      "author": {
+        "name": "Malcolm Jones",
+        "email": "bossjones@theblacktonystark.com"
+      }
+    },
+    {
       "name": "proxmox-infra",
       "source": "./plugins/boss-homelab/proxmox-infra",
       "description": "Homelab Proxmox VE tooling for Claude Code: skills for managing nodes, VMs, LXC containers, storage, and networking via the proxmoxer Python library, Ansible community.general.proxmox modules, and Terraform/OpenTofu Telmate provider.",

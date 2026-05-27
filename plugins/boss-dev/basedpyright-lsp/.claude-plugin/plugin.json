@@ -1,0 +1,18 @@
+{
+  "name": "basedpyright-lsp",
+  "version": "0.1.0",
+  "description": "LSP plugin wiring up basedpyright-langserver for Python real-time diagnostics, hover docs, go-to-definition, and find-references in Claude Code. Requires basedpyright installed separately (`uv tool install basedpyright` or `pip install basedpyright`).",
+  "author": {
+    "name": "Malcolm Jones",
+    "email": "bossjones@theblacktonystark.com"
+  },
+  "keywords": [
+    "python",
+    "lsp",
+    "basedpyright",
+    "type-checker",
+    "language-server",
+    "diagnostics"
+  ],
+  "homepage": "https://github.com/bossjones/boss-skills"
+}
