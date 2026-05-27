@@ -548,39 +548,64 @@ def check_component_placement(plugin_dir: Path) -> list[str]:
     return errors
 
 
-def check_skills_directory(plugin_dir: Path) -> list[str]:
-    """Validate skills/ directory and SKILL.md files."""
+def check_skills_directory(plugin_dir: Path, plugin_data: dict[str, Any] | None = None) -> list[str]:  # noqa: C901
+    """Validate skills directories and SKILL.md files.
+
+    Scans the default ``skills/`` directory plus any custom skill directories
+    declared in ``plugin.json``'s ``skills`` field (which may be a string or
+    array of strings; the schema documents this as additive to ``skills/``).
+    """
     errors: list[str] = []
     plugin_name: str = plugin_dir.name
-    skills_dir: Path = plugin_dir / "skills"
 
-    if not skills_dir.exists():
+    # Collect (directory, display_label) pairs to scan: default skills/ plus custom paths.
+    skill_locations: list[tuple[Path, str]] = []
+
+    default_skills_dir = plugin_dir / "skills"
+    if default_skills_dir.exists():
+        skill_locations.append((default_skills_dir, "skills"))
+
+    custom_skills: Any = (plugin_data or {}).get("skills")
+    if custom_skills:
+        paths: list[str] = [custom_skills] if isinstance(custom_skills, str) else list(custom_skills)
+        for path in paths:
+            if not isinstance(path, str):
+                continue
+            full_path, error = validate_plugin_path(plugin_dir, path, f"{plugin_name}/skills")
+            # Path-level errors (traversal, missing ./ prefix) are surfaced by
+            # check_custom_component_paths; skip silently here to avoid duplicates.
+            if error or full_path is None or not full_path.exists():
+                continue
+            skill_locations.append((full_path, path))
+
+    if not skill_locations:
         return []  # Optional component
 
-    if not skills_dir.is_dir():
-        errors.append(f"{plugin_name}: skills/ exists but is not a directory")
-        return errors
-
-    # Check each skill subdirectory. Hook-log output (gitignored, see .gitignore)
-    # can appear under skills/ but is not a skill — exclude it so it isn't
-    # flagged as missing a SKILL.md.
+    # Hook-log output (gitignored, see .gitignore) can appear under skills/ but is not
+    # a skill — exclude it so it isn't flagged as missing a SKILL.md.
     non_skill_dirs = {"logs"}
-    skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir() and d.name not in non_skill_dirs]
 
-    if not skill_dirs:
-        errors.append(f"{plugin_name}/skills/: Directory exists but contains no skill subdirectories")
-        return errors
-
-    for skill_path in skill_dirs:
-        skill_md = skill_path / "SKILL.md"
-
-        if not skill_md.exists():
-            errors.append(f"{plugin_name}/skills/{skill_path.name}: Missing required SKILL.md file")
+    for skills_dir, label in skill_locations:
+        if not skills_dir.is_dir():
+            errors.append(f"{plugin_name}: {label} exists but is not a directory")
             continue
 
-        # Validate SKILL.md frontmatter
-        frontmatter_errors = validate_markdown_frontmatter(skill_md, ["name", "description"], plugin_name)
-        errors.extend(frontmatter_errors)
+        skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir() and d.name not in non_skill_dirs]
+
+        if not skill_dirs:
+            errors.append(f"{plugin_name}/{label}/: Directory exists but contains no skill subdirectories")
+            continue
+
+        for skill_path in skill_dirs:
+            skill_md = skill_path / "SKILL.md"
+
+            if not skill_md.exists():
+                errors.append(f"{plugin_name}/{label}/{skill_path.name}: Missing required SKILL.md file")
+                continue
+
+            # Validate SKILL.md frontmatter
+            frontmatter_errors = validate_markdown_frontmatter(skill_md, ["name", "description"], plugin_name)
+            errors.extend(frontmatter_errors)
 
     return errors
 
@@ -641,45 +666,16 @@ def check_agents_directory(plugin_dir: Path) -> list[str]:
     return errors
 
 
-def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:  # noqa: C901
-    """Validate hooks configuration (file or inline)."""
+def _validate_hooks_config(  # noqa: C901
+    hooks_config: dict[str, Any], plugin_dir: Path, plugin_name: str
+) -> list[str]:
+    """Validate a single parsed hooks config dict."""
     errors: list[str] = []
-    plugin_name: str = plugin_dir.name
 
-    # Check for hooks/hooks.json file
-    hooks_file: Path = plugin_dir / "hooks" / "hooks.json"
-    inline_hooks: Any = plugin_data.get("hooks")
-
-    if not hooks_file.exists() and not inline_hooks:
-        return []  # Optional component
-
-    # Load hooks configuration
-    hooks_config: dict[str, Any] | None = None
-
-    if isinstance(inline_hooks, dict):
-        hooks_config = inline_hooks
-    elif isinstance(inline_hooks, str):
-        # Path to hooks file - load with validation
-        hooks_config, load_errors = load_plugin_json_file(plugin_dir, inline_hooks, f"{plugin_name}/hooks")
-        if load_errors:
-            errors.extend(load_errors)
-            return errors
-    elif hooks_file.exists():
-        # Load default hooks file
-        hooks_config, load_errors = load_plugin_json_file(plugin_dir, "hooks/hooks.json", f"{plugin_name}/hooks")
-        if load_errors:
-            errors.extend(load_errors)
-            return errors
-
-    if not hooks_config:
-        return errors
-
-    # Validate hooks structure
     if "hooks" not in hooks_config:
         errors.append(f"{plugin_name}: Hooks configuration missing 'hooks' key")
         return errors
 
-    # Validate event types
     hooks_dict: dict[str, Any] = hooks_config["hooks"]
     for event_type, hook_list in hooks_dict.items():
         if event_type not in VALID_HOOK_EVENTS:
@@ -687,7 +683,6 @@ def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> 
                 f"{plugin_name}: Invalid hook event '{event_type}' (valid: {', '.join(sorted(VALID_HOOK_EVENTS))})"
             )
 
-        # Validate each hook in the event
         if isinstance(hook_list, list):
             for _i, hook_entry in enumerate(hook_list):
                 if "hooks" in hook_entry and isinstance(hook_entry["hooks"], list):
@@ -698,13 +693,9 @@ def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> 
                                 f"(valid: {', '.join(sorted(VALID_HOOK_TYPES))})"
                             )
 
-                        # Check if command script exists
                         if hook.get("type") == "command" and "command" in hook:
                             cmd: str = str(hook["command"])
-                            # Check for ${CLAUDE_PLUGIN_ROOT} usage
                             if "${CLAUDE_PLUGIN_ROOT}" in cmd:
-                                # Extract path using regex to handle wrapper commands
-                                # Pattern: ${CLAUDE_PLUGIN_ROOT}/path (handles wrappers like bash -lc "...")
                                 match = re.search(r"\$\{CLAUDE_PLUGIN_ROOT\}/(\S+)", cmd)
                                 if not match:
                                     errors.append(
@@ -713,9 +704,7 @@ def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> 
                                     )
                                     continue
 
-                                script_path: str = match.group(1).strip("\"'")  # Remove quotes if present
-
-                                # Validate path to prevent traversal
+                                script_path: str = match.group(1).strip("\"'")
                                 full_path, error = validate_plugin_path(plugin_dir, script_path, f"{plugin_name}/hooks")
                                 if error:
                                     errors.append(error)
@@ -730,51 +719,64 @@ def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> 
     return errors
 
 
-def check_mcp_servers(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:  # noqa: C901
-    """Validate MCP server configuration."""
+def check_hooks_configuration(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:  # noqa: C901
+    """Validate hooks configuration (inline dict, single path string, or array of paths)."""
     errors: list[str] = []
     plugin_name: str = plugin_dir.name
 
-    # Check for .mcp.json file
-    mcp_file: Path = plugin_dir / ".mcp.json"
-    inline_mcp: Any = plugin_data.get("mcpServers")
+    hooks_file: Path = plugin_dir / "hooks" / "hooks.json"
+    inline_hooks: Any = plugin_data.get("hooks")
 
-    if not mcp_file.exists() and not inline_mcp:
+    if not hooks_file.exists() and not inline_hooks:
         return []  # Optional component
 
-    # Load MCP configuration
-    mcp_config: dict[str, Any] | None = None
+    # Resolve one or more hook configurations to validate.
+    configs_to_check: list[dict[str, Any]] = []
 
-    if isinstance(inline_mcp, dict):
-        mcp_config = inline_mcp
-    elif isinstance(inline_mcp, str):
-        # Path to MCP file - load with validation
-        mcp_config, load_errors = load_plugin_json_file(plugin_dir, inline_mcp, f"{plugin_name}/mcp")
+    if isinstance(inline_hooks, dict):
+        configs_to_check.append(inline_hooks)
+    elif isinstance(inline_hooks, str):
+        hooks_config, load_errors = load_plugin_json_file(plugin_dir, inline_hooks, f"{plugin_name}/hooks")
         if load_errors:
             errors.extend(load_errors)
-            return errors
-    elif mcp_file.exists():
-        # Load default MCP file
-        mcp_config, load_errors = load_plugin_json_file(plugin_dir, ".mcp.json", f"{plugin_name}/mcp")
+        elif hooks_config is not None:
+            configs_to_check.append(hooks_config)
+    elif isinstance(inline_hooks, list):
+        for entry in inline_hooks:
+            if not isinstance(entry, str):
+                errors.append(f"{plugin_name}: Hooks entry must be a path string, got: {entry!r}")
+                continue
+            hooks_config, load_errors = load_plugin_json_file(plugin_dir, entry, f"{plugin_name}/hooks")
+            if load_errors:
+                errors.extend(load_errors)
+            elif hooks_config is not None:
+                configs_to_check.append(hooks_config)
+    elif hooks_file.exists():
+        hooks_config, load_errors = load_plugin_json_file(plugin_dir, "hooks/hooks.json", f"{plugin_name}/hooks")
         if load_errors:
             errors.extend(load_errors)
-            return errors
+        elif hooks_config is not None:
+            configs_to_check.append(hooks_config)
 
-    if not mcp_config:
-        return errors
+    for cfg in configs_to_check:
+        errors.extend(_validate_hooks_config(cfg, plugin_dir, plugin_name))
 
-    # Validate MCP server structure
+    return errors
+
+
+def _validate_mcp_config(mcp_config: dict[str, Any], plugin_name: str) -> list[str]:
+    """Validate a single parsed MCP servers config dict."""
+    errors: list[str] = []
+
     if "mcpServers" not in mcp_config:
         errors.append(f"{plugin_name}: MCP configuration missing 'mcpServers' key")
         return errors
 
-    # Validate each server
     mcp_servers: dict[str, Any] = mcp_config["mcpServers"]
     for server_name, server_config in mcp_servers.items():
         if "command" not in server_config:
             errors.append(f"{plugin_name}: MCP server '{server_name}' missing 'command' field")
 
-        # Check for ${CLAUDE_PLUGIN_ROOT} usage in paths
         command: str = str(server_config.get("command", ""))
         if "/" in command and "${CLAUDE_PLUGIN_ROOT}" not in command and command.startswith("/"):
             errors.append(
@@ -784,40 +786,95 @@ def check_mcp_servers(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str
     return errors
 
 
-def check_custom_component_paths(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:  # noqa: C901
-    """Validate custom component paths specified in plugin.json."""
+def check_mcp_servers(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:  # noqa: C901
+    """Validate MCP server configuration (inline dict, single path string, or array of paths)."""
     errors: list[str] = []
     plugin_name: str = plugin_dir.name
 
-    # Check custom command paths
-    custom_commands: Any = plugin_data.get("commands")
-    if custom_commands:
-        paths: list[str] = [custom_commands] if isinstance(custom_commands, str) else list(custom_commands)
-        for path in paths:
-            if not path.startswith("./"):
-                errors.append(f"{plugin_name}: Custom command path must start with './': {path}")
-            else:
-                # Validate to prevent path traversal
-                full_path, error = validate_plugin_path(plugin_dir, path, f"{plugin_name}/commands")
-                if error:
-                    errors.append(error)
-                elif full_path is not None and not full_path.exists():
-                    errors.append(f"{plugin_name}: Custom command path not found: {path}")
+    mcp_file: Path = plugin_dir / ".mcp.json"
+    inline_mcp: Any = plugin_data.get("mcpServers")
 
-    # Check custom agent paths
-    custom_agents: Any = plugin_data.get("agents")
-    if custom_agents:
-        paths = [custom_agents] if isinstance(custom_agents, str) else list(custom_agents)
+    if not mcp_file.exists() and not inline_mcp:
+        return []  # Optional component
+
+    configs_to_check: list[dict[str, Any]] = []
+
+    if isinstance(inline_mcp, dict):
+        configs_to_check.append(inline_mcp)
+    elif isinstance(inline_mcp, str):
+        mcp_config, load_errors = load_plugin_json_file(plugin_dir, inline_mcp, f"{plugin_name}/mcp")
+        if load_errors:
+            errors.extend(load_errors)
+        elif mcp_config is not None:
+            configs_to_check.append(mcp_config)
+    elif isinstance(inline_mcp, list):
+        for entry in inline_mcp:
+            if not isinstance(entry, str):
+                errors.append(f"{plugin_name}: mcpServers entry must be a path string, got: {entry!r}")
+                continue
+            mcp_config, load_errors = load_plugin_json_file(plugin_dir, entry, f"{plugin_name}/mcp")
+            if load_errors:
+                errors.extend(load_errors)
+            elif mcp_config is not None:
+                configs_to_check.append(mcp_config)
+    elif mcp_file.exists():
+        mcp_config, load_errors = load_plugin_json_file(plugin_dir, ".mcp.json", f"{plugin_name}/mcp")
+        if load_errors:
+            errors.extend(load_errors)
+        elif mcp_config is not None:
+            configs_to_check.append(mcp_config)
+
+    for cfg in configs_to_check:
+        errors.extend(_validate_mcp_config(cfg, plugin_name))
+
+    return errors
+
+
+def check_custom_component_paths(plugin_dir: Path, plugin_data: dict[str, Any]) -> list[str]:
+    """Validate custom component paths specified in plugin.json.
+
+    Covers ``commands``, ``agents``, ``skills``, and ``outputStyles`` — each of
+    which may be declared in the manifest as either a single ``./`` path or an
+    array of them. Inline-dict shapes (used by ``hooks`` / ``mcpServers``) are
+    handled by their own validators and skipped here.
+    """
+    errors: list[str] = []
+    plugin_name: str = plugin_dir.name
+
+    # Field → singular label used in human-facing error messages.
+    # The label is kept singular ("command", "agent", "skill") for fields with a
+    # natural singular form; "outputStyles" stays as-is since "output style" is two words
+    # and matching the manifest key keeps the error grep-able.
+    fields: tuple[tuple[str, str], ...] = (
+        ("commands", "command"),
+        ("agents", "agent"),
+        ("skills", "skill"),
+        ("outputStyles", "outputStyles"),
+    )
+
+    for field, label in fields:
+        raw: Any = plugin_data.get(field)
+        if not raw:
+            continue
+        # Inline-dict shapes (hooks/mcpServers schema allows object form, others don't,
+        # but be defensive) are validated elsewhere; skip them here.
+        if isinstance(raw, dict):
+            continue
+
+        paths: list[str] = [raw] if isinstance(raw, str) else list(raw)
         for path in paths:
+            if not isinstance(path, str):
+                errors.append(f"{plugin_name}: Custom {label} entry must be a string: {path!r}")
+                continue
             if not path.startswith("./"):
-                errors.append(f"{plugin_name}: Custom agent path must start with './': {path}")
-            else:
-                # Validate to prevent path traversal
-                full_path, error = validate_plugin_path(plugin_dir, path, f"{plugin_name}/agents")
-                if error:
-                    errors.append(error)
-                elif full_path is not None and not full_path.exists():
-                    errors.append(f"{plugin_name}: Custom agent path not found: {path}")
+                errors.append(f"{plugin_name}: Custom {label} path must start with './': {path}")
+                continue
+            # Validate to prevent path traversal
+            full_path, error = validate_plugin_path(plugin_dir, path, f"{plugin_name}/{field}")
+            if error:
+                errors.append(error)
+            elif full_path is not None and not full_path.exists():
+                errors.append(f"{plugin_name}: Custom {label} path not found: {path}")
 
     return errors
 
@@ -1002,7 +1059,7 @@ def check_plugin_manifest(  # noqa: C901
 
     # Run all component validations
     results["placement"] = check_component_placement(plugin_dir)
-    results["skills"] = check_skills_directory(plugin_dir)
+    results["skills"] = check_skills_directory(plugin_dir, data)
     results["commands"] = check_commands_directory(plugin_dir)
     results["agents"] = check_agents_directory(plugin_dir)
     results["hooks"] = check_hooks_configuration(plugin_dir, data)
