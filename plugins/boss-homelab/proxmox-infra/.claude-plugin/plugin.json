@@ -1,11 +1,17 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "proxmox-infra",
-  "version": "0.1.0",
+  "displayName": "Proxmox Infra",
+  "version": "0.1.1",
   "description": "Homelab Proxmox VE tooling for Claude Code: skills for managing nodes, VMs, LXC containers, storage, and networking via the proxmoxer Python library, Ansible community.general.proxmox modules, and Terraform/OpenTofu Telmate provider.",
   "author": {
     "name": "Malcolm Jones",
-    "email": "bossjones@theblacktonystark.com"
+    "email": "bossjones@theblacktonystark.com",
+    "url": "https://github.com/bossjones"
   },
+  "homepage": "https://github.com/bossjones/boss-skills",
+  "repository": "https://github.com/bossjones/boss-skills",
+  "license": "MIT",
   "keywords": [
     "proxmox",
     "proxmoxer",
@@ -18,8 +24,5 @@
     "ansible",
     "terraform",
     "opentofu"
-  ],
-  "homepage": "https://github.com/bossjones/boss-skills",
-  "repository": "https://github.com/bossjones/boss-skills",
-  "license": "MIT"
+  ]
 }
