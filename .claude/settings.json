@@ -52,7 +52,7 @@
             "Bash(wc:*)",
             "Bash(xargs:*)",
             "Edit",
-            "mcp__plugin_telegram_*",
+            "mcp__plugin_telegram__*",
             "Read(//private/tmp/**)",
             "Skill(superpowers:*)",
             "Skill(superpowers:brainstorming)",

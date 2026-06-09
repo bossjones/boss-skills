@@ -11,32 +11,58 @@ touch real hosts. The existing `proxmox-infra` plugin owns Terraform/OpenTofu +
 Proxmox provisioning; `ansible-dev` is deliberately **Ansible-only** so the two
 don't overlap.
 
-The intended outcome: the agent harness can lint, syntax-check, run Molecule
-scenarios, prove idempotency, and run a full layered test loop — all through
-helper scripts that emit **structured JSON** so the harness can parse results,
-self-correct, and make better decisions without a human in the loop. Content and
-recommendations are grounded in `ai_docs/ansible_tips_and_tricks.md` (facts
-tuning, the 2026 testing pyramid, Molecule v26, CI ephemeral infra, and
-Apple-Silicon VM drivers).
+The design is a **hybrid** of two complementary modes, combining this repo's
+harness-driven philosophy with the orchestrated multi-agent pipeline pioneered by
+[`basher83/lunar-claude`'s `ansible-workflows`
+plugin](https://github.com/basher83/lunar-claude/tree/main/plugins/infrastructure/ansible-workflows):
+
+- **Autonomous mode (our core):** PEP 723 helper tools emit **structured JSON** so
+  the harness can lint, syntax-check, prove idempotency, run Molecule, and run a
+  full layered test loop — parsing results and self-correcting without a human in
+  the loop. The keystone is `test_loop.py`.
+- **Guided pipeline mode (from lunar-claude):** model-tiered **subagents** and
+  **slash commands** drive a stateful pipeline (scaffold → generate → validate →
+  review, looping through a debugger on failure) tracked via a `.local.md` state
+  file and `.bundle.md` context handoffs.
+
+The testing strategy is layered as a **Docker → Multipass → real-host**
+progression: fast container/`delegated` loops for the inner loop, an **ephemeral
+Multipass Ubuntu VM** as the full-OS-fidelity "real live machine" rung to validate
+provisioning before it touches the homelab, then real homelab hosts last.
+
+Content and recommendations are grounded in
+`ai_docs/ansible_tips_and_tricks.md` (facts tuning, the 2026 testing pyramid,
+Molecule v26, CI ephemeral infra, and Apple-Silicon VM drivers) and adapted from
+`lunar-claude` (de-coupled from its house choices — `mise`, Infisical-only
+secrets, and hard Proxmox coupling become optional/cross-referenced).
 
 ## Task Description
 
 Create `plugins/boss-homelab/ansible-dev/` following this repo's plugin
-conventions (mirroring `proxmox-infra`): a `plugin.json` manifest, `README.md`,
-an async lint hook, and two model-invoked skills (`ansible-development`,
-`ansible-testing`) each with `reference/`, `examples/`, `workflows/`,
-`anti-patterns/`, and PEP 723 `uv`-run `tools/`. Register it in
-`marketplace.json` and pass `verify-structure.py` + repo lint/markdown checks.
+conventions (mirroring `proxmox-infra`, plus `agents/`/`commands/`/`hooks/` from
+`templates/plugin-template`): a `plugin.json` manifest, `README.md`, three hooks
+(passive `PostToolUse` lint + `Stop`/`SubagentStop` pipeline orchestration), five
+subagents, four slash commands, and **eight** model-invoked skills
+(`ansible-fundamentals`, `ansible-playbook-design`, `ansible-role-design`,
+`ansible-idempotency`, `ansible-secrets`, `ansible-error-handling`,
+`ansible-testing`, `ansible-proxmox`) with `reference/` and PEP 723 `uv`-run
+`tools/`. Register it in `marketplace.json` and pass `verify-structure.py` + repo
+lint/markdown checks.
 
 ## Objective
 
-A merge-ready `ansible-dev` plugin that: (1) guides Ansible authoring (playbooks,
-roles, inventory, facts, vault, uv-pinned execution environments); (2) teaches a
-full testing strategy with Docker/Podman + `delegated` as the recommended default
-and Tart/Lima/QEMU/Multipass documented for Apple-Silicon VM testing; (3) ships
-`uv`-based helper tools that produce machine-readable pass/fail output for the
-agent harness; (4) auto-lints Ansible on `Stop`/`SubagentStop` via `uvx
-ansible-lint`.
+A merge-ready `ansible-dev` plugin that: (1) guides Ansible authoring (fundamentals,
+playbooks, roles, idempotency, facts, inventory, vault, uv-pinned execution
+environments); (2) teaches a full testing strategy with Docker/Podman +
+`delegated` as the fast default loop, **Multipass as the recommended ephemeral
+live-VM rung** for provisioning against a real machine (full systemd/SSH/reboot
+fidelity, before changes touch real hosts), and Tart/Lima/QEMU documented for
+multi-distro Apple-Silicon VM matrices; (3) ships `uv`-based helper tools that produce
+machine-readable pass/fail output for the agent harness; (4) drives an orchestrated
+multi-agent pipeline (generator → validator → reviewer → debugger) with persistent
+state, in which the validator/debugger agents **shell out to the JSON tools** as
+the single source of truth; (5) auto-lints Ansible on `PostToolUse` via `uvx
+ansible-lint` without colliding with the pipeline hooks.
 
 ## Problem Statement
 
@@ -44,18 +70,66 @@ The agent harness writes Ansible but has no built-in, structured way to validate
 it locally before applying to homelab hosts. Mistakes (non-idempotent tasks,
 deprecated modules, bad inventory, fact-gathering overhead) only surface at apply
 time against real machines — a slow, risky loop. There is also no curated,
-Apple-Silicon-aware guidance for ephemeral test infrastructure.
+Apple-Silicon-aware guidance for ephemeral test infrastructure, and no quality
+gate (validate → review → fix) that runs to completion before code is considered
+done.
 
 ## Solution Approach
 
-Build a two-skill plugin where the *knowledge* lives in progressive-disclosure
+Build an eight-skill plugin where the *knowledge* lives in progressive-disclosure
 `reference/` files and the *feedback loop* lives in `uv`-run Python tools that
-return JSON. The headline deliverable is `tools/test_loop.py` — an orchestrator
-that runs lint → syntax/check → Molecule converge → idempotence → verify and
-returns a single structured result the harness can act on. An async lint hook
-gives passive, continuous feedback during authoring. All CLIs are obtained via
-`uv tool install ansible-dev-tools` / `uvx` (no system Python pollution); all
-plugin scripts are PEP 723 with pinned inline deps.
+return JSON. The headline tool is `tools/test_loop.py` — an orchestrator that runs
+lint → syntax/check → Molecule converge → idempotence → verify and returns a
+single structured result the harness can act on. `test_loop.py` also gains an
+**optional live-VM stage** (`--live` / `--driver multipass`, off by default) that
+delegates to `multipass_provision.py` for full-OS-fidelity validation.
+
+The revised testing pyramid the spec documents:
+
+1. **Lint / syntax** — `lint_report.py`, `syntax_check.py`.
+2. **Container integration + idempotence** — Molecule Docker/Podman, or
+   `delegated` against a static host (fast; the default loop).
+3. **Live-VM provisioning (the "real live machine" rung)** — `multipass_provision.py`
+   launches an ephemeral Ubuntu VM and runs the playbook + idempotence against it
+   over real SSH; full systemd / reboot / sudo fidelity.
+4. **Pre-production** — run against real homelab hosts (`--check`/`--diff` first).
+
+On top of that, layer an orchestrated **multi-agent pipeline**: slash commands
+scaffold a role/playbook and initialize a state machine
+(`.claude/ansible-dev.local.md`); the main session dispatches `ansible-generator`
+→ `ansible-validator` → `ansible-reviewer`, routing through `ansible-debugger` on
+failure (max 3 attempts, then escalate). Agents hand off via `.bundle.md` files; a
+blocking `Stop` hook prevents the session from ending mid-pipeline and a
+`SubagentStop` hook advances state and enforces bundle writes. The **hybrid
+bridge**: the validator/debugger agents invoke the JSON tools, so both autonomous
+and guided modes share one source of truth.
+
+All CLIs are obtained via `uv tool install ansible-dev-tools` / `uvx` (no system
+Python pollution); all plugin scripts are PEP 723 with pinned inline deps.
+
+### Adaptation rules (porting lunar-claude content)
+
+Content fetched from `lunar-claude` via `gh` is a *starting point* and must be
+adapted:
+
+- **Generalize away house tooling.** Strip `mise`; use `uv run` / `uvx`
+  exclusively (matches `proxmox-infra` and CLAUDE.md).
+- **Secrets: vault-first, external optional.** Lead with `ansible-vault` +
+  `no_log`; document external lookups (Infisical, HashiCorp Vault) as optional.
+- **Proxmox: config-management only.** `ansible-proxmox` covers the
+  `community.proxmox` Ansible modules; cross-reference `proxmox-infra` for
+  Terraform/OpenTofu provisioning instead of duplicating it.
+- **Naming.** State/bundle files use our plugin name:
+  `.claude/ansible-dev.local.md` and `.claude/ansible-dev.<phase>.bundle.md`
+  (aligns with the repo's documented `.local.md` plugin-settings pattern).
+- **Frontmatter.** Agent `.md` files MUST carry `description` **and**
+  `capabilities` (required by `scripts/verify-structure.py`); command `.md` files
+  MUST carry `description`. SKILL.md keeps `name` + `description`; fold
+  lunar-claude's `when_to_use` into the `description` and a **Trigger Phrases**
+  section.
+- **Hooks must not collide.** Passive lint goes on **`PostToolUse`** (async, on
+  `Write`/`Edit` of Ansible files); **`Stop`/`SubagentStop`** are reserved for
+  pipeline orchestration.
 
 ## Relevant Files
 
@@ -67,17 +141,26 @@ Existing files to follow as patterns or to modify:
 - `plugins/boss-homelab/proxmox-infra/skills/.../tools/cluster_status.py` — PEP
   723 shebang `#!/usr/bin/env -S uv run --script --quiet`, typed, `--help`.
 - `plugins/boss-homelab/proxmox-infra/.claude-plugin/plugin.json` — manifest shape.
+- `plugins/boss-dev/agent-harness/agents/*.md` — agent frontmatter shape
+  (`name`, `description`, `capabilities`, `tools`, `color`, `model`).
+- `plugins/boss-dev/python-dev/commands/debug-ci.md` — command frontmatter shape
+  (`description`, `allowed-tools`).
 - `.claude-plugin/marketplace.json` — add the new plugin entry (copy
   `proxmox-infra` block, retune fields).
-- `templates/plugin-template/hooks/hooks.json` — hook wiring with
-  `${CLAUDE_PLUGIN_ROOT}`.
-- `scripts/verify-structure.py` — structure validator to run after scaffolding.
+- `templates/plugin-template/` — scaffolds `agents/`, `commands/`, `hooks/`,
+  `skills/`; `hooks/hooks.json` shows `${CLAUDE_PLUGIN_ROOT}` wiring.
+- `scripts/verify-structure.py` — structure validator to run after scaffolding
+  (validates agent `description`+`capabilities`, command `description`, hook
+  events/types, `${CLAUDE_PLUGIN_ROOT}` usage).
 - `.claude/rules/plugin-structure.md`, `.claude/rules/skill-development.md`,
   `.claude/rules/documentation.md` — binding repo standards (note the GitHub
   #12781 parser bug: never use exclamation-mark + backtick or `@` patterns in
   SKILL.md code blocks; use `$ command` notation).
 - `ai_docs/ansible_tips_and_tricks.md` — source material for reference content
   (facts, testing pyramid, Molecule v26, CI ephemeral infra, macOS drivers).
+- `basher83/lunar-claude` `plugins/infrastructure/ansible-workflows` — source for
+  agents, commands, pipeline hooks, and skill content; fetch via
+  `gh api repos/basher83/lunar-claude/contents/...` and apply the Adaptation rules.
 
 ### New Files
 
@@ -85,71 +168,146 @@ Existing files to follow as patterns or to modify:
 plugins/boss-homelab/ansible-dev/
 ├── .claude-plugin/plugin.json
 ├── README.md
-├── hooks/hooks.json                      # Stop + SubagentStop -> async lint
-├── scripts/lint.sh                       # uvx ansible-lint, guarded + scoped
+├── hooks/
+│   ├── hooks.json                  # PostToolUse async lint; Stop + SubagentStop pipeline
+│   ├── check-pipeline-state.py     # Stop: block when active pipeline (PEP 723, deps=[])
+│   └── subagent-complete.py        # SubagentStop: validate bundle, advance phase (PEP 723)
+├── scripts/lint.sh                 # PostToolUse async lint via uvx ansible-lint (guarded, || true)
+├── agents/
+│   ├── ansible-orchestrator.md     # sonnet — coordinate phases, manage state/retries
+│   ├── ansible-generator.md        # sonnet — author idempotent playbooks/roles
+│   ├── ansible-validator.md        # haiku  — run JSON lint/syntax/idempotence tools
+│   ├── ansible-reviewer.md         # opus   — 6-dimension scored review report
+│   └── ansible-debugger.md         # sonnet — root-cause analysis + fixes
+├── commands/
+│   ├── create-role.md              # scaffold role tree + init pipeline state/bundle
+│   ├── create-playbook.md          # scaffold state-based playbook + init pipeline
+│   ├── lint.md                     # run lint_report.py; categorize errors/warnings/info
+│   └── analyze.md                  # review|enhance modes; review hands to ansible-reviewer
 └── skills/
-    ├── ansible-development/
-    │   ├── SKILL.md
-    │   ├── reference/
-    │   │   ├── facts.md                   # gather_subset, smart/redis/jsonfile cache,
-    │   │   │                              #   custom facts.d, set_fact/cacheable pitfalls, set_stats
-    │   │   ├── playbooks.md               # structure, handlers, validate:, idempotency, FQCN
-    │   │   ├── roles.md                   # layout, defaults vs vars, meta deps, galaxy init
-    │   │   ├── inventory.md               # static/dynamic, group_vars/host_vars, precedence,
-    │   │   │                              #   connection vars (ssh/winrm/local/docker), homelab patterns
-    │   │   ├── vault.md                   # ansible-vault, no_log, secret handling
-    │   │   └── execution-environments.md  # uv tool install ansible-dev-tools; pin ansible-core + collections
+    ├── ansible-fundamentals/
+    │   ├── SKILL.md                 # golden rules, FQCN, module selection, uv run
+    │   ├── reference/{golden-rules.md, facts.md, inventory.md, execution-environments.md}
     │   ├── anti-patterns/common-mistakes.md
-    │   ├── examples/
-    │   │   ├── playbook-with-facts/site.yml
-    │   │   └── role-skeleton/             # ansible-galaxy init output, trimmed
-    │   ├── workflows/new-role.md
-    │   └── tools/
-    │       ├── lint_report.py             # yamllint + ansible-lint -> JSON summary
-    │       ├── syntax_check.py            # ansible-playbook --syntax-check + --check -> JSON
-    │       └── inventory_validate.py      # ansible-inventory --list/--graph -> JSON
-    └── ansible-testing/
-        ├── SKILL.md
-        ├── reference/
-        │   ├── testing-pyramid.md         # lint/syntax/unit/integration/idempotency/e2e
-        │   ├── molecule.md                # Molecule v26 scenario layout, converge/verify/idempotence
-        │   ├── verifiers.md               # ansible verifier vs testinfra+pytest
-        │   ├── ci-ephemeral-infra.md      # docker/podman, kind, vagrant, cloud VMs, delegated
-        │   ├── macos-drivers.md           # Tart, Lima, molecule-qemu, Multipass, VMware (Apple Silicon)
-        │   └── homelab-targets.md         # delegated driver vs physical/macos/proxmox-vm/lxc/docker-on-vm
-        ├── anti-patterns/testing-mistakes.md
-        ├── examples/
-        │   ├── molecule-docker/molecule.yml
-        │   ├── molecule-delegated/molecule.yml
-        │   └── testinfra/test_example.py
-        ├── workflows/
-        │   ├── dev-feedback-loop.md       # the tight loop the harness should follow
-        │   └── pre-production-checklist.md
-        └── tools/
-            ├── molecule_run.py            # run scenario, parse converge/idempotence/verify -> JSON
-            ├── idempotence_check.py       # run playbook twice, assert changed==0 -> JSON
-            └── test_loop.py               # orchestrate full pyramid -> single structured result
+    │   └── tools/inventory_validate.py        # ansible-inventory --list/--graph -> JSON
+    ├── ansible-playbook-design/
+    │   ├── SKILL.md                 # state-based present/absent, play structure, imports
+    │   └── reference/{state-based-patterns.md, play-structure.md}
+    ├── ansible-role-design/
+    │   ├── SKILL.md
+    │   └── reference/{role-structure-standards.md, variable-management.md,
+    │                  handler-best-practices.md, meta-dependencies.md,
+    │                  documentation-templates.md}
+    ├── ansible-idempotency/
+    │   ├── SKILL.md                 # changed_when, failed_when, check-before-create
+    │   ├── reference/idempotency-patterns.md
+    │   └── tools/idempotence_check.py         # run twice, assert changed==0 -> JSON
+    ├── ansible-secrets/
+    │   ├── SKILL.md                 # ansible-vault first; no_log; external vaults optional
+    │   └── reference/{vault.md, no-log.md, external-vaults.md}
+    ├── ansible-error-handling/
+    │   ├── SKILL.md                 # block/rescue/always, until/retries, assert/fail
+    │   └── reference/error-handling.md
+    ├── ansible-testing/
+    │   ├── SKILL.md                 # testing pyramid + ansible-lint + review report
+    │   ├── reference/{testing-pyramid.md, molecule.md, verifiers.md,
+    │   │              ci-ephemeral-infra.md, macos-drivers.md, multipass-lab.md,
+    │   │              homelab-targets.md, ansible-lint-config.md,
+    │   │              review-report-format.md}
+    │   ├── examples/{molecule-docker/molecule.yml, molecule-delegated/molecule.yml,
+    │   │             molecule-multipass/molecule.yml, multipass/cloud-init.yaml,
+    │   │             testinfra/test_example.py}
+    │   ├── workflows/{dev-feedback-loop.md, pre-production-checklist.md}
+    │   ├── anti-patterns/testing-mistakes.md
+    │   └── tools/{lint_report.py, syntax_check.py, molecule_run.py,
+    │             multipass_provision.py, test_loop.py}
+    └── ansible-proxmox/
+        ├── SKILL.md                 # community.proxmox modules; cross-ref proxmox-infra
+        └── reference/{module-index.md, vm-templates.md, cluster-ceph.md, networking.md}
 ```
+
+## Architecture
+
+### Agents (model-tiered)
+
+| Agent | Model | Trigger | Purpose |
+|-------|-------|---------|---------|
+| `ansible-orchestrator` | sonnet | "full pipeline", "production-ready", resume | Coordinate phases, manage state + retries |
+| `ansible-generator` | sonnet | create-* handoff or explicit "write a playbook/role" | Author idempotent, FQCN-correct code |
+| `ansible-validator` | haiku | after generation / "lint this" | Run `lint_report.py` + `syntax_check.py` (+ idempotence); PASS/FAIL bundle |
+| `ansible-reviewer` | opus | after validation passes / "review for production" | 6-dimension scored review report |
+| `ansible-debugger` | sonnet | validation FAIL or review NEEDS_REWORK | Root-cause analysis + fixes, then re-validate |
+
+**Key insight to document:** subagents cannot spawn subagents — the **main session
+is the orchestrator**, dispatching agents based on pipeline state. The "hand off to
+X" lines in agent prompts are guidance for the main loop, not executable dispatches
+by the subagent.
+
+### Pipeline state contract
+
+State file `$CLAUDE_PROJECT_DIR/.claude/ansible-dev.local.md` frontmatter:
+`active` (bool), `pipeline_phase` (scaffolding|generating|validating|reviewing|
+debugging|complete), `target_path`, `target_type` (playbook|role), `current_agent`,
+`started_at`, `validation_attempts` (int), `last_validation_passed` (bool),
+`completed_at`.
+
+Context bundles `$CLAUDE_PROJECT_DIR/.claude/ansible-dev.<phase>.bundle.md`:
+
+| Bundle | Source → Target | Carries |
+|--------|-----------------|---------|
+| `.scaffolding.bundle.md` | command → generator | requirements, target path/type |
+| `.generating.bundle.md` | generator → validator | files created, patterns, validation cmd |
+| `.validating.bundle.md` | validator → reviewer/debugger | pass/fail, error list |
+| `.reviewing.bundle.md` | reviewer → debugger | required HIGH-severity fixes |
+| `.debugging.bundle.md` | debugger → validator | fixes applied, re-validation cmd |
+
+Phase transitions: scaffolding → generating → validating; validating → reviewing
+(pass) or → debugging (fail); reviewing → complete (APPROVED) or → debugging
+(else); debugging → validating (retry). `validation_attempts >= 3` → block +
+escalate to user. State files are auto-appended to `.gitignore` by both the
+commands and the hooks (defense in depth).
+
+### Structured review report (ansible-reviewer)
+
+Six dimensions — idempotency, security, structure, performance, maintainability,
+proxmox — each scored 0.0–1.0 with a confidence, weighted to an overall rating /5
+(security 25%, idempotency 20%, structure/maintainability/performance 15% each,
+proxmox 10% when applicable). Recommendation is `APPROVED` /
+`APPROVED_WITH_CHANGES` / `NEEDS_REWORK`. Each finding carries `severity`, `file`,
+`line`, `issue`, `fix`, `confidence`. Documented in
+`ansible-testing/reference/review-report-format.md`.
 
 ## Implementation Phases
 
 ### Phase 1: Foundation
 
-Scaffold the plugin directory from `templates/plugin-template`, write
-`plugin.json`, register in `marketplace.json`, and wire the lint hook +
-`scripts/lint.sh`. Get `verify-structure.py` passing with empty-but-valid skills.
+Scaffold the plugin directory from `templates/plugin-template` (using its
+`agents/`, `commands/`, `hooks/` dirs), write `plugin.json`, register in
+`marketplace.json`, wire `hooks.json` (PostToolUse lint + Stop/SubagentStop
+pipeline) + `scripts/lint.sh`, and stub the two pipeline hook scripts. Get
+`verify-structure.py` passing with empty-but-valid skills/agents/commands.
 
-### Phase 2: Core Implementation
+### Phase 2: Skills & tools
 
-Author both `SKILL.md` files and all `reference/` content (distilled from
-`ai_docs/ansible_tips_and_tricks.md`), then implement the PEP 723 tools — JSON
-output first, with `test_loop.py` as the keystone.
+Author the eight `SKILL.md` files and all `reference/` content (distilled from
+`ai_docs/ansible_tips_and_tricks.md` and adapted from `lunar-claude`), then
+implement the PEP 723 tools — JSON output first, with `test_loop.py` as the
+keystone.
 
-### Phase 3: Integration & Polish
+### Phase 3: Agents, commands & pipeline
 
-Add `examples/`, `workflows/`, `anti-patterns/`; write the README; add importlib
-smoke tests for the tools; run full repo validation (verify-structure, make lint,
-markdown-lint, link-check) and fix all findings.
+Author the five agents (generic Ansible; validator/debugger shell out to the JSON
+tools; reviewer emits the structured report), the four commands, and the two
+pipeline hook scripts (port + de-house lunar-claude's `check-pipeline-state.py` /
+`subagent-complete.py`, renamed to the `ansible-dev.*` state/bundle naming).
+
+### Phase 4: Integration & Polish
+
+Add `examples/`, `workflows/`, `anti-patterns/`; write the README (both modes,
+pipeline diagram, agent/command/skill tables, abort instructions, auto-gitignore);
+add importlib smoke tests for the tools and hook scripts; run full repo validation
+(verify-structure, make lint, markdown-lint, link-check, test) and fix all
+findings.
 
 ## Step by Step Tasks
 
@@ -158,11 +316,12 @@ IMPORTANT: Execute every step in order, top to bottom.
 ### 1. Scaffold plugin skeleton
 
 - Create `plugins/boss-homelab/ansible-dev/` with `.claude-plugin/`, `hooks/`,
-  `scripts/`, and `skills/ansible-development|ansible-testing/{reference,examples,workflows,anti-patterns,tools}/`.
+  `scripts/`, `agents/`, `commands/`, and the eight
+  `skills/<skill>/{reference,tools,...}` directories per the New Files tree.
 - Write `plugin.json`: name `ansible-dev`, `displayName` "Ansible Dev",
   version `0.1.0`, MIT, author/homepage/repository matching `proxmox-infra`,
-  keywords `[ansible, ansible-lint, molecule, testinfra, testing, homelab,
-  configuration-management, idempotency, uv, iac]`.
+  keywords `[ansible, ansible-lint, molecule, testinfra, testing, idempotency,
+  multi-agent, pipeline, homelab, configuration-management, uv, iac]`.
 
 ### 2. Register in marketplace
 
@@ -170,111 +329,211 @@ IMPORTANT: Execute every step in order, top to bottom.
   `boss-homelab`, `source ./plugins/boss-homelab/ansible-dev`, matching
   description + keywords + author).
 
-### 3. Wire the lint hook
+### 3. Wire the hooks
 
-- `hooks/hooks.json`: `Stop` and `SubagentStop` each run
-  `bash "${CLAUDE_PLUGIN_ROOT}/scripts/lint.sh"` with `"async": true`.
+- `hooks/hooks.json`:
+  - `PostToolUse` (matcher `Write|Edit`) → async
+    `bash "${CLAUDE_PLUGIN_ROOT}/scripts/lint.sh"`.
+  - `Stop` → `uv run "${CLAUDE_PLUGIN_ROOT}/hooks/check-pipeline-state.py"`.
+  - `SubagentStop` → `uv run "${CLAUDE_PLUGIN_ROOT}/hooks/subagent-complete.py"`.
 - `scripts/lint.sh`: prefer `uvx ansible-lint` (fallback to PATH `ansible-lint`);
   no-op cleanly when neither is available; scope to Ansible files
   (`*.yml`/`*.yaml`/`ansible.cfg`); never hard-fail the hook (`|| true`).
 
-### 4. Write ansible-development SKILL.md
+### 4. Author the eight SKILL.md files
 
-- Frontmatter `name: ansible-development` + concrete `description`.
+- Each: frontmatter `name` + concrete `description` (fold in `when_to_use`).
 - Sections: Trigger Phrases, Available Tools (via `${CLAUDE_SKILL_DIR}`, run with
   `uv run`), Core Capabilities, Quick Examples, "For Details" index linking every
-  `reference/`/`examples/`/`workflows/`/`anti-patterns/` file.
+  `reference/`/`tools/`/`examples/`/`workflows/`/`anti-patterns/` file.
 - Use `$ command` notation only (parser-bug safe).
 
-### 5. Write ansible-development reference content
+### 5. Author reference content per skill
 
-- `facts.md`, `playbooks.md`, `roles.md`, `inventory.md`, `vault.md`,
-  `execution-environments.md` — distilled from `ai_docs` + han examples, with
-  homelab-specific inventory patterns (Proxmox VM/LXC, macOS, local, docker conn).
+- Apply the Adaptation rules (uv-only, vault-first secrets, Proxmox cross-ref).
+- Preserve our unique content: `ansible-fundamentals/reference/facts.md`
+  (gather_subset, smart/redis/jsonfile cache, custom facts.d, set_fact/cacheable
+  pitfalls), `inventory.md` (homelab patterns: Proxmox VM/LXC, macOS, local,
+  docker conn), `execution-environments.md` (pin ansible-core + collections), and
+  the testing skill's `macos-drivers.md` / `homelab-targets.md` /
+  `testing-pyramid.md`.
+- `ansible-testing/reference/multipass-lab.md` (the live-VM rung): install
+  (`brew install --cask multipass` preferred, or the official `.pkg`; macOS 13.3+;
+  QEMU backend over Apple's `Hypervisor.framework`); why/when (full-OS-fidelity
+  rung between containers and real hosts; Ubuntu/Debian images match homelab
+  VM/LXC guests; **Ubuntu-only** limitation → use Tart/Lima for RHEL/Rocky/Fedora);
+  lifecycle command reference (`launch`, `list`, `info`, `exec`, `shell`, `mount`,
+  `transfer`, `stop`/`start`, `delete`, `purge`); the **cloud-init + standard-SSH
+  connection model** with a worked inventory + cloud-init example (inject host
+  pubkey into `ubuntu`, connect via `ansible_user=ubuntu` + key file, passwordless
+  sudo become); `multipass_provision.py` usage and the dev-loop workflow; ephemeral
+  VM naming + `multipass delete --purge` cleanup discipline; cross-refs to
+  `macos-drivers.md` (Molecule matrix) and `homelab-targets.md`.
 
-### 6. Implement ansible-development tools (PEP 723, JSON output)
+### 6. Implement PEP 723 JSON tools
 
-- `lint_report.py` (yamllint + ansible-lint), `syntax_check.py`
-  (`--syntax-check` + `--check` dry run), `inventory_validate.py`
-  (`ansible-inventory --list`/`--graph`). Each: `from __future__ import
-  annotations`, full types, `argparse` with `--help`, `--json` structured output
-  with `{ok, errors[], summary}`, side-effect-free import via `__main__` guard.
+- `ansible-fundamentals/tools/inventory_validate.py`
+  (`ansible-inventory --list`/`--graph`).
+- `ansible-idempotency/tools/idempotence_check.py` (run playbook twice; assert
+  second run `changed==0`).
+- `ansible-testing/tools/`: `lint_report.py` (yamllint + ansible-lint),
+  `syntax_check.py` (`--syntax-check` + `--check` dry run), `molecule_run.py` (run
+  a scenario; parse converge/idempotence/verify phases), and `test_loop.py`
+  (orchestrate lint → syntax/check → molecule converge → idempotence → verify, with
+  an optional `--live`/`--driver multipass` stage delegating to
+  `multipass_provision.py`).
+- `ansible-testing/tools/multipass_provision.py` (the live-VM rung): shells out to
+  `multipass` and `ansible-playbook` (does not import them).
+  - **CLI:** `--playbook <path>` (required); `--name <vm>` (default a derived
+    ephemeral name), `--image <24.04>`, `--cpus`, `--mem`, `--disk`,
+    `--ssh-key <~/.ssh/id_ed25519.pub>`, `--idempotence` (run twice, assert second
+    run `changed==0`), `--keep` (skip teardown), `--extra-args`, `--json`.
+  - **Phases (each a JSON entry):** preflight (is `multipass` installed? → clean
+    no-op + remediation if not) → launch (generated cloud-init writes the host
+    pubkey to `ubuntu`'s `authorized_keys`) → wait-ready + resolve VM IP
+    (`multipass info --format json`) → write a temp inventory
+    (`<name> ansible_host=<ip> ansible_user=ubuntu ansible_ssh_private_key_file=...`)
+    → converge (`ansible-playbook -i <inv>`) → optional idempotence run → verify →
+    teardown (`multipass delete <name> --purge`) in a `try/finally` unless `--keep`.
+  - **JSON:** `{ok, vm_name, image, ip, phases:[{name, ok, summary}], idempotent,
+    kept, remediation}`. Teardown is guaranteed even on failure (finally) — no
+    orphaned VMs.
+- Each: `from __future__ import annotations`, full types, `argparse` with `--help`,
+  `--json` structured output with `{ok, errors[], summary, remediation}`,
+  side-effect-free import via `__main__` guard.
 
-### 7. Write ansible-testing SKILL.md + reference content
+### 7. Author the five agents
 
-- SKILL.md mirroring step 4 shape, oriented to the testing pyramid.
-- `reference/`: `testing-pyramid.md`, `molecule.md`, `verifiers.md`,
-  `ci-ephemeral-infra.md`, `macos-drivers.md`, `homelab-targets.md`. Recommend
-  **Docker/Podman + `delegated`** as default; document Tart/Lima/QEMU/Multipass
-  for Apple-Silicon VM fidelity; map each homelab target type to a driver.
+- `description` + `capabilities` frontmatter (required), plus `model`, `tools`,
+  `skills`, `color`. Models per the agent table.
+- `ansible-validator` and `ansible-debugger` invoke the JSON tools (hybrid bridge)
+  and record results into their bundles.
+- `ansible-reviewer` emits the 6-dimension scored report.
+- Document the "subagents can't spawn subagents — main session orchestrates"
+  insight in `ansible-orchestrator`.
 
-### 8. Implement ansible-testing tools (PEP 723, JSON output)
+### 8. Author the four commands
 
-- `idempotence_check.py` (run playbook twice; assert second run `changed==0`),
-  `molecule_run.py` (run a scenario; parse converge/idempotence/verify phases),
-  and `test_loop.py` (orchestrate lint → syntax/check → molecule converge →
-  idempotence → verify; emit one machine-readable result with per-stage
-  pass/fail + remediation hints for the agent harness).
+- `description` + `allowed-tools` + `argument-hint` + `model` frontmatter.
+- `create-role` / `create-playbook`: scaffold structure, then initialize the state
+  file + `.scaffolding.bundle.md` + `.gitignore` patterns, then hand off to
+  `ansible-generator`.
+- `lint`: run `lint_report.py`, categorize errors/warnings/info with fix guidance.
+- `analyze`: `review` mode (hand findings to `ansible-reviewer`) and `enhance` mode
+  (forward-looking roadmap).
 
-### 9. Add examples, workflows, anti-patterns, README
+### 9. Port + de-house the pipeline hook scripts
 
-- Minimal runnable `examples/` (playbook-with-facts, role-skeleton,
-  molecule-docker, molecule-delegated, testinfra test).
-- `workflows/`: `new-role.md`, `dev-feedback-loop.md`,
-  `pre-production-checklist.md`. `anti-patterns/` for both skills.
-- `README.md` (required): features, `uv tool install ansible-dev-tools`
-  requirements, skills list, hook behavior, install.
+- `check-pipeline-state.py` (Stop): block when an active pipeline exists; emit
+  next-agent guidance; escalate at `validation_attempts >= 3`; no-op (`{}`) when no
+  state file or `active: false`.
+- `subagent-complete.py` (SubagentStop): validate the current agent wrote its
+  bundle; advance `pipeline_phase` + `current_agent`; on validator, read
+  `validation_passed` from the bundle to branch reviewing/debugging; on reviewer,
+  complete on APPROVED.
+- Both: rename state/bundle files to `ansible-dev.*`, auto-append `.gitignore`.
 
-### 10. Add smoke tests
+### 10. Add examples, workflows, anti-patterns, README
 
-- In `tests/`, load each new PEP 723 tool via
+- Minimal runnable `examples/` (molecule-docker, molecule-delegated,
+  molecule-multipass, testinfra test).
+- `examples/molecule-multipass/molecule.yml`: `pip install molecule-multipass`,
+  `driver.name: multipass`, an Ubuntu platform, plus a note it is Ubuntu-only and
+  complements (not replaces) the standalone `multipass_provision.py` tool.
+- `examples/multipass/cloud-init.yaml`: worked cloud-init that injects the host
+  SSH pubkey into the `ubuntu` user (the connection model `multipass_provision.py`
+  generates), with the matching inventory snippet.
+- `workflows/`: `dev-feedback-loop.md` (show the Docker → Multipass live-VM →
+  real-host progression), `pre-production-checklist.md`. `anti-patterns/` for
+  fundamentals + testing.
+- `README.md` (required): both modes, pipeline diagram, agent/command/skill
+  tables, `uv tool install ansible-dev-tools` requirements, hook behavior, abort
+  via `active: false`, auto-gitignore, install.
+
+### 11. Add smoke tests
+
+- In `tests/`, load each new PEP 723 tool **and** the two hook scripts via
   `importlib.util.spec_from_file_location` (repo pattern) to assert importability
   and presence of a callable entry point. No trivial tests beyond this.
 
-### 11. Validate everything
+### 12. Validate everything
 
-- Run `scripts/verify-structure.py`, `make lint`, `make markdown-lint`,
-  `make link-check`, and `make test`; fix every finding until clean.
+- Run `scripts/verify-structure.py` (and `--strict`), `make lint`,
+  `make markdown-lint`, `make link-check`, and `make test`; fix every finding
+  until clean.
 
 ## Testing Strategy
 
-- **Structure**: `scripts/verify-structure.py` must pass (manifest schema,
-  SKILL.md frontmatter, component placement, marketplace parity).
-- **Python**: `make lint` (ruff + basedpyright) clean on the new tools;
-  `make test` runs importlib smoke tests (PEP 723 scripts import without side
-  effects via `__main__` guard).
+- **Structure**: `scripts/verify-structure.py` must pass (manifest schema, SKILL.md
+  frontmatter for 8 skills, agent frontmatter `description`+`capabilities` on all
+  5, command frontmatter `description` on all 4, hook event/type validity,
+  `${CLAUDE_PLUGIN_ROOT}` usage, marketplace parity).
+- **Python**: `make lint` (ruff + basedpyright) clean on the new tools + hook
+  scripts; `make test` runs importlib smoke tests (PEP 723 scripts import without
+  side effects via `__main__` guard).
 - **Markdown**: `make markdown-lint` (rumdl) and `make link-check` (lychee) clean.
 - **Tool behavior (manual)**: against a throwaway sample role —
   `uv run .../tools/lint_report.py --json`, `syntax_check.py`,
   `idempotence_check.py`, and `test_loop.py` should each emit valid JSON with a
   correct top-level `ok` boolean for both passing and intentionally-broken input.
-- **Hook**: confirm `scripts/lint.sh` no-ops gracefully when `ansible-lint`/`uvx`
-  is absent and lints when present.
+- **Live-VM (manual)**: against a sample playbook,
+  `uv run .../tools/multipass_provision.py --playbook ... --idempotence --json`
+  launches an ephemeral Ubuntu VM, runs the play (+ idempotence) over SSH, tears it
+  down (`multipass list` shows no leftover), and emits valid `{ok:...}` JSON; with
+  `multipass` absent it returns a clean no-op + remediation (top-level `ok:false`,
+  preflight phase failed) and creates no VM.
+- **Hook (manual)**: `scripts/lint.sh` no-ops gracefully when `ansible-lint`/`uvx`
+  is absent and lints when present; `check-pipeline-state.py` returns `{}` with no
+  state file and `{"decision":"block", ...}` when a pipeline is active;
+  `subagent-complete.py` advances `pipeline_phase` and reminds on a missing bundle.
+  Feed each synthetic JSON on stdin.
 
 ## Acceptance Criteria
 
-- `plugins/boss-homelab/ansible-dev/` exists with manifest, README, hook, and two
-  skills, each with `reference/`, `examples/`, `workflows/`, `anti-patterns/`,
-  `tools/`.
+- `plugins/boss-homelab/ansible-dev/` exists with manifest, README, three hooks,
+  four commands, five agents, and **eight** skills with appropriate
+  `reference/`/`tools/`/`examples/`/`workflows/`/`anti-patterns/`.
 - `ansible-dev` is registered in `marketplace.json` with matching version/keywords.
-- All helper tools are PEP 723, run via `uv`, typed, and emit structured JSON with
-  a top-level `ok` flag; `test_loop.py` orchestrates the full pyramid.
-- Lint hook runs `ansible-lint` via `uvx` async on `Stop`/`SubagentStop`.
-- Testing skill recommends Docker/Podman + `delegated` and documents
-  Apple-Silicon VM drivers and homelab-target→driver mapping.
+- All helper tools + hook scripts are PEP 723, run via `uv`, typed; tools emit
+  structured JSON with a top-level `ok` flag; `test_loop.py` orchestrates the full
+  pyramid.
+- Validator/debugger agents invoke the JSON tools (hybrid bridge); reviewer emits
+  the 6-dimension scored report with APPROVED/APPROVED_WITH_CHANGES/NEEDS_REWORK.
+- Pipeline works end-to-end: a `create-*` command initializes
+  `.claude/ansible-dev.local.md`; `Stop` blocks while `active: true`;
+  `SubagentStop` advances phase + enforces bundles; retry capped at 3.
+- Passive `PostToolUse` lint runs async on Ansible `Write`/`Edit` without colliding
+  with the pipeline hooks.
+- Testing skill recommends Docker/Podman + `delegated` as the fast default and
+  documents Apple-Silicon VM drivers and homelab-target→driver mapping;
+  `ansible-secrets` is vault-first; `ansible-proxmox` cross-references
+  `proxmox-infra` (no Terraform duplication); no `mise`/Infisical-required
+  assumptions.
+- Testing skill ships `multipass-lab.md`, `multipass_provision.py` (full VM
+  lifecycle, cloud-init SSH-key injection, `{ok:...}` JSON, guaranteed
+  `try/finally` teardown), and a `molecule-multipass` example; Multipass is
+  positioned as the **ephemeral live-VM rung** for provisioning against a real
+  machine (not the multi-distro matrix path, which stays with Tart/Lima), with its
+  Ubuntu-only limitation stated.
 - No exclamation-mark + backtick / `@` patterns in any SKILL.md (parser-bug safe).
 - `verify-structure.py`, `make lint`, `make markdown-lint`, `make link-check`,
   and `make test` all pass.
 
 ## Validation Commands
 
-- `uv run scripts/verify-structure.py` — validate marketplace + plugin structure.
-- `make lint` — ruff + basedpyright (auto-fixes formatting/imports) on new tools.
-- `make test` — run importlib smoke tests for the new PEP 723 scripts.
+- `uv run scripts/verify-structure.py` (and `--strict`) — validate marketplace +
+  plugin structure incl. agents/commands frontmatter.
+- `make lint` — ruff + basedpyright (auto-fixes formatting/imports) on new tools +
+  hook scripts.
+- `make test` — run importlib smoke tests for the new PEP 723 scripts + hooks.
 - `make markdown-lint` — rumdl on new markdown.
 - `make link-check` — lychee on new markdown links.
 - `uv run plugins/boss-homelab/ansible-dev/skills/ansible-testing/tools/test_loop.py --help`
   — confirm the keystone tool loads and exposes its interface.
+- `uv run plugins/boss-homelab/ansible-dev/skills/ansible-testing/tools/multipass_provision.py --help`
+  — confirm the live-VM tool loads and exposes its interface.
+- `echo '{"cwd":"/tmp/x"}' | uv run plugins/boss-homelab/ansible-dev/hooks/check-pipeline-state.py`
+  — returns `{}` with no state file (no-op safety).
 
 ## Notes
 
@@ -285,9 +544,24 @@ IMPORTANT: Execute every step in order, top to bottom.
   rather than importing them). An `execution-environments.md` reference documents
   pinning `ansible-core` + collections for reproducibility.
 - **Scope** (confirmed): Ansible-only. Terraform/OpenTofu remains in
-  `proxmox-infra`; cross-reference it from `ansible-testing` rather than
-  duplicating.
+  `proxmox-infra`; cross-reference it from `ansible-proxmox`/`ansible-testing`
+  rather than duplicating.
+- **Test-driver split** (confirmed): three complementary tiers —
+  Docker/Podman + `delegated` (fast default inner loop); **Multipass (the ephemeral
+  live-VM sandbox — Ubuntu-only, matching homelab VM/LXC guests; QEMU over Apple's
+  `Hypervisor.framework`; `brew install --cask multipass`; SSH via cloud-init key
+  injection for real-host fidelity)** for provisioning against a real machine;
+  Tart/Lima for multi-distro (RHEL/Rocky/Fedora) VM matrices. `multipass_provision.py`
+  owns the standalone live-VM loop; `molecule-multipass` covers the in-Molecule path.
+- **Hybrid design** (confirmed): two modes share one plugin — autonomous
+  JSON-tool self-correction (our differentiator from upstream `lunar-claude`,
+  which ships content + agents but no machine-readable tool layer) **and** the
+  guided multi-agent pipeline (adapted from `lunar-claude`). The
+  validator/debugger agents bridge them by invoking the JSON tools.
 - **Agent-harness focus**: every tool's JSON includes per-stage pass/fail, file +
   line of failures where available, and a short remediation hint so the harness
-  can self-correct. This is the core differentiator from the upstream `han` plugin
-  (which only ships content + a lint hook).
+  can self-correct.
+- **Source material**: `ai_docs/ansible_tips_and_tricks.md` +
+  `basher83/lunar-claude` `ansible-workflows` (fetch via
+  `gh api repos/basher83/lunar-claude/contents/...` during implementation, then
+  apply the Adaptation rules).
