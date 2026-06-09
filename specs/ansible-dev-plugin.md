@@ -25,6 +25,11 @@ plugin](https://github.com/basher83/lunar-claude/tree/main/plugins/infrastructur
   review, looping through a debugger on failure) tracked via a `.local.md` state
   file and `.bundle.md` context handoffs.
 
+The testing strategy is layered as a **Docker → Multipass → real-host**
+progression: fast container/`delegated` loops for the inner loop, an **ephemeral
+Multipass Ubuntu VM** as the full-OS-fidelity "real live machine" rung to validate
+provisioning before it touches the homelab, then real homelab hosts last.
+
 Content and recommendations are grounded in
 `ai_docs/ansible_tips_and_tricks.md` (facts tuning, the 2026 testing pyramid,
 Molecule v26, CI ephemeral infra, and Apple-Silicon VM drivers) and adapted from
@@ -49,8 +54,10 @@ lint/markdown checks.
 A merge-ready `ansible-dev` plugin that: (1) guides Ansible authoring (fundamentals,
 playbooks, roles, idempotency, facts, inventory, vault, uv-pinned execution
 environments); (2) teaches a full testing strategy with Docker/Podman +
-`delegated` as the recommended default and Tart/Lima/QEMU/Multipass documented for
-Apple-Silicon VM testing; (3) ships `uv`-based helper tools that produce
+`delegated` as the fast default loop, **Multipass as the recommended ephemeral
+live-VM rung** for provisioning against a real machine (full systemd/SSH/reboot
+fidelity, before changes touch real hosts), and Tart/Lima/QEMU documented for
+multi-distro Apple-Silicon VM matrices; (3) ships `uv`-based helper tools that produce
 machine-readable pass/fail output for the agent harness; (4) drives an orchestrated
 multi-agent pipeline (generator → validator → reviewer → debugger) with persistent
 state, in which the validator/debugger agents **shell out to the JSON tools** as
@@ -73,7 +80,19 @@ Build an eight-skill plugin where the *knowledge* lives in progressive-disclosur
 `reference/` files and the *feedback loop* lives in `uv`-run Python tools that
 return JSON. The headline tool is `tools/test_loop.py` — an orchestrator that runs
 lint → syntax/check → Molecule converge → idempotence → verify and returns a
-single structured result the harness can act on.
+single structured result the harness can act on. `test_loop.py` also gains an
+**optional live-VM stage** (`--live` / `--driver multipass`, off by default) that
+delegates to `multipass_provision.py` for full-OS-fidelity validation.
+
+The revised testing pyramid the spec documents:
+
+1. **Lint / syntax** — `lint_report.py`, `syntax_check.py`.
+2. **Container integration + idempotence** — Molecule Docker/Podman, or
+   `delegated` against a static host (fast; the default loop).
+3. **Live-VM provisioning (the "real live machine" rung)** — `multipass_provision.py`
+   launches an ephemeral Ubuntu VM and runs the playbook + idempotence against it
+   over real SSH; full systemd / reboot / sudo fidelity.
+4. **Pre-production** — run against real homelab hosts (`--check`/`--diff` first).
 
 On top of that, layer an orchestrated **multi-agent pipeline**: slash commands
 scaffold a role/playbook and initialize a state machine
@@ -192,13 +211,16 @@ plugins/boss-homelab/ansible-dev/
     ├── ansible-testing/
     │   ├── SKILL.md                 # testing pyramid + ansible-lint + review report
     │   ├── reference/{testing-pyramid.md, molecule.md, verifiers.md,
-    │   │              ci-ephemeral-infra.md, macos-drivers.md, homelab-targets.md,
-    │   │              ansible-lint-config.md, review-report-format.md}
+    │   │              ci-ephemeral-infra.md, macos-drivers.md, multipass-lab.md,
+    │   │              homelab-targets.md, ansible-lint-config.md,
+    │   │              review-report-format.md}
     │   ├── examples/{molecule-docker/molecule.yml, molecule-delegated/molecule.yml,
+    │   │             molecule-multipass/molecule.yml, multipass/cloud-init.yaml,
     │   │             testinfra/test_example.py}
     │   ├── workflows/{dev-feedback-loop.md, pre-production-checklist.md}
     │   ├── anti-patterns/testing-mistakes.md
-    │   └── tools/{lint_report.py, syntax_check.py, molecule_run.py, test_loop.py}
+    │   └── tools/{lint_report.py, syntax_check.py, molecule_run.py,
+    │             multipass_provision.py, test_loop.py}
     └── ansible-proxmox/
         ├── SKILL.md                 # community.proxmox modules; cross-ref proxmox-infra
         └── reference/{module-index.md, vm-templates.md, cluster-ceph.md, networking.md}
@@ -335,6 +357,18 @@ IMPORTANT: Execute every step in order, top to bottom.
   docker conn), `execution-environments.md` (pin ansible-core + collections), and
   the testing skill's `macos-drivers.md` / `homelab-targets.md` /
   `testing-pyramid.md`.
+- `ansible-testing/reference/multipass-lab.md` (the live-VM rung): install
+  (`brew install --cask multipass` preferred, or the official `.pkg`; macOS 13.3+;
+  QEMU backend over Apple's `Hypervisor.framework`); why/when (full-OS-fidelity
+  rung between containers and real hosts; Ubuntu/Debian images match homelab
+  VM/LXC guests; **Ubuntu-only** limitation → use Tart/Lima for RHEL/Rocky/Fedora);
+  lifecycle command reference (`launch`, `list`, `info`, `exec`, `shell`, `mount`,
+  `transfer`, `stop`/`start`, `delete`, `purge`); the **cloud-init + standard-SSH
+  connection model** with a worked inventory + cloud-init example (inject host
+  pubkey into `ubuntu`, connect via `ansible_user=ubuntu` + key file, passwordless
+  sudo become); `multipass_provision.py` usage and the dev-loop workflow; ephemeral
+  VM naming + `multipass delete --purge` cleanup discipline; cross-refs to
+  `macos-drivers.md` (Molecule matrix) and `homelab-targets.md`.
 
 ### 6. Implement PEP 723 JSON tools
 
@@ -345,7 +379,25 @@ IMPORTANT: Execute every step in order, top to bottom.
 - `ansible-testing/tools/`: `lint_report.py` (yamllint + ansible-lint),
   `syntax_check.py` (`--syntax-check` + `--check` dry run), `molecule_run.py` (run
   a scenario; parse converge/idempotence/verify phases), and `test_loop.py`
-  (orchestrate lint → syntax/check → molecule converge → idempotence → verify).
+  (orchestrate lint → syntax/check → molecule converge → idempotence → verify, with
+  an optional `--live`/`--driver multipass` stage delegating to
+  `multipass_provision.py`).
+- `ansible-testing/tools/multipass_provision.py` (the live-VM rung): shells out to
+  `multipass` and `ansible-playbook` (does not import them).
+  - **CLI:** `--playbook <path>` (required); `--name <vm>` (default a derived
+    ephemeral name), `--image <24.04>`, `--cpus`, `--mem`, `--disk`,
+    `--ssh-key <~/.ssh/id_ed25519.pub>`, `--idempotence` (run twice, assert second
+    run `changed==0`), `--keep` (skip teardown), `--extra-args`, `--json`.
+  - **Phases (each a JSON entry):** preflight (is `multipass` installed? → clean
+    no-op + remediation if not) → launch (generated cloud-init writes the host
+    pubkey to `ubuntu`'s `authorized_keys`) → wait-ready + resolve VM IP
+    (`multipass info --format json`) → write a temp inventory
+    (`<name> ansible_host=<ip> ansible_user=ubuntu ansible_ssh_private_key_file=...`)
+    → converge (`ansible-playbook -i <inv>`) → optional idempotence run → verify →
+    teardown (`multipass delete <name> --purge`) in a `try/finally` unless `--keep`.
+  - **JSON:** `{ok, vm_name, image, ip, phases:[{name, ok, summary}], idempotent,
+    kept, remediation}`. Teardown is guaranteed even on failure (finally) — no
+    orphaned VMs.
 - Each: `from __future__ import annotations`, full types, `argparse` with `--help`,
   `--json` structured output with `{ok, errors[], summary, remediation}`,
   side-effect-free import via `__main__` guard.
@@ -383,10 +435,17 @@ IMPORTANT: Execute every step in order, top to bottom.
 
 ### 10. Add examples, workflows, anti-patterns, README
 
-- Minimal runnable `examples/` (molecule-docker, molecule-delegated, testinfra
-  test).
-- `workflows/`: `dev-feedback-loop.md`, `pre-production-checklist.md`.
-  `anti-patterns/` for fundamentals + testing.
+- Minimal runnable `examples/` (molecule-docker, molecule-delegated,
+  molecule-multipass, testinfra test).
+- `examples/molecule-multipass/molecule.yml`: `pip install molecule-multipass`,
+  `driver.name: multipass`, an Ubuntu platform, plus a note it is Ubuntu-only and
+  complements (not replaces) the standalone `multipass_provision.py` tool.
+- `examples/multipass/cloud-init.yaml`: worked cloud-init that injects the host
+  SSH pubkey into the `ubuntu` user (the connection model `multipass_provision.py`
+  generates), with the matching inventory snippet.
+- `workflows/`: `dev-feedback-loop.md` (show the Docker → Multipass live-VM →
+  real-host progression), `pre-production-checklist.md`. `anti-patterns/` for
+  fundamentals + testing.
 - `README.md` (required): both modes, pipeline diagram, agent/command/skill
   tables, `uv tool install ansible-dev-tools` requirements, hook behavior, abort
   via `active: false`, auto-gitignore, install.
@@ -417,6 +476,12 @@ IMPORTANT: Execute every step in order, top to bottom.
   `uv run .../tools/lint_report.py --json`, `syntax_check.py`,
   `idempotence_check.py`, and `test_loop.py` should each emit valid JSON with a
   correct top-level `ok` boolean for both passing and intentionally-broken input.
+- **Live-VM (manual)**: against a sample playbook,
+  `uv run .../tools/multipass_provision.py --playbook ... --idempotence --json`
+  launches an ephemeral Ubuntu VM, runs the play (+ idempotence) over SSH, tears it
+  down (`multipass list` shows no leftover), and emits valid `{ok:...}` JSON; with
+  `multipass` absent it returns a clean no-op + remediation (top-level `ok:false`,
+  preflight phase failed) and creates no VM.
 - **Hook (manual)**: `scripts/lint.sh` no-ops gracefully when `ansible-lint`/`uvx`
   is absent and lints when present; `check-pipeline-state.py` returns `{}` with no
   state file and `{"decision":"block", ...}` when a pipeline is active;
@@ -439,10 +504,17 @@ IMPORTANT: Execute every step in order, top to bottom.
   `SubagentStop` advances phase + enforces bundles; retry capped at 3.
 - Passive `PostToolUse` lint runs async on Ansible `Write`/`Edit` without colliding
   with the pipeline hooks.
-- Testing skill recommends Docker/Podman + `delegated` and documents Apple-Silicon
-  VM drivers and homelab-target→driver mapping; `ansible-secrets` is vault-first;
-  `ansible-proxmox` cross-references `proxmox-infra` (no Terraform duplication); no
-  `mise`/Infisical-required assumptions.
+- Testing skill recommends Docker/Podman + `delegated` as the fast default and
+  documents Apple-Silicon VM drivers and homelab-target→driver mapping;
+  `ansible-secrets` is vault-first; `ansible-proxmox` cross-references
+  `proxmox-infra` (no Terraform duplication); no `mise`/Infisical-required
+  assumptions.
+- Testing skill ships `multipass-lab.md`, `multipass_provision.py` (full VM
+  lifecycle, cloud-init SSH-key injection, `{ok:...}` JSON, guaranteed
+  `try/finally` teardown), and a `molecule-multipass` example; Multipass is
+  positioned as the **ephemeral live-VM rung** for provisioning against a real
+  machine (not the multi-distro matrix path, which stays with Tart/Lima), with its
+  Ubuntu-only limitation stated.
 - No exclamation-mark + backtick / `@` patterns in any SKILL.md (parser-bug safe).
 - `verify-structure.py`, `make lint`, `make markdown-lint`, `make link-check`,
   and `make test` all pass.
@@ -458,6 +530,8 @@ IMPORTANT: Execute every step in order, top to bottom.
 - `make link-check` — lychee on new markdown links.
 - `uv run plugins/boss-homelab/ansible-dev/skills/ansible-testing/tools/test_loop.py --help`
   — confirm the keystone tool loads and exposes its interface.
+- `uv run plugins/boss-homelab/ansible-dev/skills/ansible-testing/tools/multipass_provision.py --help`
+  — confirm the live-VM tool loads and exposes its interface.
 - `echo '{"cwd":"/tmp/x"}' | uv run plugins/boss-homelab/ansible-dev/hooks/check-pipeline-state.py`
   — returns `{}` with no state file (no-op safety).
 
@@ -472,6 +546,13 @@ IMPORTANT: Execute every step in order, top to bottom.
 - **Scope** (confirmed): Ansible-only. Terraform/OpenTofu remains in
   `proxmox-infra`; cross-reference it from `ansible-proxmox`/`ansible-testing`
   rather than duplicating.
+- **Test-driver split** (confirmed): three complementary tiers —
+  Docker/Podman + `delegated` (fast default inner loop); **Multipass (the ephemeral
+  live-VM sandbox — Ubuntu-only, matching homelab VM/LXC guests; QEMU over Apple's
+  `Hypervisor.framework`; `brew install --cask multipass`; SSH via cloud-init key
+  injection for real-host fidelity)** for provisioning against a real machine;
+  Tart/Lima for multi-distro (RHEL/Rocky/Fedora) VM matrices. `multipass_provision.py`
+  owns the standalone live-VM loop; `molecule-multipass` covers the in-Molecule path.
 - **Hybrid design** (confirmed): two modes share one plugin — autonomous
   JSON-tool self-correction (our differentiator from upstream `lunar-claude`,
   which ships content + agents but no machine-readable tool layer) **and** the
