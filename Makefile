@@ -12,7 +12,7 @@
 # this when skills genuinely improve.
 EVAL_THRESHOLD ?= 57
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill eval-llm-judge eval-monte-carlo
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel test-agent-harness ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill eval-llm-judge eval-monte-carlo
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -231,13 +231,18 @@ test-twitter-reel: ## Run twitter-to-reel tests
 	@echo "🚀 Running twitter-to-reel tests"
 	@uv run pytest plugins/social-media/twitter-tools/skills/twitter-to-reel/scripts/tests/ -v
 
+.PHONY: test-agent-harness
+test-agent-harness: ## Run agent-harness tests (skills + hooks)
+	@echo "🚀 Running agent-harness tests"
+	@uv run pytest plugins/boss-dev/agent-harness/ -v
+
 .PHONY: test-scripts
 test-scripts: ## Run the root tests/ suite (scripts + hooks)
 	@echo "🚀 Running tests/ suite"
 	@uv run pytest tests/ -v
 
 .PHONY: ci
-ci: test-scripts test-twitter-downloader test-twitter-reel ## Run all repo tests (CI target)
+ci: test-scripts test-twitter-downloader test-twitter-reel test-agent-harness ## Run all repo tests (CI target)
 
 # Default test tweet URL (a public tweet with video)
 SMOKE_URL ?= https://x.com/KameronBennett/status/2008195824304672928
