@@ -30,7 +30,8 @@
     "plugins/**/assets/templates/**",
     "plugins/**/tools/**",
     "plugins/social-media/twitter-tools/**",
-    "plugins/**/scripts/tests/**"
+    "plugins/**/scripts/tests/**",
+    "plugins/**/hooks/tests/**"
   ],
 
 
