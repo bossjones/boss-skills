@@ -32,17 +32,19 @@ def is_dangerous_rm_command(command):
         if re.search(pattern, normalized):
             return True
 
-    # Pattern 2: Check for rm with recursive flag targeting dangerous paths
+    # Pattern 2: Check for rm with recursive flag targeting dangerous paths.
+    # Each pattern matches the dangerous target as a whole argument so that
+    # ordinary relative paths (e.g. "rm -r ./build/output") are not flagged.
     dangerous_paths = [
-        r"/",  # Root directory
-        r"/\*",  # Root with wildcard
-        r"~",  # Home directory
-        r"~/",  # Home directory path
-        r"\$HOME",  # Home environment variable
-        r"\.\.",  # Parent directory references
-        r"\*",  # Wildcards in general rm -rf context
-        r"\.",  # Current directory
-        r"\.\s*$",  # Current directory at end of command
+        r"\s/\s*$",  # rm -rf /            (root)
+        r"\s/\s+",  # rm -rf / home/user  (root as a separate argument)
+        r"\s/\*",  # rm -rf /*            (everything under root)
+        r"\s~\s*$",  # rm -rf ~            (home directory)
+        r"\s~/",  # rm -rf ~/...         (home subtree)
+        r"\$home\b",  # rm -rf $HOME         (home env var; `normalized` is lowercased)
+        r"\.\.",  # parent-directory references (.. , ../..)
+        r"\s\*\s*$",  # rm -rf *             (bare wildcard)
+        r"\s\./?\s*$",  # rm -rf . or ./       (current directory)
     ]
 
     if re.search(r"\brm\s+.*-[a-z]*r", normalized):  # If rm has recursive flag
@@ -61,20 +63,22 @@ def is_env_file_access(tool_name, tool_input):
         # Check file paths for file-based tools
         if tool_name in ["Read", "Edit", "MultiEdit", "Write"]:
             file_path = tool_input.get("file_path", "")
-            if ".env" in file_path and not file_path.endswith(".env.sample"):
+            # Block real .env secret files, but allow the secret-free committed
+            # templates (.env.sample / .env.example).
+            if ".env" in file_path and not file_path.endswith((".env.sample", ".env.example")):
                 return True
 
         # Check bash commands for .env file access
         elif tool_name == "Bash":
             command = tool_input.get("command", "")
-            # Pattern to detect .env file access (but allow .env.sample)
+            # Detect any reference to a .env file (e.g. "source .env", "less .env",
+            # "cat ./.env"), but allow the secret-free templates (.env.sample /
+            # .env.example). A plain `\b` before the dot fails when the dot follows
+            # whitespace, so anchor on a lookbehind for a non-word/path boundary
+            # instead. This single pattern subsumes the per-command checks
+            # (cat/echo/touch/cp/mv/source/...).
             env_patterns = [
-                r"\b\.env\b(?!\.sample)",  # .env but not .env.sample
-                r"cat\s+.*\.env\b(?!\.sample)",  # cat .env
-                r"echo\s+.*>\s*\.env\b(?!\.sample)",  # echo > .env
-                r"touch\s+.*\.env\b(?!\.sample)",  # touch .env
-                r"cp\s+.*\.env\b(?!\.sample)",  # cp .env
-                r"mv\s+.*\.env\b(?!\.sample)",  # mv .env
+                r"(?<![\w.])\.env(?![\w])(?!\.sample)(?!\.example)",
             ]
 
             for pattern in env_patterns:
@@ -94,7 +98,10 @@ def main():
 
         # Check for .env file access (blocks access to sensitive environment files)
         if is_env_file_access(tool_name, tool_input):
-            print("BLOCKED: Access to .env files containing sensitive data is prohibited", file=sys.stderr)
+            print(
+                "BLOCKED: Access to .env files containing sensitive data is prohibited",
+                file=sys.stderr,
+            )
             print("Use .env.sample for template files instead", file=sys.stderr)
             sys.exit(2)  # Exit code 2 blocks tool call and shows error to Claude
 
@@ -114,7 +121,7 @@ def main():
 
         # Read existing log data or initialize empty list
         if log_path.exists():
-            with open(log_path, "r") as f:
+            with open(log_path) as f:
                 try:
                     log_data = json.load(f)
                 except (json.JSONDecodeError, ValueError):

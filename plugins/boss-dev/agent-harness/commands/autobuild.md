@@ -3,12 +3,13 @@ model: opus
 description: Implement a spec inside a git worktree, then commit, push, open a PR, and address review comments. Must run inside a linked git worktree.
 argument-hint: <spec-path>
 hooks:
-  Stop:
-    - hooks:
+  PostToolUse:
+    - matcher: "Write|Edit|MultiEdit"
+      hooks:
         - type: command
-          command: "uv run \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/validators/ty_validator.py"
+          command: "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/validators/ty_validator.py"
         - type: command
-          command: "uv run \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/validators/ruff_validator.py"
+          command: "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/validators/ruff_validator.py"
 ---
 
 # Autobuild Command
@@ -20,7 +21,7 @@ Implement the spec at the given path, then ship it: verify, commit, push, open a
 - **MUST run inside a linked git worktree.** If this session is on the main checkout (or not a git repo), hard-stop in Phase 0 and tell the user how to relaunch. Implementing a spec on `main` defeats the isolation this workflow exists to provide.
 - **Require a valid spec path.** If `$1` is empty or the file does not exist, stop and ask the user for a valid spec path. Do nothing else.
 - **Stay within the spec's scope.** Implement what the spec describes — do not invent features, refactors, or abstractions beyond it.
-- **Reuse, don't reimplement.** Phases 4 and 5 invoke the existing `/commit-push-pr` and `/fix-gh-pr-comments` commands. Do not duplicate their staging, commit, push, PR, or review-reply logic here.
+- **Reuse, don't reimplement.** Phases 4 and 5 invoke the existing `/agent-harness:commit-push-pr` and `/agent-harness:fix-gh-pr-comments` commands. Do not duplicate their staging, commit, push, PR, or review-reply logic here.
 - **Never force-push, never `git add -A`, never amend.** The chained commands enforce this too; do not work around it.
 - **Verification gates the commit.** Do not advance to Phase 4 while lint/type/tests are failing.
 
@@ -49,7 +50,7 @@ Only `LINKED_WORKTREE` may proceed to Phase 1.
 On `MAIN_CHECKOUT` or `NOT_A_GIT_REPO`: **stop immediately** (make no edits, no commits). Derive a short slug from the spec filename (e.g. `specs/01-label-studio-tweet-region-annotation.md` -> `label-studio`) and print relaunch instructions:
 
 ```
-You're not in a worktree. /autobuild must run in an isolated worktree.
+You're not in a worktree. /agent-harness:autobuild must run in an isolated worktree.
 
 Open a new terminal and run:
 
@@ -58,7 +59,7 @@ Open a new terminal and run:
 
 Then inside that new session, run:
 
-  /autobuild <spec-path>
+  /agent-harness:autobuild <spec-path>
 ```
 
 `claude --worktree` creates the worktree and branch for you — do not pre-create them here (that would collide on the branch name).
@@ -78,7 +79,7 @@ If the file is missing or `SPEC_PATH` is empty, stop and ask for a valid path. O
 - Any **validation commands** the spec specifies
 - Any **TDD / testing instruction** the spec carries (follow it if present)
 
-boss-skills specs follow the `/plan` format, so look for `## Objective`, `## Relevant Files`, `## Step by Step Tasks`, `## Acceptance Criteria`, and `## Validation Commands` headings.
+boss-skills specs follow the `/agent-harness:plan` format, so look for `## Objective`, `## Relevant Files`, `## Step by Step Tasks`, `## Acceptance Criteria`, and `## Validation Commands` headings.
 
 ## Phase 2: Implement
 
@@ -100,7 +101,7 @@ Fix any failures and re-run until both are clean. **Do not proceed to Phase 4 wh
 Invoke the existing command — do not reimplement its logic:
 
 ```
-/commit-push-pr
+/agent-harness:commit-push-pr
 ```
 
 Capture the resulting PR URL for the final report.
@@ -110,7 +111,7 @@ Capture the resulting PR URL for the final report.
 Invoke the existing command once — it self-polls for new comments up to 3 cycles:
 
 ```
-/fix-gh-pr-comments
+/agent-harness:fix-gh-pr-comments
 ```
 
 If it reports it stopped after 3 cycles with actionable comments still open, surface that to the user rather than silently finishing.
@@ -125,6 +126,6 @@ After completing the chain:
 **Spec**: <spec-path>
 **Implemented**: <1-2 line summary of what was built>
 **Verification**: make lint ✓ / make test ✓
-**PR**: <url from /commit-push-pr>
-**Review**: <result from /fix-gh-pr-comments>
+**PR**: <url from /agent-harness:commit-push-pr>
+**Review**: <result from /agent-harness:fix-gh-pr-comments>
 ```

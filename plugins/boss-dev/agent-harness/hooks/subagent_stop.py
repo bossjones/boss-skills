@@ -14,7 +14,6 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 try:
     from dotenv import load_dotenv
@@ -58,20 +57,18 @@ try:
     from utils.llm.task_summarizer import summarize_subagent_task
 except ImportError:
     # Fallback if imports fail
-    def summarize_subagent_task(task_description: str, agent_name: Optional[str] = None) -> str:
+    def summarize_subagent_task(task_description: str, agent_name: str | None = None) -> str:
         return "Subagent Complete"
 
 
-def get_tts_script_path() -> Optional[str]:
+def get_tts_script_path() -> str | None:
     """
-    Determine which TTS script to use based on available API keys.
-    Priority order: ElevenLabs > OpenAI > pyttsx3
+    Determine which TTS script to use.
+    Uses the offline pyttsx3 backend (no API key required).
     """
-    # Get current script directory and construct utils/tts path
     script_dir = Path(__file__).parent
     tts_dir = script_dir / "utils" / "tts"
 
-    # Fall back to pyttsx3 (no API key required)
     pyttsx3_script = tts_dir / "pyttsx3_tts.py"
     if pyttsx3_script.exists():
         return str(pyttsx3_script)
@@ -103,7 +100,7 @@ def extract_task_context(input_data: dict) -> str:
 
     try:
         # Read the JSONL transcript file
-        with open(transcript_path, "r") as f:
+        with open(transcript_path) as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -148,7 +145,7 @@ def extract_task_context(input_data: dict) -> str:
                 except json.JSONDecodeError:
                     continue
 
-    except (OSError, IOError):
+    except OSError:
         pass
 
     return "completed a task"
@@ -193,7 +190,10 @@ def main() -> None:
             help="Generate AI summary of subagent task (default: on when --notify is used)",
         )
         parser.add_argument(
-            "--no-summarize", dest="summarize", action="store_false", help="Disable AI summary, use generic message"
+            "--no-summarize",
+            dest="summarize",
+            action="store_false",
+            help="Disable AI summary, use generic message",
         )
         args = parser.parse_args()
 
@@ -211,7 +211,7 @@ def main() -> None:
 
         # Read existing log data or initialize empty list
         if os.path.exists(log_path):
-            with open(log_path, "r") as f:
+            with open(log_path) as f:
                 try:
                     log_data = json.load(f)
                 except (json.JSONDecodeError, ValueError):
@@ -233,7 +233,7 @@ def main() -> None:
                 # Read .jsonl file and convert to JSON array
                 chat_data = []
                 try:
-                    with open(transcript_path, "r") as f:
+                    with open(transcript_path) as f:
                         for line in f:
                             line = line.strip()
                             if line:

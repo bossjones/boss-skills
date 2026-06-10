@@ -24,19 +24,23 @@ except ImportError:
 
 def get_completion_messages():
     """Return list of friendly completion messages."""
-    return ["Work complete!", "All done!", "Task finished!", "Job complete!", "Ready for next task!"]
+    return [
+        "Work complete!",
+        "All done!",
+        "Task finished!",
+        "Job complete!",
+        "Ready for next task!",
+    ]
 
 
 def get_tts_script_path():
     """
-    Determine which TTS script to use based on available API keys.
-    Priority order: ElevenLabs > OpenAI > pyttsx3
+    Determine which TTS script to use.
+    Uses the offline pyttsx3 backend (no API key required).
     """
-    # Get current script directory and construct utils/tts path
     script_dir = Path(__file__).parent
     tts_dir = script_dir / "utils" / "tts"
 
-    # Fall back to pyttsx3 (no API key required)
     pyttsx3_script = tts_dir / "pyttsx3_tts.py"
     if pyttsx3_script.exists():
         return str(pyttsx3_script)
@@ -62,7 +66,10 @@ def get_llm_completion_message():
         if oai_script.exists():
             try:
                 result = subprocess.run(
-                    ["uv", "run", str(oai_script), "--completion"], capture_output=True, text=True, timeout=10
+                    ["uv", "run", str(oai_script), "--completion"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     return result.stdout.strip()
@@ -75,7 +82,10 @@ def get_llm_completion_message():
         if anth_script.exists():
             try:
                 result = subprocess.run(
-                    ["uv", "run", str(anth_script), "--completion"], capture_output=True, text=True, timeout=10
+                    ["uv", "run", str(anth_script), "--completion"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     return result.stdout.strip()
@@ -87,7 +97,10 @@ def get_llm_completion_message():
     if ollama_script.exists():
         try:
             result = subprocess.run(
-                ["uv", "run", str(ollama_script), "--completion"], capture_output=True, text=True, timeout=10
+                ["uv", "run", str(ollama_script), "--completion"],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0 and result.stdout.strip():
                 return result.stdout.strip()
@@ -146,7 +159,7 @@ def main():
 
         # Read existing log data or initialize empty list
         if os.path.exists(log_path):
-            with open(log_path, "r") as f:
+            with open(log_path) as f:
                 try:
                     log_data = json.load(f)
                 except (json.JSONDecodeError, ValueError):
@@ -168,7 +181,7 @@ def main():
                 # Read .jsonl file and convert to JSON array
                 chat_data = []
                 try:
-                    with open(transcript_path, "r") as f:
+                    with open(transcript_path) as f:
                         for line in f:
                             line = line.strip()
                             if line:

