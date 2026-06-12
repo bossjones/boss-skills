@@ -37,14 +37,12 @@ def debug_log(message: str) -> None:
 
 def get_tts_script_path() -> str | None:
     """
-    Determine which TTS script to use based on available API keys.
-    Priority order: ElevenLabs > OpenAI > pyttsx3
+    Determine which TTS script to use.
+    Uses the offline pyttsx3 backend (no API key required).
     """
-    # Get current script directory and construct utils/tts path
     script_dir = Path(__file__).parent
     tts_dir = script_dir / "utils" / "tts"
 
-    # Fall back to pyttsx3 (no API key required)
     pyttsx3_script = tts_dir / "pyttsx3_tts.py"
     if pyttsx3_script.exists():
         return str(pyttsx3_script)
@@ -104,7 +102,7 @@ def main() -> None:
 
         # Read existing log data or initialize empty list
         if os.path.exists(log_path):
-            with open(log_path, "r") as f:
+            with open(log_path) as f:
                 try:
                     log_data = json.load(f)
                 except (json.JSONDecodeError, ValueError):

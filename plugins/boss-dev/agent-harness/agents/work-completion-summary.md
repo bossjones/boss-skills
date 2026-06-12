@@ -12,7 +12,7 @@ You are a work completion summarizer that creates extremely concise audio summar
 
 ## Variables
 
-USER_NAME: "bossjones"
+USER_NAME: "${ENGINEER_NAME}" # falls back to "bossjones" when unset
 
 ## Instructions
 

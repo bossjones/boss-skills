@@ -23,16 +23,13 @@ import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
-# Lock file location relative to this script
-_SCRIPT_DIR = Path(__file__).parent.resolve()
-_PROJECT_ROOT = _SCRIPT_DIR.parent.parent.parent.parent  # .claude/hooks/utils/tts -> project root
-_LOCK_DIR = _PROJECT_ROOT / ".claude" / "data" / "tts_queue"
+# Lock dir is project-root-relative (CWD), shared across all agent processes
+_LOCK_DIR = Path(".claude") / "data" / "tts_queue"
 _LOCK_FILE = _LOCK_DIR / "tts.lock"
 
 # Global file handle for the lock (must persist while lock is held)
-_lock_file_handle: Optional[int] = None
+_lock_file_handle: int | None = None
 
 
 def _ensure_lock_dir() -> None:
@@ -47,12 +44,12 @@ def _write_lock_info(agent_id: str) -> None:
         json.dump(lock_info, f)
 
 
-def _read_lock_info() -> Optional[dict]:
+def _read_lock_info() -> dict | None:
     """Read lock metadata from the lock file."""
     if not _LOCK_FILE.exists():
         return None
     try:
-        with open(_LOCK_FILE, "r") as f:
+        with open(_LOCK_FILE) as f:
             content = f.read().strip()
             if not content:
                 return None
@@ -127,21 +124,20 @@ def release_tts_lock(agent_id: str) -> None:
         return
 
     try:
-        # Release the lock
+        # Clear the lock metadata while still holding the lock, using the held
+        # descriptor. Doing this before LOCK_UN avoids a race where the next
+        # holder acquires and writes its metadata only for us to blank it.
+        try:
+            os.ftruncate(_lock_file_handle, 0)
+        except OSError:
+            pass
+        # Release the lock and close the descriptor
         fcntl.flock(_lock_file_handle, fcntl.LOCK_UN)
         os.close(_lock_file_handle)
     except OSError:
         pass
     finally:
         _lock_file_handle = None
-
-    # Clear lock file contents
-    try:
-        if _LOCK_FILE.exists():
-            with open(_LOCK_FILE, "w") as f:
-                f.write("")
-    except OSError:
-        pass
 
 
 def is_tts_locked() -> bool:
@@ -225,7 +221,7 @@ def cleanup_stale_locks(max_age_seconds: int = 60) -> None:
         pass
 
 
-def get_lock_info() -> Optional[dict]:
+def get_lock_info() -> dict | None:
     """
     Get information about the current lock holder.
 

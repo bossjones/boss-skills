@@ -17,7 +17,6 @@ Designed for TTS announcements to provide personalized feedback.
 import os
 import sys
 from datetime import datetime
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -35,7 +34,7 @@ def debug_log(message: str) -> None:
         pass
 
 
-def summarize_subagent_task(task_description: str, agent_name: Optional[str] = None) -> str:
+def summarize_subagent_task(task_description: str, agent_name: str | None = None) -> str:
     """
     Generate a natural language summary of a completed subagent task.
 
@@ -56,6 +55,10 @@ def summarize_subagent_task(task_description: str, agent_name: Optional[str] = N
 
     debug_log(f"API key found (length: {len(api_key)})")
 
+    # Address the user by name; ENGINEER_NAME overrides the default "bossjones"
+    user_name = os.getenv("ENGINEER_NAME", "").strip() or "bossjones"
+    address = f'Address the user as "{user_name}" directly (but not always at the start)'
+
     # Build agent context for the prompt
     if agent_name:
         agent_context = f"The agent named '{agent_name}' completed this task."
@@ -71,7 +74,7 @@ Task completed: {task_description}
 Context: {agent_context}
 
 Requirements:
-- Address the user as "bossjones" directly (but not always at the start)
+- {address}
 - Keep it under 20 words
 - Focus on the outcome and value delivered
 - Be conversational and personalized
@@ -80,10 +83,10 @@ Requirements:
 - Return ONLY the summary text
 
 Example styles:
-- "bossjones, authentication is ready with secure JWT token support."
+- "Authentication is ready with secure JWT token support."
 - "Your file watcher is now monitoring for changes."
 - "Builder finished setting up the TTS queue with file locks."
-- "bossjones, the new API endpoints are live and tested."
+- "The new API endpoints are live and tested."
 
 Generate ONE summary:"""
 
@@ -129,7 +132,13 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Generate natural language summaries of subagent task completions")
     parser.add_argument("task_description", nargs="?", help="Description of the completed task")
-    parser.add_argument("--agent-name", "-a", type=str, default=None, help="Name of the agent that completed the task")
+    parser.add_argument(
+        "--agent-name",
+        "-a",
+        type=str,
+        default=None,
+        help="Name of the agent that completed the task",
+    )
 
     args = parser.parse_args()
 

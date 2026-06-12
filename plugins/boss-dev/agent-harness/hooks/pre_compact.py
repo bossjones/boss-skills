@@ -30,7 +30,7 @@ def log_pre_compact(input_data):
 
     # Read existing log data or initialize empty list
     if log_file.exists():
-        with open(log_file, "r") as f:
+        with open(log_file) as f:
             try:
                 log_data = json.load(f)
             except (json.JSONDecodeError, ValueError):

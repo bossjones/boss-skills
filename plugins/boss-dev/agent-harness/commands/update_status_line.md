@@ -45,6 +45,6 @@ Report the following:
 
 Example usage:
 ```
-/update_status_line 4c932bd7-ee06-46e3-b26b-f32f52cc0862 project myapp
-/update_status_line 4c932bd7-ee06-46e3-b26b-f32f52cc0862 status debugging
+/agent-harness:update_status_line 4c932bd7-ee06-46e3-b26b-f32f52cc0862 project myapp
+/agent-harness:update_status_line 4c932bd7-ee06-46e3-b26b-f32f52cc0862 status debugging
 ```

@@ -31,7 +31,7 @@ def log_setup(input_data):
 
     # Read existing log data or initialize empty list
     if log_file.exists():
-        with open(log_file, "r") as f:
+        with open(log_file) as f:
             try:
                 log_data = json.load(f)
             except (json.JSONDecodeError, ValueError):
@@ -115,7 +115,10 @@ def install_project_dependencies():
     if Path("requirements.txt").exists():
         try:
             result = subprocess.run(
-                ["pip", "install", "-r", "requirements.txt"], capture_output=True, text=True, timeout=300
+                ["pip", "install", "-r", "requirements.txt"],
+                capture_output=True,
+                text=True,
+                timeout=300,
             )
             if result.returncode == 0:
                 installed.append("pip dependencies")
@@ -151,7 +154,11 @@ def get_project_info(cwd):
     # Check for git repository
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, timeout=5, cwd=cwd
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            cwd=cwd,
         )
         if result.returncode == 0:
             info.append(f"Git branch: {result.stdout.strip()}")

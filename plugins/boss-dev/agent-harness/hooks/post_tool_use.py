@@ -20,7 +20,7 @@ def main():
 
         # Read existing log data or initialize empty list
         if log_path.exists():
-            with open(log_path, "r") as f:
+            with open(log_path) as f:
                 try:
                     log_data = json.load(f)
                 except (json.JSONDecodeError, ValueError):

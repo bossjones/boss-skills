@@ -8,12 +8,12 @@ hooks:
     - hooks:
         - type: command
           command: >-
-            uv run $CLAUDE_PROJECT_DIR/.claude/hooks/validators/validate_new_file.py
+            uv run ${CLAUDE_PLUGIN_ROOT}/hooks/validators/validate_new_file.py
             --directory specs
             --extension .md
         - type: command
           command: >-
-            uv run $CLAUDE_PROJECT_DIR/.claude/hooks/validators/validate_file_contains.py
+            uv run ${CLAUDE_PLUGIN_ROOT}/hooks/validators/validate_file_contains.py
             --directory specs
             --extension .md
             --contains '## Task Description'
@@ -34,7 +34,7 @@ Create a detailed implementation plan based on the user's requirements provided 
 USER_PROMPT: $1
 ORCHESTRATION_PROMPT: $2 - (Optional) Guidance for team assembly, task structure, and execution strategy
 PLAN_OUTPUT_DIRECTORY: `specs/`
-TEAM_MEMBERS: `.claude/agents/team/*.md`
+TEAM_MEMBERS: `agent-harness:team:builder`, `agent-harness:team:validator` (plugin-provided specialized subagent types)
 GENERAL_PURPOSE_AGENT: `general-purpose`
 
 ## Instructions
@@ -330,7 +330,7 @@ Use these files to complete the task:
 - Run all validation commands
 - Verify acceptance criteria met
 
-<continue with additional tasks as needed. Agent types must exist in .claude/agents/team/*.md>
+<continue with additional tasks as needed. Agent types must be valid subagent types: `agent-harness:team:builder`, `agent-harness:team:validator`, or `general-purpose`.>
 
 ## Acceptance Criteria
 <list specific, measurable criteria that must be met for the task to be considered complete>
@@ -366,5 +366,5 @@ Team members:
 - <list of team members and their roles (concise)>
 
 When you're ready, you can execute the plan in a new agent by running:
-/build <replace with path to plan>
+/agent-harness:build <replace with path to plan>
 ```

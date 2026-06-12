@@ -74,7 +74,10 @@ def get_git_untracked_files(directory: str, extension: str) -> list[str]:
     """Get list of untracked files in directory from git."""
     try:
         result = subprocess.run(
-            ["git", "status", "--porcelain", f"{directory}/"], capture_output=True, text=True, timeout=5
+            ["git", "status", "--porcelain", f"{directory}/"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode != 0:
             logger.info(f"git status returned non-zero: {result.returncode}")
@@ -303,21 +306,24 @@ def main():
             required_strings=args.required_strings,
         )
 
+        # Stop-hook output schema (see https://code.claude.com/docs/en/hooks):
+        # allow the stop with no decision; block it with
+        # {"decision": "block", "reason": ...}. JSON is only honored on exit 0 —
+        # a non-zero exit is treated as a non-blocking error, so always exit 0.
         if success:
-            result = {"result": "continue", "message": message}
             logger.info(f"Result: CONTINUE - {message}")
-            print(json.dumps(result))
+            print(json.dumps({}))
             sys.exit(0)
         else:
-            result = {"result": "block", "reason": message}
             logger.info("Result: BLOCK")
-            print(json.dumps(result))
-            sys.exit(1)
+            print(json.dumps({"decision": "block", "reason": message}))
+            sys.exit(0)
 
     except Exception as e:
-        # On error, allow through but log
+        # Fail closed: an unexpected error means validation did not pass, so
+        # block the stop rather than letting the gate through.
         logger.exception(f"Validation error: {e}")
-        print(json.dumps({"result": "continue", "message": f"Validation error (allowing through): {str(e)}"}))
+        print(json.dumps({"decision": "block", "reason": f"Validation error: {e}"}))
         sys.exit(0)
 
 

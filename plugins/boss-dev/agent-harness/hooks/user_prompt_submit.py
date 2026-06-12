@@ -28,7 +28,7 @@ def log_user_prompt(session_id, input_data):
 
     # Read existing log data or initialize empty list
     if log_file.exists():
-        with open(log_file, "r") as f:
+        with open(log_file) as f:
             try:
                 log_data = json.load(f)
             except (json.JSONDecodeError, ValueError):
@@ -51,6 +51,9 @@ def manage_session_data(session_id, prompt, name_agent=False):
     """Manage session data in the new JSON structure."""
     import subprocess
 
+    # LLM helper scripts live alongside this hook, not in the CWD's .claude/
+    llm_dir = Path(__file__).parent / "utils" / "llm"
+
     # Ensure sessions directory exists
     sessions_dir = Path(".claude/data/sessions")
     sessions_dir.mkdir(parents=True, exist_ok=True)
@@ -60,7 +63,7 @@ def manage_session_data(session_id, prompt, name_agent=False):
 
     if session_file.exists():
         try:
-            with open(session_file, "r") as f:
+            with open(session_file) as f:
                 session_data = json.load(f)
         except (json.JSONDecodeError, ValueError):
             session_data = {"session_id": session_id, "prompts": []}
@@ -75,7 +78,7 @@ def manage_session_data(session_id, prompt, name_agent=False):
         # Try Ollama first (preferred)
         try:
             result = subprocess.run(
-                ["uv", "run", ".claude/hooks/utils/llm/ollama.py", "--agent-name"],
+                ["uv", "run", str(llm_dir / "ollama.py"), "--agent-name"],
                 capture_output=True,
                 text=True,
                 timeout=5,  # Shorter timeout for local Ollama
@@ -92,7 +95,7 @@ def manage_session_data(session_id, prompt, name_agent=False):
             # Fall back to Anthropic if Ollama fails
             try:
                 result = subprocess.run(
-                    ["uv", "run", ".claude/hooks/utils/llm/anth.py", "--agent-name"],
+                    ["uv", "run", str(llm_dir / "anth.py"), "--agent-name"],
                     capture_output=True,
                     text=True,
                     timeout=10,
@@ -143,7 +146,9 @@ def main():
         parser.add_argument("--validate", action="store_true", help="Enable prompt validation")
         parser.add_argument("--log-only", action="store_true", help="Only log prompts, no validation or blocking")
         parser.add_argument(
-            "--store-last-prompt", action="store_true", help="Store the last prompt for status line display"
+            "--store-last-prompt",
+            action="store_true",
+            help="Store the last prompt for status line display",
         )
         parser.add_argument("--name-agent", action="store_true", help="Generate an agent name for the session")
         args = parser.parse_args()
