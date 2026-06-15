@@ -19,6 +19,7 @@ more optional component directories:
 | Command | `commands/<name>.md` | `/<plugin>:<name>` | User-typed slash command |
 | Agent | `agents/<name>.md` | Dispatched via the `Agent`/`Task` tool | Autonomous subagent with its own context |
 | Hook | `hooks/hooks.json` | Lifecycle events | Event-driven automation |
+| LSP | `.lsp.json` | File-type editor events | Wire a language server for diagnostics and navigation |
 
 ## Installing plugins
 
@@ -45,22 +46,24 @@ after the marketplace changes:
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| agent-harness | `boss-dev` | 0.2.0 | Subagents, commands, and skills for agentic dev workflows | [agent-harness.md](agent-harness.md) |
-| python-dev | `boss-dev` | 0.1.0 | Debug GitHub Actions CI and ship conventional-commit PRs | [python-dev.md](python-dev.md) |
-| twitter-tools | `social-media` | 0.1.0 | Download X/Twitter media and convert tweets to Reels | [twitter-tools.md](twitter-tools.md) |
-| proxmox-infra | `boss-homelab` | 0.1.0 | Manage Proxmox VE homelab infrastructure and IaC | [proxmox-infra.md](proxmox-infra.md) |
+| agent-harness | `boss-dev` | 0.4.1 | Subagents, commands, and skills for agentic dev workflows | [agent-harness.md](agent-harness.md) |
+| basedpyright-lsp | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [basedpyright-lsp.md](basedpyright-lsp.md) |
+| python-dev | `boss-dev` | 0.1.1 | Debug GitHub Actions CI and ship conventional-commit PRs | [python-dev.md](python-dev.md) |
+| twitter-tools | `social-media` | 0.1.1 | Download X/Twitter media and convert tweets to Reels | [twitter-tools.md](twitter-tools.md) |
+| proxmox-infra | `boss-homelab` | 0.1.1 | Manage Proxmox VE homelab infrastructure and IaC | [proxmox-infra.md](proxmox-infra.md) |
 
 ## Source layout
 
 ```text
 plugins/
 ├── boss-dev/
-│   ├── agent-harness/   # 9 skills, 9 commands, 6 agents
-│   └── python-dev/      # 2 commands
+│   ├── agent-harness/      # 9 skills, 12 commands, 6 agents, hooks + status lines
+│   ├── basedpyright-lsp/   # LSP integration (.lsp.json)
+│   └── python-dev/         # 2 commands
 ├── boss-homelab/
-│   └── proxmox-infra/   # 1 skill (proxmox-infrastructure)
+│   └── proxmox-infra/      # 1 skill (proxmox-infrastructure)
 └── social-media/
-    └── twitter-tools/   # 2 skills
+    └── twitter-tools/      # 2 skills
 ```
 
 Every plugin also keeps its own `README.md` next to its `plugin.json`. The pages in this

@@ -1,11 +1,12 @@
 # agent-harness
 
-> `boss-dev` · v0.2.0 · [plugin source](../../plugins/boss-dev/agent-harness/)
+> `boss-dev` · v0.4.1 · [plugin source](../../plugins/boss-dev/agent-harness/)
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that
 build and operate agentic dev workflows. The plugin ships three families of skills — a
 GitHub PR-review workflow, a git-worktree lifecycle, and a release-notes generator —
-alongside planning and priming commands plus a set of subagents.
+alongside planning, priming, and shipping commands, a roster of subagents, and a library of
+lifecycle hooks, output styles, and status lines.
 
 ## Installation
 
@@ -13,6 +14,17 @@ alongside planning and priming commands plus a set of subagents.
 /plugin marketplace add bossjones/boss-skills   # once
 /plugin install agent-harness@boss-skills
 ```
+
+## What's inside
+
+| Component | Count | Active on install? |
+|-----------|-------|--------------------|
+| Skills | 9 | Yes |
+| Commands | 12 | Yes |
+| Agents | 6 | Yes |
+| Output styles | 8 | Yes |
+| Hooks | 13 | Manual wiring |
+| Status lines | 10 | Manual wiring |
 
 ## Skills
 
@@ -50,18 +62,21 @@ Adapted from [claude-code-ultimate-guide](https://github.com/FlorianBruniaux/cla
 
 ## Commands
 
-Slash commands are namespaced `/agent-harness:<command>`.
+Twelve slash commands, namespaced `/agent-harness:<command>`.
 
 | Command | Description |
 |---------|-------------|
-| `/agent-harness:plan` | Create a concise engineering implementation plan from a prompt and save it to the specs directory. |
-| `/agent-harness:plan_w_team` | Same as `plan`, with team orchestration (opus model and a `Stop` hook). |
-| `/agent-harness:build` | Implement an existing plan file, then report the completed work. |
 | `/agent-harness:prime` | Load context for a new session by analyzing codebase structure, docs, and README. |
 | `/agent-harness:question` | Answer questions about project structure and docs without making code changes. |
-| `/agent-harness:cook` | Fan out a fixed batch of seven sub-agent tasks in parallel to exercise parallel execution. |
-| `/agent-harness:all_tools` | List every tool in the system prompt as TypeScript signatures with each tool's purpose. |
+| `/agent-harness:plan` | Create a concise engineering implementation plan from a prompt and save it to the specs directory. |
+| `/agent-harness:plan_w_team` | Same as `plan`, with team orchestration (opus model and builder/validator task assignments). |
+| `/agent-harness:build` | Implement an existing plan file, then report the completed work. |
+| `/agent-harness:autobuild` | Implement a spec inside a linked git worktree, then verify, commit, push, open a PR, and address reviews (opus). |
+| `/agent-harness:commit-push-pr` | Stage specific files, write a conventional commit, push, and open or reuse a GitHub PR. |
+| `/agent-harness:fix-gh-pr-comments` | Triage unresolved PR review comments, apply fixes, push, reply per-thread, and poll for new ones (≤ 3 cycles). |
+| `/agent-harness:debug-ci` | Diagnose a failed GitHub Actions run, fix locally, push, and poll the new run until green (≤ 3 cycles). |
 | `/agent-harness:update_status_line` | Upsert a key/value pair into a session's status-line data file. |
+| `/agent-harness:all_tools` | List every tool in the system prompt as TypeScript signatures with each tool's purpose. |
 | `/agent-harness:sentient` | Demo command showing a hook blocking a dangerous `rm -rf`. |
 
 ## Agents
@@ -77,6 +92,32 @@ Subagents are dispatched via the `Agent`/`Task` tool — by name, or proactively
 | `team/builder` | Generic engineering agent that executes one task at a time; runs ruff + ty hooks after edits. |
 | `team/validator` | Read-only agent that verifies a builder's task met its acceptance criteria. |
 
+## Workflows
+
+### Feature loop: plan → worktree → build → ship
+
+```mermaid
+flowchart LR
+    prime["/prime"] --> plan["/plan"]
+    plan --> wt["git-worktree"]
+    wt --> ab["/autobuild &lt;spec&gt;"]
+    ab --> verify{"make lint<br/>make test"}
+    verify -- red --> ab
+    verify -- green --> cpp["/commit-push-pr"]
+    cpp --> fix["/fix-gh-pr-comments"]
+    fix --> pr(["PR with reviews addressed"])
+```
+
+### PR review chain
+
+```mermaid
+flowchart LR
+    fd["fetch-diff"] --> rev["pr-review"]
+    rev --> val["validate_review.py"]
+    val --> arc["add-review-comment"]
+    fuc["fetch-unresolved-comments"] -. open threads .-> rev
+```
+
 ## Usage examples
 
 ### Plan, then build a feature
@@ -89,6 +130,19 @@ Subagents are dispatched via the `Agent`/`Task` tool — by name, or proactively
 
 `prime` loads project context, `plan` writes a spec to the specs directory, and `build`
 implements that spec and reports back.
+
+### Implement a spec end-to-end in a worktree
+
+```text
+cd <repo-root> && export PREFIX="spec-"
+claude --worktree "${PREFIX}add-json-flag"
+# then inside the new session:
+/agent-harness:autobuild specs/add-json-flag.md
+```
+
+`autobuild` hard-stops if it isn't inside a linked worktree, implements the spec, gates on
+`make lint` / `make test`, then chains `commit-push-pr` and `fix-gh-pr-comments` to open a
+PR and respond to review comments.
 
 ### Review a pull request
 
@@ -113,7 +167,18 @@ What review comments on PR #142 still need a response?
 ```
 
 The `fetch-unresolved-comments` skill queries the GitHub GraphQL API and returns only the
-threads that have not been resolved, grouped by file.
+threads that have not been resolved, grouped by file. To go further and actually apply +
+reply to them, run `/agent-harness:fix-gh-pr-comments 142`.
+
+### Fix a failing CI run
+
+```text
+/agent-harness:debug-ci
+```
+
+`debug-ci` finds the latest failed GitHub Actions run on the current branch, categorizes the
+failure (lint, type, tests, lockfile, docs…), fixes it locally, pushes, and polls the new
+run until it goes green — up to three cycles.
 
 ### Scaffold a new subagent
 
@@ -132,6 +197,15 @@ Generate release notes for the commits since v0.1.0.
 
 `release-notes-generator` categorizes the commits and emits a `CHANGELOG.md` section, a PR
 body, and a Slack announcement.
+
+## Manual wiring
+
+Hooks and status lines ship as a library. Enable a hook by adding an entry to
+`hooks/hooks.json` (or an inline `hooks` key in `plugin.json`) that points at the script
+with `${CLAUDE_PLUGIN_ROOT}`; enable a status line by setting `statusLine` to one of the
+scripts under `status_lines/`. See the
+[plugin README](../../plugins/boss-dev/agent-harness/README.md#manual-wiring) for copy-paste
+snippets.
 
 ## See also
 
