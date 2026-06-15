@@ -107,3 +107,17 @@ The skill parser executes backtick patterns inside fenced code blocks. Never use
 - Run with `uv run pytest -s` to see output
 - No trivial tests for obvious functionality
 - PEP 723 scripts are tested by loading them with `importlib.util.spec_from_file_location` (the `if __name__ == "__main__"` guard makes import side-effect-free)
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `bossjones/boss-skills`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-label vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
