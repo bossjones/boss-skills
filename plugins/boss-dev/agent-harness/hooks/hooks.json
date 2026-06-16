@@ -41,6 +41,15 @@
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/notification.py --notify"
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event notification"
+          }
+        ]
       }
     ],
     "Stop": [
@@ -50,6 +59,15 @@
           {
             "type": "command",
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/stop.py --chat"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event stop"
           }
         ]
       }
