@@ -12,7 +12,7 @@
 # this when skills genuinely improve.
 EVAL_THRESHOLD ?= 57
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel test-agent-harness ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill eval-llm-judge eval-monte-carlo
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel test-agent-harness ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill eval-llm-judge eval-monte-carlo changelog changelog-preview
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -270,3 +270,24 @@ smoke-help: ## Show smoke test usage
 .PHONY: logs
 logs: ## Tail logs/*.json and show notification_type and message via jq
 	tail -f logs/*.json | ccze -A
+
+# git-cliff resolves PR numbers / @usernames / first-time contributors via the
+# GitHub API; pass a token (env, then `gh auth token`) to avoid rate limits.
+.PHONY: changelog
+changelog: ## Generate/refresh CHANGELOG.md (Keep a Changelog) using git-cliff
+	@echo "🚀 Generating CHANGELOG.md with git-cliff"
+	@if command -v git-cliff >/dev/null 2>&1; then \
+		GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" git-cliff --output CHANGELOG.md; \
+	else \
+		echo "⚠️  git-cliff not installed. Install: brew install git-cliff"; \
+		exit 1; \
+	fi
+
+.PHONY: changelog-preview
+changelog-preview: ## Preview the unreleased changelog section (stdout only, no write)
+	@if command -v git-cliff >/dev/null 2>&1; then \
+		GITHUB_TOKEN="$${GITHUB_TOKEN:-$$(gh auth token 2>/dev/null)}" git-cliff --unreleased; \
+	else \
+		echo "⚠️  git-cliff not installed. Install: brew install git-cliff"; \
+		exit 1; \
+	fi
