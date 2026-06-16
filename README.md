@@ -1,6 +1,7 @@
 # boss-skills
 
-Personal Claude Code plugin marketplace for social media automation and content creation tools.
+Personal Claude Code plugin marketplace spanning developer-experience tooling, homelab
+infrastructure, and social-media content creation.
 
 ## Installation
 
@@ -13,6 +14,8 @@ Add this marketplace to Claude Code:
 Then install individual plugins:
 
 ```bash
+/plugin install agent-harness@boss-skills
+/plugin install basedpyright-lsp@boss-skills
 /plugin install twitter-tools@boss-skills
 ```
 
@@ -20,6 +23,84 @@ Then install individual plugins:
 
 Full per-plugin documentation — components, install commands, and usage examples — lives in
 [`docs/plugins/`](docs/plugins/README.md).
+
+| Plugin | Category | Version | Description | Docs |
+|--------|----------|---------|-------------|------|
+| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.4.1 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
+| [basedpyright-lsp](#boss-devbasedpyright-lsp) | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [↗](docs/plugins/basedpyright-lsp.md) |
+| python-dev | `boss-dev` | 0.1.1 | Debug GitHub Actions CI and ship conventional-commit PRs | [↗](docs/plugins/python-dev.md) |
+| [twitter-tools](#social-mediatwitter-tools) | `social-media` | 0.1.1 | Download X/Twitter media and convert tweets to Reels | [↗](docs/plugins/twitter-tools.md) |
+| proxmox-infra | `boss-homelab` | 0.1.1 | Manage Proxmox VE homelab infrastructure and IaC | [↗](docs/plugins/proxmox-infra.md) |
+
+### boss-dev/agent-harness
+
+Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
+and operate agentic dev workflows. It bundles a GitHub PR-review workflow, a git-worktree
+lifecycle, and a release-notes generator, plus planning/priming/shipping commands and a roster of
+subagents.
+
+```bash
+/plugin install agent-harness@boss-skills
+```
+
+**Components:**
+
+| Component | Count | Active on install? |
+|-----------|-------|--------------------|
+| Skills | 9 | Yes |
+| Commands | 12 | Yes |
+| Agents | 6 | Yes |
+| Output styles | 8 | Yes |
+| Hooks | 13 | Manual wiring |
+| Status lines | 10 | Manual wiring |
+
+The planning and shipping commands chain into a single isolated feature loop:
+
+```mermaid
+flowchart LR
+    plan["/plan"] --> wt["git-worktree"]
+    wt --> ab["/autobuild"]
+    ab --> verify{"lint + test"}
+    verify -- red --> ab
+    verify -- green --> cpp["/commit-push-pr"]
+    cpp --> fix["/fix-gh-pr-comments"]
+    fix --> pr(["PR shipped"])
+```
+
+```text
+/agent-harness:prime
+/agent-harness:plan add a --json flag to the download script
+/agent-harness:autobuild specs/add-json-flag.md   # run inside a git worktree
+```
+
+See [`plugins/boss-dev/agent-harness/README.md`](plugins/boss-dev/agent-harness/README.md) or the
+[expanded docs](docs/plugins/agent-harness.md) for the full component reference.
+
+### boss-dev/basedpyright-lsp
+
+LSP plugin that wires [basedpyright](https://docs.basedpyright.com/) into Claude Code — real-time
+Python diagnostics, hover docs, go-to-definition, and find-references for `.py`/`.pyi`/`.pyw` files.
+basedpyright is a strict superset of pyright that re-adds semantic tokens, inlay hints, and baseline
+files, and ships as a single binary.
+
+```bash
+uv tool install basedpyright          # prerequisite: language server on PATH
+/plugin install basedpyright-lsp@boss-skills
+```
+
+**Capabilities:**
+
+| Capability | Description |
+|------------|-------------|
+| Real-time diagnostics | Type errors surface as you edit, in the `/plugin` Errors tab |
+| Hover / definition / references | Inferred types, docstrings, and symbol navigation |
+| Semantic tokens & inlay hints | Richer highlighting and inline type annotations |
+| Baseline files | Suppress pre-existing findings so only new issues surface |
+
+Configure strictness per-project via `pyrightconfig.json` or `[tool.basedpyright]` in
+`pyproject.toml`. See
+[`plugins/boss-dev/basedpyright-lsp/README.md`](plugins/boss-dev/basedpyright-lsp/README.md) or the
+[expanded docs](docs/plugins/basedpyright-lsp.md) for prerequisites and troubleshooting.
 
 ### social-media/twitter-tools
 
@@ -37,6 +118,7 @@ Twitter/X social media tools for downloading media and converting tweets to Inst
 | `twitter-to-reel` | Convert tweets to Instagram Reels format (9:16 vertical video) |
 
 **Features:**
+
 - Download media from tweets, user profiles, timelines, likes, and bookmarks
 - Support for protected content via browser cookie extraction
 - Automatic video download and reel composition in a single command
@@ -145,18 +227,16 @@ PLUGIN_EVAL_SOURCE='git+https://github.com/wshobson/agents.git@<sha>#subdirector
 ```text
 boss-skills/
 ├── plugins/
+│   ├── boss-dev/
+│   │   ├── agent-harness/      # subagents, commands, hooks, skills, status lines
+│   │   ├── basedpyright-lsp/   # Python LSP integration (.lsp.json)
+│   │   └── python-dev/         # CI debugging + conventional-commit PR commands
+│   ├── boss-homelab/
+│   │   └── proxmox-infra/      # Proxmox VE infrastructure skill
 │   └── social-media/
-│       └── twitter-tools/
-│           ├── .claude-plugin/
-│           │   └── plugin.json
-│           ├── skills/
-│           │   ├── twitter-media-downloader/
-│           │   │   ├── SKILL.md
-│           │   │   └── scripts/
-│           │   └── twitter-to-reel/
-│           │       ├── SKILL.md
-│           │       └── scripts/
-│           └── README.md
+│       └── twitter-tools/      # media download + tweet-to-Reel skills
+├── docs/
+│   └── plugins/                # expanded per-plugin documentation
 ├── devtools/
 ├── scripts/
 └── tests/

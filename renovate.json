@@ -2,6 +2,46 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>basher83/renovate-config",
-    "local>basher83/renovate-config//presets/python.json"
+    "local>basher83/renovate-config//presets/python.json",
+    ":enablePreCommit"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on monday"]
+  },
+  "schedule": ["after 10pm every weekday", "before 5am every weekday", "every weekend"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "packageRules": [
+    {
+      "description": "Group all non-major Python dependency updates",
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "python dependencies (non-major)"
+    },
+    {
+      "description": "Group GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "Automerge patch/minor dev tooling once CI passes",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["dependency-groups", "dev"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge pinned GitHub Actions digest/patch updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["pin", "digest", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge pre-commit hook patch/minor updates",
+      "matchManagers": ["pre-commit"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    }
   ]
 }
