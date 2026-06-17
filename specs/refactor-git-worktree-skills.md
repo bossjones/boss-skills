@@ -12,12 +12,18 @@ This refactor: (1) gives each skill a tested PEP 723 Python script (`uv run`, TD
 - Hooks (`WorktreeCreate`/`WorktreeRemove`, non-git VCS): https://code.claude.com/docs/en/hooks
 - Worktree settings (`worktree.baseRef` = `"fresh"`/`"head"`, `cleanupPeriodDays`): https://code.claude.com/docs/en/settings#worktree-settings
 - Worktree isolation definition: https://code.claude.com/docs/en/glossary#worktree-isolation
+- Permission modes (`acceptEdits`/`auto`/`dontAsk`/`bypassPermissions`, `--permission-mode`, `defaultMode`, protected paths): https://code.claude.com/docs/en/permission-modes
+- Security (trust verification, `-p` skipping it): https://code.claude.com/docs/en/security
+- Non-interactive / headless runs (`-p`): https://code.claude.com/docs/en/headless
 
 ### Key doc facts driving the design
 - `claude --worktree <value>` creates `.claude/worktrees/<value>/` on branch `worktree-<value>`. The skills replicate this layout but prefix `<value>` with the repo name.
 - `.worktreeinclude` uses `.gitignore` syntax; only files that are **both** matched and gitignored are copied. **Crucially, `.worktreeinclude` is processed only by Claude's native `--worktree`/`EnterWorktree`/subagent worktrees — a manual `git worktree add` does NOT process it.** Therefore `git_worktree.py` must replicate this copy step itself.
 - Tip from docs: add `.claude/worktrees/` to `.gitignore`. (Repo `.gitignore` already contains `.worktrees/`, `.claude/worktrees/`, `.git/worktrees/` — verify, no change expected.)
 - Keep `SKILL.md` under 500 lines; reference supporting files with relative links; invoke scripts via `uv run "${CLAUDE_SKILL_DIR}/scripts/<name>.py"`.
+- **`.claude/worktrees` is exempt from protected paths.** The protected-paths list blocks auto-approved writes to `.claude` *except* `.claude/worktrees` ("where Claude stores its own git worktrees"). So creating/copying into `.claude/worktrees/<repo>-<name>/` does **not** trip protected-path prompts — the chosen layout is friction-free for autonomous runs.
+- **`.envrc` IS a protected file.** Copying `.envrc` into a worktree (the `.worktreeinclude` step) is auto-approved only under `auto` (routed to the classifier) or `bypassPermissions`; in `default`/`acceptEdits` it still prompts. `.env`/`.env.local` are not protected. The script should not assume the `.envrc` copy is silent.
+- **Trust + interactivity.** First-time `claude --worktree` interactively requires accepting the workspace trust dialog once at the repo root (saved per-directory to disk; home-dir trust is session-only and not persistable). `claude -p` (non-interactive) skips the trust check entirely. There is no settings key to pre-seed trust — `-p` is the supported headless escape hatch.
 
 ## Objective
 
@@ -110,8 +116,8 @@ IMPORTANT: Execute every step in order, top to bottom.
   - ensure `.claude/worktrees/` in `.gitignore` (suggest/append + report);
   - `git worktree add <path> -b worktree-<name>` from the base ref;
   - replicate `.worktreeinclude`: copy matched gitignored files into the worktree (this is the step native `git worktree add` skips);
-  - if `.envrc` was copied, run `direnv allow <worktree>` (guard if `direnv` absent);
-  - print a final report (path, branch, copied files, next-step pointer to language setup reference).
+  - if `.envrc` was copied, run `direnv allow <worktree>` (guard if `direnv` absent). Note `.envrc` is a Claude protected path: under `default`/`acceptEdits` the copy/write prompts, so the report should call out when an `.envrc` copy was skipped/declined rather than failing silently;
+  - print a final report (path, branch, copied files, next-step pointer to language setup reference, and the headless invocation hint from "Running unattended").
 - Keep all language/dependency setup OUT of the script — it prints which `references/setup-<lang>.md` to follow.
 
 ### 3. Author `git-worktree` references (progressive disclosure)
@@ -188,6 +194,24 @@ Execute these to validate the task is complete:
 - `uv run "plugins/boss-dev/agent-harness/skills/worktree-doctor/scripts/worktree_doctor.py"` — prints a sane `.worktreeinclude` suggestion for this repo.
 - `uv run "plugins/boss-dev/agent-harness/skills/git-worktree/scripts/git_worktree.py" doctor-smoke-test` then `git worktree list` — confirm `.claude/worktrees/boss-skills-doctor-smoke-test/` on branch `worktree-doctor-smoke-test`, `.env`/`.envrc` copied; then `git worktree remove` to clean up.
 - `python -m py_compile` is implicit via `uv run`; ensure each script runs `--help` without error.
+
+## Running Unattended (headless / autonomous agents)
+
+When a worktree is driven by an autonomous agent (CI, background session, or `claude -p`), two interactive gates must be cleared. They are independent — clearing one does not clear the other.
+
+1. **Workspace trust dialog** (first-time `--worktree` in a directory):
+   - Headless: `claude -p --worktree <name> "<task>"` skips the trust check entirely.
+   - Interactive: run `claude` once at the repo root and accept trust; it is saved per-directory, so later `--worktree` calls reuse it. (Starting in `$HOME` is session-only and cannot be persisted — start from a project subdir.)
+2. **Permission prompts** (edits / commands) — set a looser mode at startup or as a default:
+   - One-off, fully unattended (isolated container/VM only): `claude -p --permission-mode bypassPermissions "<task>"` (or the equivalent `--dangerously-skip-permissions`). Refuses to start under root/sudo outside a recognized sandbox; offers no prompt-injection protection.
+   - Locked-down CI: `claude -p --permission-mode dontAsk "<task>"` — only `permissions.allow` rules and read-only Bash run; everything else is auto-denied.
+   - Background-checked autonomy: `--permission-mode auto` (needs Opus 4.6+/Sonnet 4.6+; `defaultMode: "auto"` must live in `~/.claude/settings.json`, not project/local settings).
+   - Persisted default: `{ "permissions": { "defaultMode": "acceptEdits" } }` in `.claude/settings.json`.
+
+Implications for these skills:
+- The `git-worktree` skill should surface the headless recipe in its report/docs so users can re-enter the worktree non-interactively (e.g. `claude -p --permission-mode acceptEdits` from inside the new worktree).
+- Because `.claude/worktrees` is exempt from protected paths, worktree creation/copy under that path runs cleanly even in `default` mode — except the `.envrc` copy, which is a protected file and only silent under `auto`/`bypassPermissions` (see Key doc facts).
+- For a worktree-spawning **subagent** (`isolation: worktree`) there is no separate trust dialog, and a `permissionMode` in subagent frontmatter is **ignored** when the parent session runs in `auto` mode.
 
 ## Notes
 
