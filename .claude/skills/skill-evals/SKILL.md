@@ -122,6 +122,15 @@ score first:
 
 Report the score deltas and leave all edits staged-but-uncommitted for the user to review.
 
+## Examples
+
+```bash
+$ /skill-evals                                                    # review skills changed vs. main (default)
+$ /skill-evals --fix                                              # review, then improve the weakest skill's SKILL.md, then re-run
+$ /skill-evals --certify .claude/skills/doc-generator            # deep certification (badge) for one skill
+$ /skill-evals .claude/skills/doc-generator .claude/skills/twitter-media-downloader  # explicit targets
+```
+
 ## Cost & notes
 
 - `--review` (standard depth) ≈ 4 LLM calls / ~30s per skill via Claude Code Max (`claude-agent-sdk`).
