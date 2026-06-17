@@ -1,272 +1,105 @@
 ---
 name: git-worktree
-description: Create isolated git worktrees for feature development without switching branches. Use when starting a new feature, fix, or experiment that needs its own working directory — handles branch naming, dependency symlinking, and background verification.
-argument-hint: "<branch_name> [--from <base>]"
+description: Create an isolated git worktree under .claude/worktrees/<repo>-<name>/ for feature development without switching branches. Use when starting a new feature, fix, or experiment that needs its own working directory — handles repo-prefixed naming, base-ref selection, .worktreeinclude file copying, and language-specific setup pointers.
+argument-hint: "<name> [--from <base>]"
 effort: medium
+allowed-tools:
+  - Bash(uv run:*)
+  - Bash(git worktree:*)
+  - Bash(git rev-parse:*)
+  - Bash(direnv allow:*)
 disable-model-invocation: true
 ---
 
 # Git Worktree Setup
 
-Create isolated git worktrees for feature development without switching branches.
+Create an isolated git worktree under `.claude/worktrees/<repo>-<name>/` on
+branch `worktree-<name>`, aligned with Claude Code's native worktree
+convention. A deterministic Python script owns naming, base-ref selection, and
+the `.worktreeinclude` copy step; this skill picks the language-specific setup.
 
-**Core principle:** Smart directory selection + symlink optimization + background verification = fast, reliable isolation.
-
-**Requires:** Git 2.5.0+ (July 2015)
+**Requires:** Git 2.5.0+ and `uv`.
 
 **Companion commands:** [`/git-worktree-status`](../git-worktree-status/SKILL.md) | [`/git-worktree-remove`](../git-worktree-remove/SKILL.md) | [`/git-worktree-clean`](../git-worktree-clean/SKILL.md)
 
-## Process
+## Steps
 
-1. **Validate Branch Name**: Check naming convention and conflicts
-2. **Check Existing Directories**: `.worktrees/` or `worktrees/`
-3. **Verify .gitignore**: Ensure worktree dir is ignored
-4. **Create Worktree**: `git worktree add`
-5. **Symlink Dependencies**: Reuse `node_modules/` from main worktree
-6. **Detect Database Provider**: Check for DB branching capability
-7. **Install Dependencies**: Auto-detect package manager (if not symlinking)
-8. **Run Background Verification**: Type check + tests in background
-9. **Report Location**: Confirm ready with status
+### 1. Create the worktree
 
-## Flags
-
-| Flag | Effect |
-|------|--------|
-| `--fast` | Skip dependency install and baseline tests |
-| `--isolated` | Fresh `node_modules` install (no symlink) |
-| `--skip-install` | Skip dependency install, keep baseline tests |
-
-## Branch Name Validation
+Run the script from anywhere inside the repo:
 
 ```bash
-# Auto-prefix based on naming convention
-# "auth" → "feat/auth" (default prefix)
-# "fix/login-bug" → kept as-is
-# "refactor/db-layer" → kept as-is
-
-# Accepted prefixes: feat/, fix/, refactor/, chore/, docs/, test/, perf/
-# If no prefix → default to feat/
-
-# Reject invalid characters
-echo "$BRANCH_NAME" | grep -qE '^[a-zA-Z0-9/_-]+$' || exit 1
-
-# Check branch doesn't already exist
-git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" && echo "Branch already exists" && exit 1
+uv run "${CLAUDE_SKILL_DIR}/scripts/git_worktree.py" <name> [--from <base>]
 ```
 
-## Directory Selection
+The script:
 
-### Priority Order
+- derives `<repo>` from the `origin` URL (falls back to the toplevel dir name)
+  and builds the path `.claude/worktrees/<repo>-<name>/` with no double prefix;
+- creates branch `worktree-<name>` from the base ref (default `origin/HEAD`,
+  else `HEAD`; override with `--from <base>` for the `head` behavior);
+- ensures `.claude/worktrees/` is in `.gitignore` (appends + reports if absent);
+- copies every `.worktreeinclude`-matched, gitignored file into the worktree
+  (the step a plain `git worktree add` skips) and runs `direnv allow` if an
+  `.envrc` was copied;
+- prints the path, branch, copied files, the detected project type, and the
+  matching `references/setup-<lang>.md` to follow next.
 
-```bash
-# 1. Check existing directories
-ls -d .worktrees 2>/dev/null     # Preferred (hidden)
-ls -d worktrees 2>/dev/null      # Alternative
+Never `cat`, print, or log `.env` / `.envrc` — they hold secrets. The script
+copies them byte-for-byte and reports when a protected `.envrc` copy was
+declined (see [references/worktreeinclude.md](references/worktreeinclude.md)).
 
-# 2. Check CLAUDE.md for preference
-grep -i "worktree.*director" CLAUDE.md 2>/dev/null
+### 2. Set up the language environment
 
-# 3. Ask user if neither exists
-```
+Read the reference the script names for the detected project type and follow it:
 
-**If both exist:** `.worktrees/` wins.
+- Python / `uv` (first-class): [references/setup-python.md](references/setup-python.md)
+- Node.js: [references/setup-node.md](references/setup-node.md)
+- Rust: [references/setup-rust.md](references/setup-rust.md)
+- Go: [references/setup-go.md](references/setup-go.md)
+- Unknown stack: [references/setup-generic.md](references/setup-generic.md)
 
-## Safety Verification
+Each reference covers isolated dependency install and background verification
+into `.worktree-logs/`, which [`/git-worktree-status`](../git-worktree-status/SKILL.md) reads.
 
-**For project-local directories:**
+### 3. Optional follow-ups
 
-```bash
-# Check if directory in .gitignore
-grep -q "^\.worktrees/$" .gitignore || grep -q "^worktrees/$" .gitignore
-```
+- Schema or data-model work on a branchable database: see
+  [references/database-branching.md](references/database-branching.md).
+- Missing env files in the worktree: add patterns to `.worktreeinclude` (see
+  [references/worktreeinclude.md](references/worktreeinclude.md)) and re-run, or
+  run the `worktree-doctor` skill to suggest a starter `.worktreeinclude`.
 
-**If NOT in .gitignore:**
-1. Add line to .gitignore
-2. Commit the change
-3. Proceed with worktree creation
+## Running unattended (headless agents)
 
-**Why critical:** Prevents accidentally committing worktree contents.
+Two interactive gates must be cleared when an autonomous agent drives a worktree
+(they are independent):
 
-## Creation Steps
+1. **Workspace trust** — `claude -p --worktree <name> "<task>"` skips the trust
+   check entirely. Interactively, accept trust once at the repo root (saved
+   per-directory); later `--worktree` calls reuse it.
+2. **Permission prompts** — set a looser mode at startup, e.g. from inside the
+   new worktree: `claude -p --permission-mode acceptEdits "<task>"`. Use
+   `bypassPermissions` only in an isolated container/VM.
 
-```bash
-# 1. Detect project name
-project=$(basename "$(git rev-parse --show-toplevel)")
+Because `.claude/worktrees` is exempt from protected paths, creation and copy
+run cleanly even in `default` mode — except the `.envrc` copy, which is a
+protected file (silent only under `auto`/`bypassPermissions`).
 
-# 2. Create worktree with new branch
-git worktree add .worktrees/$BRANCH_NAME -b $BRANCH_NAME
+## Common mistakes
 
-# 3. Navigate
-cd .worktrees/$BRANCH_NAME
-```
-
-## Dependency Optimization (Node.js)
-
-**Default behavior:** Symlink `node_modules` from main worktree to avoid duplicate installs (~30s saved).
-
-```bash
-# Symlink node_modules (default, unless --isolated)
-if [ -d "../../node_modules" ] && [ ! "$ISOLATED" = true ]; then
-  ln -s "$(cd ../.. && pwd)/node_modules" node_modules
-  echo "Symlinked node_modules from main worktree"
-fi
-
-# With --isolated: fresh install
-if [ "$ISOLATED" = true ]; then
-  pnpm install   # or npm/yarn based on lockfile detection
-fi
-```
-
-**When to use `--isolated`:**
-- Schema changes requiring different package versions
-- Testing dependency upgrades
-- Debugging `node_modules` issues
-
-## Auto-Detect Setup (Multi-Stack)
-
-```bash
-# Node.js (if not symlinked)
-if [ -f package.json ] && [ ! -L node_modules ]; then
-  pnpm install   # Detect from lockfile: pnpm-lock.yaml / yarn.lock / package-lock.json
-fi
-
-# Rust
-if [ -f Cargo.toml ]; then cargo build; fi
-
-# Python
-if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-if [ -f pyproject.toml ]; then poetry install; fi
-
-# Go
-if [ -f go.mod ]; then go mod download; fi
-```
-
-## Background Verification
-
-**Instead of blocking on full test suite, run verification in background:**
-
-```bash
-# Create log directory
-mkdir -p .worktree-logs
-
-# Background type check (Node.js)
-if [ -f tsconfig.json ]; then
-  npx tsc --noEmit > .worktree-logs/typecheck.log 2>&1 &
-  echo "Type check running in background (check with /git-worktree-status)"
-fi
-
-# Background test run
-if [ -f package.json ]; then
-  npx vitest run --reporter=json > .worktree-logs/tests.log 2>&1 &
-  echo "Tests running in background (check with /git-worktree-status)"
-fi
-```
-
-**With `--fast`:** Skip all verification.
-
-## Final Report
-
-```
-Worktree ready at <full-path>
-Branch: feat/auth (created from main)
-Dependencies: symlinked from main worktree
-Background checks: type check + tests running
-Check status: /git-worktree-status
-
-Ready to implement <feature-name>
-```
-
-## Database Branch Suggestion
-
-**After worktree creation, detect database provider and suggest isolation.**
-
-### Quick Command Reference
-
-| Provider | Suggested Command |
-|----------|-------------------|
-| **Neon** | `neonctl branches create --name <branch> --parent main` |
-| **PlanetScale** | `pscale branch create <db> <branch>` |
-| **Local Postgres** | `psql -c "CREATE SCHEMA <schema>;"` |
-| **Other** | Manual setup or shared DB |
-
-**Example output:**
-
-```
-Worktree created at .worktrees/feat/auth
-
-DB Isolation: neonctl branches create --name feat-auth --parent main
-   Then update .env with new DATABASE_URL
-```
-
-### .worktreeinclude Setup
-
-**Critical for environment variables:**
-
-```bash
-# .worktreeinclude (at project root)
-.env
-.env.local
-.env.development
-**/.claude/settings.local.json
-```
-
-**Why:** Without this, `.env` files won't be copied to worktrees.
-
-### When to Create Database Branch
-
-| Scenario | Create Branch? |
-|----------|---------------|
-| Schema migrations | Yes |
-| Data model refactoring | Yes |
-| Bug fix (no schema change) | No |
-| Performance experiments | Yes |
-
-**Tip:** For schema-affecting work, create the database branch before running migrations
-so each worktree gets an isolated database.
-
-## Quick Reference
-
-| Situation | Action |
-|-----------|--------|
-| `.worktrees/` exists | Use it (verify .gitignore) |
-| `worktrees/` exists | Use it (verify .gitignore) |
-| Both exist | Use `.worktrees/` |
-| Neither exists | Check CLAUDE.md, then ask user |
-| Not in .gitignore | Add + commit immediately |
-| No branch prefix | Auto-prefix with `feat/` |
-| Node.js project | Symlink `node_modules` by default |
-| `--fast` flag | Skip install + tests |
-| `--isolated` flag | Fresh `node_modules` install |
-| Neon detected | Suggest `neonctl branches create` |
-| PlanetScale detected | Suggest `pscale branch create` |
-| No .worktreeinclude | Create with `.env` pattern |
-
-## Common Mistakes
-
-**Skipping .gitignore verification**
-- Worktree contents get tracked, pollute git status
-
-**Assuming directory location**
-- Follow priority: existing > CLAUDE.md > ask
-
-**Installing full node_modules in every worktree**
-- Wastes disk and time. Use symlink by default, `--isolated` only when needed
-
-**Not copying .env to worktree**
-- Symptom: Claude fails with "DATABASE_URL not found"
-- Fix: Add `.env` to `.worktreeinclude`
-
-**Using shared database for schema changes**
-- Symptom: Migration conflicts, broken dev environment
-- Fix: Create database branch before modifying schema
+- **Expecting `.worktreeinclude` to work with a manual `git worktree add`** —
+  it does not; that is why this skill's script copies the files.
+- **Reading `.env` / `.envrc`** — never do this; copy only.
+- **Installing full dependencies when isolation is not needed** — the language
+  references note when reuse (e.g. a `node_modules` symlink) is appropriate.
 
 ## Usage
 
 ```
 /git-worktree auth
 /git-worktree fix/session-bug
-/git-worktree feature/new-api --fast
-/git-worktree refactor/db-layer --isolated
+/git-worktree refactor/db-layer --from main
 ```
 
-Branch name: $ARGUMENTS
+Name: $ARGUMENTS

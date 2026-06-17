@@ -18,6 +18,11 @@ TYPE_CHECK_PATHS = [
     f"{_AGENT_HARNESS_SKILLS}/fetch-diff/scripts/fetch_diff.py",
     f"{_AGENT_HARNESS_SKILLS}/fetch-unresolved-comments/scripts/fetch_unresolved_comments.py",
     f"{_AGENT_HARNESS_SKILLS}/pr-review/scripts/validate_review.py",
+    f"{_AGENT_HARNESS_SKILLS}/git-worktree/scripts/git_worktree.py",
+    f"{_AGENT_HARNESS_SKILLS}/git-worktree-status/scripts/git_worktree_status.py",
+    f"{_AGENT_HARNESS_SKILLS}/git-worktree-clean/scripts/git_worktree_clean.py",
+    f"{_AGENT_HARNESS_SKILLS}/git-worktree-remove/scripts/git_worktree_remove.py",
+    f"{_AGENT_HARNESS_SKILLS}/worktree-doctor/scripts/worktree_doctor.py",
 ]
 
 
