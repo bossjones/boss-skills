@@ -9,9 +9,10 @@ description: >
   the weakest skills' SKILL.md in place to raise their scores; `--certify` runs the full
   deep certification with a badge. Reach for this skill even when the user only says
   "run the evals", "score these skills", or "make EVALS.md" without naming PluginEval.
+argument-hint: "[--review | --fix | --certify] [skill-path ...]"
 allowed-tools: Bash(make *) Bash(git diff *) Bash(git status *) Bash(./scripts/eval-skills.py *) Bash(test *) Bash(ls *) Read Edit Task
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Skill Evals
@@ -30,6 +31,22 @@ The upstream docs are bundled so you can look them up without network access:
   — what a good skill looks like (progressive disclosure, triggering, spec rules).
 - [`references/fix-playbook.md`](references/fix-playbook.md) — translating a weak
   dimension into a concrete SKILL.md edit (used by `--fix`).
+
+## What was requested
+
+This run was invoked with:
+
+> `$ARGUMENTS`
+
+Parse it before anything else (when invoked automatically rather than via `/skill-evals`,
+this is empty — fall back to the defaults):
+
+- **Mode** — `--certify` and/or `--fix` if present, otherwise `--review` (the default).
+- **Targets** — any token that is not a `--flag` is an explicit skill directory path. If
+  none are given, auto-detect from the branch diff (Step 1).
+
+Echo the resolved mode and target list back to the user before running anything — e.g.
+"Evaluating 5 skills in `--review` mode: …" — so the scope is confirmed up front.
 
 ## Arguments
 
