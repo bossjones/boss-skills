@@ -10,6 +10,12 @@ on:
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
 
+# Cancel an in-flight review when a new commit is pushed to the same PR —
+# the superseded run is wasted API spend and runner time.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   claude-review:
     # Optional: Filter by PR author
@@ -60,7 +66,7 @@ jobs:
           # To switch models, comment out the active claude_args line below and
           # uncomment the other (keep exactly one active):
           claude_args: '--model claude-sonnet-4-6' # Sonnet 4.6 — faster, cheaper
-          # claude_args: '--model claude-opus-4-7'   # Opus 4.7 — stronger reasoning
+          # claude_args: '--model claude-opus-4-8'   # Opus 4.8 — stronger reasoning
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 

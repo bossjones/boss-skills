@@ -76,7 +76,9 @@
             "/Users/bossjones/dev/wshobson/agents",
             "/Users/bossjones/dev/mlflow/",
             "/Users/bossjones/dev/aif-skills/",
-            "/Users/bossjones/dev/FlorianBruniaux/claude-code-ultimate-guide"
+            "/Users/bossjones/dev/FlorianBruniaux/claude-code-ultimate-guide",
+            "/Users/bossjones/dev/anthropics/claude-code-action",
+            "/Users/bossjones/dev/anthropics/claude-code-security-review"
         ]
     },
     "statusLine": {
