@@ -10,6 +10,7 @@ import re
 import sys
 from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 
 
 def is_dangerous_rm_command(command):
@@ -109,7 +110,7 @@ UNICODE_BIDI_CONTROLS: frozenset[int] = frozenset({
 })
 
 
-def _iter_edit_content(tool_name: str, tool_input: dict[str, object]) -> Generator[str, None, None]:
+def _iter_edit_content(tool_name: str, tool_input: dict[str, Any]) -> Generator[str, None, None]:
     """Yield each chunk of proposed content for a Write/Edit/MultiEdit call."""
     if tool_name == "Write":
         yield tool_input.get("content", "")
@@ -120,7 +121,7 @@ def _iter_edit_content(tool_name: str, tool_input: dict[str, object]) -> Generat
             yield edit.get("new_string", "")
 
 
-def find_blocker_unicode(tool_name: str, tool_input: dict[str, object]) -> tuple[int, int, str] | None:
+def find_blocker_unicode(tool_name: str, tool_input: dict[str, Any]) -> tuple[int, int, str] | None:
     """Scan proposed Write/Edit/MultiEdit content for BLOCKER-class Unicode.
 
     Returns (codepoint, offset, label) for the first invisible tag character or
