@@ -23,6 +23,7 @@ This refactor: (1) gives each skill a tested PEP 723 Python script (`uv run`, TD
 - Keep `SKILL.md` under 500 lines; reference supporting files with relative links; invoke scripts via `uv run "${CLAUDE_SKILL_DIR}/scripts/<name>.py"`.
 - **`.claude/worktrees` is exempt from protected paths.** The protected-paths list blocks auto-approved writes to `.claude` *except* `.claude/worktrees` ("where Claude stores its own git worktrees"). So creating/copying into `.claude/worktrees/<repo>-<name>/` does **not** trip protected-path prompts — the chosen layout is friction-free for autonomous runs.
 - **`.envrc` IS a protected file.** Copying `.envrc` into a worktree (the `.worktreeinclude` step) is auto-approved only under `auto` (routed to the classifier) or `bypassPermissions`; in `default`/`acceptEdits` it still prompts. `.env`/`.env.local` are not protected. The script should not assume the `.envrc` copy is silent.
+- **Never read `.env`/`.envrc` contents.** The script copies these files as-is but must not `cat`, `print`, log, or otherwise surface their contents — they contain secrets. Claude itself must not read them either: do not pass their paths to `Read` or display them in reports.
 - **Trust + interactivity.** First-time `claude --worktree` interactively requires accepting the workspace trust dialog once at the repo root (saved per-directory to disk; home-dir trust is session-only and not persistable). `claude -p` (non-interactive) skips the trust check entirely. There is no settings key to pre-seed trust — `-p` is the supported headless escape hatch.
 
 ## Objective
@@ -192,7 +193,7 @@ Execute these to validate the task is complete:
 - `uv run pytest -s plugins/boss-dev/agent-harness/skills/git-worktree/scripts/tests/` — worktree script tests (repeat per skill dir).
 - `uv run python scripts/skill_validation.py` (or `make` target if defined) — confirm no SKILL.md violations / progressive-disclosure warnings for the refactored skills.
 - `uv run "plugins/boss-dev/agent-harness/skills/worktree-doctor/scripts/worktree_doctor.py"` — prints a sane `.worktreeinclude` suggestion for this repo.
-- `uv run "plugins/boss-dev/agent-harness/skills/git-worktree/scripts/git_worktree.py" doctor-smoke-test` then `git worktree list` — confirm `.claude/worktrees/boss-skills-doctor-smoke-test/` on branch `worktree-doctor-smoke-test`, `.env`/`.envrc` copied; then `git worktree remove` to clean up.
+- `uv run "plugins/boss-dev/agent-harness/skills/git-worktree/scripts/git_worktree.py" doctor-smoke-test` then `git worktree list` — confirm `.claude/worktrees/boss-skills-doctor-smoke-test/` on branch `worktree-doctor-smoke-test`; if a `.worktreeinclude` and matching gitignored files exist, confirm they are copied; then `git worktree remove` to clean up.
 - `python -m py_compile` is implicit via `uv run`; ensure each script runs `--help` without error.
 
 ## Running Unattended (headless / autonomous agents)
