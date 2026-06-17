@@ -63,6 +63,12 @@ Below 35/50: revise.
 
 See [references/examples.md](references/examples.md) for before/after transformations.
 
+**Invoke:**
+```
+/stop-slop
+/stop-slop edit my-draft.md
+```
+
 ## License
 
 MIT
