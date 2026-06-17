@@ -10,6 +10,12 @@ on:
   pull_request_review:
     types: [submitted]
 
+# Serialize @claude runs per issue/PR without cancelling: an in-flight task may
+# be editing files or writing a comment, so we queue rather than abort it.
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   claude:
     if: |

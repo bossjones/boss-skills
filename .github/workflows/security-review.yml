@@ -1,0 +1,113 @@
+name: Security Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+# Cancel a superseded security run when a new commit lands on the same PR.
+concurrency:
+  group: security-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-audit:
+    name: uv audit (dependency CVE scan, report-only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install uv (official Astral action)
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.15"
+          enable-cache: true
+          python-version: "3.13"
+
+      # uv audit is a preview command with no machine-readable output and
+      # exits non-zero on findings; capture output, never fail the job, and
+      # report via both the job summary and a sticky PR comment.
+      - name: Run uv audit (report-only)
+        id: audit
+        continue-on-error: true
+        run: |
+          # `if` guards the non-zero exit so bash -e doesn't abort the step.
+          if uv audit --color never > audit.txt 2>&1; then
+            echo "status=✅ No known vulnerabilities in locked dependencies." >> "$GITHUB_OUTPUT"
+          else
+            echo "status=⚠️ Potential vulnerabilities found — see details below." >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "## uv audit — dependency vulnerability scan"
+            echo ''
+            echo '```'
+            cat audit.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post uv audit results as a sticky PR comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          STATUS: ${{ steps.audit.outputs.status }}
+        run: |
+          marker="<!-- uv-audit-report -->"
+          {
+            echo "$marker"
+            echo "## uv audit — dependency vulnerability scan"
+            echo ''
+            echo "$STATUS"
+            echo ''
+            echo '<details><summary>Full <code>uv audit</code> output</summary>'
+            echo ''
+            echo '```'
+            cat audit.txt
+            echo '```'
+            echo ''
+            echo '</details>'
+            echo ''
+            echo "_Report-only: this check never blocks the PR. uv audit is a preview command._"
+          } > comment.md
+          # Update the existing sticky comment if present, else create one.
+          if gh pr view "$PR" --json comments \
+               --jq '.comments[].body' | grep -qF "$marker"; then
+            gh pr comment "$PR" --edit-last --body-file comment.md
+          else
+            gh pr comment "$PR" --body-file comment.md
+          fi
+
+  claude-security-scan:
+    name: Claude security review (AI semantic scan of PR diff)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+
+      # Same rationale as claude.yml: this repo's .claude/settings.json hooks
+      # call `uv run ...`, so the scan's claude invocation needs uv present.
+      - name: Install uv (official Astral action)
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.15"
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Run Claude security review
+        uses: anthropics/claude-code-security-review@0c6a49f1fa56a1d472575da86a94dbc1edb78eda # main @ 2026-06-17
+        with:
+          comment-pr: true
+          claude-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional knobs (left at defaults):
+          # claude-model: claude-opus-4-8
+          # exclude-directories: tests,docs
+          # claudecode-timeout: "20"
