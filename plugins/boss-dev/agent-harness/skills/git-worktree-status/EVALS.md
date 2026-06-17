@@ -1,6 +1,6 @@
 # PluginEval Report
 **Path:** `plugins/boss-dev/agent-harness/skills/git-worktree-status`
-**Timestamp:** 2026-06-17T14:32:29.036037+00:00
+**Timestamp:** 2026-06-17T18:53:32.969571+00:00
 **Depth:** standard
 ## Overall Score
 | Metric | Value |

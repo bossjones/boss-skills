@@ -1,6 +1,6 @@
 # PluginEval Report
 **Path:** `plugins/boss-dev/agent-harness/skills/worktree-doctor`
-**Timestamp:** 2026-06-17T14:32:34.161569+00:00
+**Timestamp:** 2026-06-17T18:54:19.663198+00:00
 **Depth:** standard
 ## Overall Score
 | Metric | Value |

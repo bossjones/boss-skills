@@ -1,6 +1,6 @@
 # PluginEval Report
 **Path:** `plugins/boss-dev/agent-harness/skills/git-worktree-remove`
-**Timestamp:** 2026-06-17T14:32:37.692628+00:00
+**Timestamp:** 2026-06-17T18:53:32.126397+00:00
 **Depth:** standard
 ## Overall Score
 | Metric | Value |
