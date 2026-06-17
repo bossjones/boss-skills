@@ -107,6 +107,7 @@ The skill parser executes backtick patterns inside fenced code blocks. Never use
 - Run with `uv run pytest -s` to see output
 - No trivial tests for obvious functionality
 - PEP 723 scripts are tested by loading them with `importlib.util.spec_from_file_location` (the `if __name__ == "__main__"` guard makes import side-effect-free)
+  - Exception: a stdlib-only PEP 723 script whose tests assert CLI exit codes, argparse flag behavior, or end-to-end severity counts may be invoked via subprocess (`sys.executable`), since `importlib` loading cannot exercise CLI semantics
 
 ## Agent skills
 
