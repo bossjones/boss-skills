@@ -12,7 +12,7 @@
 # this when skills genuinely improve.
 EVAL_THRESHOLD ?= 57
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel test-agent-harness ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill eval-llm-judge eval-monte-carlo changelog changelog-preview
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel test-agent-harness ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill eval-certify eval-llm-judge eval-monte-carlo changelog changelog-preview
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -200,6 +200,15 @@ eval-skill: ## Deep-dive one skill at standard depth (usage: make eval-skill SKI
 	@echo "🚀 Evaluating $(SKILL) at standard depth (uses Claude Code Max via claude-agent-sdk)"
 	@uvx --from "plugin-eval[llm] @ git+https://github.com/wshobson/agents.git#subdirectory=plugins/plugin-eval" \
 		plugin-eval score "$(SKILL)" --depth standard --output markdown
+
+.PHONY: eval-certify
+eval-certify: ## Full certification (deep, badge) for one skill (usage: make eval-certify SKILL=plugins/.../foo)
+	@if [ -z "$(SKILL)" ]; then \
+		echo "❌ Set SKILL=<path>, e.g. make eval-certify SKILL=plugins/boss-dev/agent-harness/skills/git-worktree"; \
+		exit 1; \
+	fi
+	@echo "🚀 Certifying $(SKILL) at deep depth (~15-20 min, uses Claude Code Max via claude-agent-sdk)"
+	@./scripts/eval-skills.py --command certify "$(SKILL)"
 
 .PHONY: eval-llm-judge
 eval-llm-judge: ## LLM-judge eval all skills, or one with SKILL=<path> (~30s + 4 LLM calls per skill)
