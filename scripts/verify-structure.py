@@ -149,17 +149,38 @@ def load_plugin_json_file(
     return None, errors
 
 
-# Valid hook event types from official docs
+# Valid hook event types — synced from https://code.claude.com/docs/en/hooks
 VALID_HOOK_EVENTS = {
-    "PreToolUse",
-    "PostToolUse",
-    "UserPromptSubmit",
-    "Notification",
-    "Stop",
-    "SubagentStop",
     "SessionStart",
-    "SessionEnd",
+    "Setup",
+    "UserPromptSubmit",
+    "UserPromptExpansion",
+    "PreToolUse",
+    "PermissionRequest",
+    "PermissionDenied",
+    "PostToolUse",
+    "PostToolUseFailure",
+    "PostToolBatch",
+    "Notification",
+    "MessageDisplay",
+    "SubagentStart",
+    "SubagentStop",
+    "TaskCreated",
+    "TaskCompleted",
+    "Stop",
+    "StopFailure",
+    "TeammateIdle",
+    "InstructionsLoaded",
+    "ConfigChange",
+    "CwdChanged",
+    "FileChanged",
+    "WorktreeCreate",
+    "WorktreeRemove",
     "PreCompact",
+    "PostCompact",
+    "Elicitation",
+    "ElicitationResult",
+    "SessionEnd",
 }
 
 # Valid hook types
@@ -696,7 +717,7 @@ def _validate_hooks_config(  # noqa: C901
                         if hook.get("type") == "command" and "command" in hook:
                             cmd: str = str(hook["command"])
                             if "${CLAUDE_PLUGIN_ROOT}" in cmd:
-                                match = re.search(r"\$\{CLAUDE_PLUGIN_ROOT\}/(\S+)", cmd)
+                                match = re.search(r"\$\{CLAUDE_PLUGIN_ROOT\}[\"']?/(\S+)", cmd)
                                 if not match:
                                     errors.append(
                                         f"{plugin_name}: Hook command contains ${{CLAUDE_PLUGIN_ROOT}} "
