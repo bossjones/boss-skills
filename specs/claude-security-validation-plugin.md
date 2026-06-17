@@ -105,7 +105,19 @@ green run.
 IMPORTANT: Execute every step in order, top to bottom.
 
 ### 1. Create the adapted validator script
-- Copy upstream logic into `scripts/validate-unicode-hygiene.py`.
+- **The upstream script is NOT vendored locally** (confirmed: no copy in any working
+  dir). Author `scripts/validate-unicode-hygiene.py` from this spec's behavioral
+  description, or fetch the upstream raw file from
+  `jeremylongshore/claude-code-plugins-plus-skills` (`scripts/validate-unicode-hygiene.py`)
+  via the network and adapt it. Do not assume a local source exists.
+- **Detection must be unicodedata-category-based, NOT "any non-ASCII".** The repo
+  legitimately contains em-dashes (U+2014), arrows (U+2192), emoji (U+1F534…), and
+  box-drawing (U+2500/2554…) across real SKILL.md / command files — these must NOT
+  be flagged. Key the invisibles scan on Unicode category `Cf` (format) for the
+  MAJOR "zero-width-or-format" class, plus the explicit BLOCKER sets (tag chars,
+  bidi controls); scope the homoglyph/mixed-script MINOR check to install-command
+  identifiers only. A current full-repo scan reports 0 BLOCKER / 0 MAJOR — keep it
+  that way.
 - Replace the shebang with the repo standard and add a PEP 723 block (stdlib
   only → empty deps):
   ```python
@@ -179,24 +191,36 @@ IMPORTANT: Execute every step in order, top to bottom.
   `Write`/`Edit`/`MultiEdit`, extract proposed content (`content` /
   `new_string` / each `edits[].new_string`) and scan for the two BLOCKER
   codepoint sets inline (`range(0xE0000,0xE0080)` tag chars; the bidi frozenset
-  `{0x202A..0x202E, 0x2066..0x2069}`). On a hit, return a deny decision
-  (`permissionDecision: "deny"` with a message naming the codepoint + offset).
-  Preserve all existing hook behavior; add, don't replace.
+  `{0x202A..0x202E, 0x2066..0x2069}`). On a hit, **deny using this hook's existing
+  convention**: `print("BLOCKED: <reason naming codepoint + offset>", file=sys.stderr)`
+  then `sys.exit(2)` — the hook blocks via exit codes (`0` = allow, `2` = deny with
+  a stderr message), NOT a JSON `permissionDecision` object. Mirror the existing
+  `.env` / dangerous-`rm` guards. Preserve all existing hook behavior (env guard,
+  rm guard, logging); add, don't replace.
 
 ### 7. Bump agent-harness version
 - New skill + command + hook = feature-bearing → minor bump in both
   `plugins/boss-dev/agent-harness/.claude-plugin/plugin.json` and the matching
-  `agent-harness` entry in `.claude-plugin/marketplace.json` (0.3.0 → 0.4.0).
-  (The repo's `version-bump-reviewer` skill enforces this parity.)
+  `agent-harness` entry in `.claude-plugin/marketplace.json` (**0.6.1 → 0.7.0** —
+  both files are currently at `0.6.1`, not the `0.3.0` this plan originally assumed).
+  (The repo's `version-bump-reviewer` skill enforces this parity and can perform the
+  bump.)
+- **Do NOT hand-edit `CHANGELOG.md`** — it is auto-generated from conventional commits
+  by git-cliff (`cliff.toml`, `make changelog`, `.github/workflows/release.yml` on a
+  `v*` tag). The only requirement is the commit subject must end with the version
+  anchor, e.g. `feat(agent-harness): add unicode-hygiene validator + gate (v0.7.0)`.
 
 ### 8. Wire CI
-- Add a step to `.github/workflows/ci.yml` after "Run linting":
+- In `.github/workflows/ci.yml` (job name `build`; matrix
+  `python-version: ["3.13", "3.14"]`), add a step after the existing
+  `- name: Run linting` / `run: uv run python devtools/lint.py` step:
   ```yaml
-  - name: Unicode hygiene gate
+  - name: Validate unicode hygiene
+    if: matrix.python-version == '3.13'
     run: uv run scripts/validate-unicode-hygiene.py
   ```
   Default mode blocks on BLOCKER only (matches upstream rollout posture; `--strict`
-  deferred). Optionally guard with `if: matrix.python-version == '3.13'` to run once.
+  deferred). The `if:` guard runs the gate once (matrix has no 3.12; only 3.13 + 3.14).
 
 ### 9. Wire pre-commit + protect fixtures
 - Add a `repo: local` hook to `.pre-commit-config.yaml`:
@@ -212,7 +236,9 @@ IMPORTANT: Execute every step in order, top to bottom.
   ```
 - Add `exclude: ^tests/fixtures/unicode-hygiene/` to the `trailing-whitespace`
   and `end-of-file-fixer` hooks so they cannot strip the trailing U+202C / mangle
-  byte-precise fixtures. (rumdl + lychee already exclude fixtures — confirmed.)
+  byte-precise fixtures. (These two hooks currently have NO `exclude` — this adds it.
+  There are no existing `repo: local` hooks to mirror; the block above is the first.
+  rumdl + lychee already exclude fixtures — confirmed.)
 
 ### 10. Validate end-to-end
 - Run the validation commands below; confirm all green and that the gate
@@ -265,3 +291,12 @@ IMPORTANT: Execute every step in order, top to bottom.
   back to the script as the canonical definition.
 - Rollout posture mirrors upstream: gate blocks on BLOCKER only; `--strict`
   (MAJOR-blocking) is available but not enabled by default.
+- `tests/fixtures/` does not exist yet — it is created fresh by this work.
+- IMPORTANT (ordering): the malicious fixtures must be created via the byte-precise
+  generator (`_generate.py`, run as a subprocess), NOT via the Write/Edit tool —
+  both for byte-precision and because once step 6 lands, the PreToolUse gate will
+  itself deny any Write/Edit carrying BLOCKER-class unicode.
+- The repo's other script tests (`tests/test_verify_structure.py`) load hyphen-named
+  scripts via the importlib `_load()` helper (`spec_from_file_location` +
+  `path.stem.replace("-","_")`). This plan deliberately uses subprocess instead,
+  because the assertions target CLI exit codes / severity counts / flag behavior.
