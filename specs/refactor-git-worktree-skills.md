@@ -221,3 +221,8 @@ Implications for these skills:
 - Possible future enhancement (out of scope unless requested): a `WorktreeCreate`/`WorktreeRemove` hook (https://code.claude.com/docs/en/hooks) so Claude's native `--worktree` flag also applies the repo-prefix convention.
 - For `.worktreeinclude` glob matching, prefer `pathspec` (gitignore-accurate) or stdlib `fnmatch` if avoiding a dependency; add via PEP 723 `dependencies` if used.
 - If unsure about any worktree behavior, naming, base ref, or `.worktreeinclude` semantics during implementation, re-read the doc URLs listed in **Context**.
+
+### As-built deviations from this plan
+
+- **`pathspec` added to `pyproject.toml` dev deps (deviates from "no pyproject change").** `git_worktree.py` uses `pathspec` (chosen over stdlib `fnmatch` for gitignore-accurate `.worktreeinclude` matching). The scripts declare it via PEP 723 for standalone `uv run`, but the **tests import the script module** and **basedpyright must resolve the import**, so `pathspec>=0.12.1` was added to the `[dependency-groups] dev` list. This is a test/type-check-time need (the `boss-skills` package itself never imports `pathspec`), so `dev` is the correct home rather than `[project] dependencies`.
+- **Version bumped `0.7.0` → `0.8.0`, not `0.6.1` → `0.7.0`.** `0.7.0` was already published by the unrelated `unicode-hygiene` work before this refactor began, so this minor bump (new skill + new feature-bearing scripts) targets `0.8.0` in both `plugin.json` and `marketplace.json`.

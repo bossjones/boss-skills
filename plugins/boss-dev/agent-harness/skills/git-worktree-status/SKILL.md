@@ -1,161 +1,56 @@
 ---
 name: git-worktree-status
-description: Check status of background verification tasks running in a git worktree. Use when you want a non-blocking report on the type-check, test, and build jobs launched by the git-worktree skill, run from inside a worktree directory.
+description: Report the status of background verification jobs (tests, type check, build) in a git worktree. Use when you want a non-blocking PASS/FAIL/RUNNING/NOT_RUN summary of the checks launched by the git-worktree skill, run from inside a worktree directory.
 effort: low
+allowed-tools:
+  - Bash(uv run:*)
+  - Bash(git rev-parse:*)
 disable-model-invocation: true
 ---
 
 # Git Worktree Status
 
-Check background verification tasks (type check, tests, build) launched by `/git-worktree`.
-
-**Core principle:** Non-blocking feedback on worktree health without interrupting development flow.
+Report background verification jobs launched by [`/git-worktree`](../git-worktree/SKILL.md),
+without blocking. A Python script detects the worktree, reads
+`.worktree-logs/*.log`, and classifies each job using language-neutral markers
+(works for pytest, vitest, tsc, basedpyright, cargo, go).
 
 **Part of the Worktree Lifecycle Suite:** [`/git-worktree`](../git-worktree/SKILL.md) | [`/git-worktree-remove`](../git-worktree-remove/SKILL.md) | [`/git-worktree-clean`](../git-worktree-clean/SKILL.md)
 
-## Process
+## Steps
 
-1. **Detect Current Worktree**: Verify we're inside a git worktree
-2. **Check Log Files**: Read `.worktree-logs/` for background task results
-3. **Parse Results**: Extract pass/fail counts, errors
-4. **Report Status**: Color-coded summary with actionable next steps
-
-## Worktree Detection
+Run from inside any worktree directory:
 
 ```bash
-# Check if inside a worktree (not main repo)
-git rev-parse --git-common-dir 2>/dev/null | grep -q "\.git/worktrees" || {
-  echo "Not inside a worktree. Use from a worktree directory."
-  exit 1
-}
-
-# Get worktree info
-WORKTREE_PATH=$(git rev-parse --show-toplevel)
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-MAIN_REPO=$(git rev-parse --git-common-dir | sed 's|/\.git/worktrees/.*||')
+uv run "${CLAUDE_SKILL_DIR}/scripts/git_worktree_status.py"
 ```
 
-## Background Task Checks
+The script:
 
-### Type Check Status
+- confirms the working directory is a worktree (errors out if run from the main
+  repo or outside git);
+- reads `.worktree-logs/typecheck.log`, `tests.log`, and `build.log`;
+- reports each as `PASS`, `FAIL`, `RUNNING`, or `NOT_RUN`.
 
-```bash
-LOG=".worktree-logs/typecheck.log"
+## Status meanings
 
-if [ -f "$LOG" ]; then
-  if grep -q "error TS" "$LOG"; then
-    ERROR_COUNT=$(grep -c "error TS" "$LOG")
-    echo "Type check: FAIL ($ERROR_COUNT errors)"
-    # Show first 5 errors
-    grep "error TS" "$LOG" | head -5
-  else
-    echo "Type check: PASS"
-  fi
-elif pgrep -f "tsc --noEmit" > /dev/null; then
-  echo "Type check: RUNNING..."
-else
-  echo "Type check: NOT RUN"
-fi
-```
+| Status    | Meaning                                                      |
+| --------- | ------------------------------------------------------------ |
+| `PASS`    | Log shows zero failures/errors or an explicit success marker |
+| `FAIL`    | Log shows failures, errors, a traceback, or a panic          |
+| `RUNNING` | Log exists but has no terminal marker yet                    |
+| `NOT_RUN` | No log file (the job was never started or logs were cleared) |
 
-### Test Status
+## Re-running checks
 
-```bash
-LOG=".worktree-logs/tests.log"
+The language-specific commands that write these logs live in the `git-worktree`
+references, not here. To re-run them, clear the logs and relaunch from the
+matching reference for your stack:
 
-if [ -f "$LOG" ]; then
-  if grep -q '"numFailedTests":0' "$LOG"; then
-    TOTAL=$(grep -o '"numTotalTests":[0-9]*' "$LOG" | cut -d: -f2)
-    echo "Tests: PASS ($TOTAL tests)"
-  else
-    FAILED=$(grep -o '"numFailedTests":[0-9]*' "$LOG" | cut -d: -f2)
-    echo "Tests: FAIL ($FAILED failures)"
-    # Show failed test names
-    grep '"fullName"' "$LOG" | head -5
-  fi
-elif pgrep -f "vitest run" > /dev/null; then
-  echo "Tests: RUNNING..."
-else
-  echo "Tests: NOT RUN"
-fi
-```
-
-### Build Status
-
-```bash
-LOG=".worktree-logs/build.log"
-
-if [ -f "$LOG" ]; then
-  if grep -qiE "error|build failed|FAILED" "$LOG"; then
-    echo "Build: FAIL"
-    tail -10 "$LOG"
-  else
-    echo "Build: PASS"
-  fi
-elif pgrep -f "cargo build\|next build\|go build" > /dev/null; then
-  echo "Build: RUNNING..."
-else
-  echo "Build: NOT RUN"
-fi
-```
-
-## Report Format
-
-```
-Worktree Status: .worktrees/feat/auth
-Branch: feat/auth (from main, 3 commits ahead)
-
-Checks:
-  Type check:  PASS
-  Tests:       PASS (142 tests)
-  Build:       NOT RUN
-
-Dependencies: symlinked from main
-Disk usage: 2.3 MB (excl. node_modules)
-
-Log files: .worktree-logs/
-```
-
-**If failures detected:**
-
-```
-Worktree Status: .worktrees/feat/auth
-Branch: feat/auth (from main, 3 commits ahead)
-
-Checks:
-  Type check:  FAIL (3 errors)
-    src/auth.ts:42 - error TS2345: Argument of type 'string' is not assignable
-    src/auth.ts:67 - error TS2304: Cannot find name 'AuthConfig'
-    src/middleware.ts:12 - error TS7006: Parameter 'req' implicitly has an 'any' type
-  Tests:       FAIL (2 failures)
-    auth.test.ts > should validate token
-    auth.test.ts > should reject expired token
-  Build:       NOT RUN
-
-Action: Fix type errors before proceeding. Run `npx tsc --noEmit` for full output.
-```
-
-## Log Management
-
-```bash
-# Clean old logs (useful for re-running checks)
-rm -rf .worktree-logs/*.log
-
-# Re-run all checks
-npx tsc --noEmit > .worktree-logs/typecheck.log 2>&1 &
-npx vitest run --reporter=json > .worktree-logs/tests.log 2>&1 &
-```
-
-## Quick Reference
-
-| Situation | Output |
-|-----------|--------|
-| All checks pass | Green status, ready to work |
-| Checks still running | "RUNNING..." with PID |
-| Type errors found | Error count + first 5 errors |
-| Test failures | Failure count + failed test names |
-| No logs found | "NOT RUN" (use `--fast` or logs deleted) |
-| Not in worktree | Error message with instructions |
+- Python: [../git-worktree/references/setup-python.md](../git-worktree/references/setup-python.md)
+- Node.js: [../git-worktree/references/setup-node.md](../git-worktree/references/setup-node.md)
+- Rust: [../git-worktree/references/setup-rust.md](../git-worktree/references/setup-rust.md)
+- Go: [../git-worktree/references/setup-go.md](../git-worktree/references/setup-go.md)
 
 ## Usage
 
@@ -163,4 +58,4 @@ npx vitest run --reporter=json > .worktree-logs/tests.log 2>&1 &
 /git-worktree-status
 ```
 
-No arguments needed. Run from inside any worktree directory.
+No arguments. Run from inside a worktree directory.

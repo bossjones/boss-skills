@@ -38,6 +38,10 @@ dev = [
     "pytest-timeout>=2.4.0",
     "monkeytype>=23.3.0",
     "ty>=0.0.8",
+    # Used by the git-worktree skill scripts for gitignore-accurate
+    # .worktreeinclude matching; here so tests + basedpyright can import it
+    # (the scripts themselves declare it via PEP 723 for standalone `uv run`).
+    "pathspec>=0.12.1",
 ]
 
 [tool.pytest.ini_options]
