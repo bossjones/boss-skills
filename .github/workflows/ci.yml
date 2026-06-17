@@ -60,6 +60,13 @@ jobs:
       - name: Run linting
         run: uv run python devtools/lint.py
 
+      - name: Validate unicode hygiene
+        # Block on BLOCKER-class unicode (tag chars, bidi overrides) in
+        # skill/plugin/command/agent/marketplace files. Deterministic, no secrets.
+        # Run once.
+        if: matrix.python-version == '3.13'
+        run: uv run scripts/validate-unicode-hygiene.py
+
       - name: Evaluate skill quality
         # Static depth only: deterministic, no LLM, no secrets. Run once.
         if: matrix.python-version == '3.13'

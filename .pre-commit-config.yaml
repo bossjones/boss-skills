@@ -15,7 +15,11 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        # Byte-precise unicode-hygiene fixtures must not be whitespace-normalised
+        # (e.g. stripping a trailing U+202C), or the test suite breaks.
+        exclude: ^tests/fixtures/unicode-hygiene/
       - id: end-of-file-fixer
+        exclude: ^tests/fixtures/unicode-hygiene/
       - id: check-yaml
       - id: check-added-large-files
       - id: check-shebang-scripts-are-executable
@@ -40,3 +44,12 @@ repos:
     hooks:
       - id: renovate-config-validator
         args: [--strict]
+
+  - repo: local
+    hooks:
+      - id: validate-unicode-hygiene
+        name: Unicode hygiene gate
+        entry: uv run scripts/validate-unicode-hygiene.py
+        language: system
+        pass_filenames: true
+        files: ^(plugins/.+/(SKILL\.md|agents/.+\.md|commands/.+\.md)|plugins/.+/\.claude-plugin/plugin\.json|\.claude-plugin/marketplace\.json|\.claude/skills/.+/SKILL\.md|\.claude/commands/.+\.md)$
