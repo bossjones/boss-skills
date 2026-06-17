@@ -292,6 +292,28 @@ class TestHooks:
         }
         assert vs.check_hooks_configuration(d, {"hooks": cfg}) == []
 
+    def test_command_quoted_shell_form_ok(self, tmp_path: Path) -> None:
+        # Documented shell form: closing quote sits between } and / —
+        # e.g. uv run "${CLAUDE_PLUGIN_ROOT}"/hooks/x.py
+        d = _plugin(tmp_path, "p", manifest={"name": "p"})
+        (d / "hooks").mkdir()
+        (d / "hooks" / "x.py").write_text("#!/usr/bin/env python\n")
+        cfg = {
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": 'uv run "${CLAUDE_PLUGIN_ROOT}"/hooks/x.py --flag',
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        assert vs.check_hooks_configuration(d, {"hooks": cfg}) == []
+
 
 # --------------------------------------------------------------------------- #
 # mcp / custom paths

@@ -49,6 +49,7 @@
             "Bash(uv run pytest:*)",
             "Bash(uv run:*)",
             "Bash(uv:*)",
+            "Bash(uvx:*)",
             "Bash(wc:*)",
             "Bash(xargs:*)",
             "Edit",
