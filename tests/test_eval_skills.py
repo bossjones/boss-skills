@@ -43,8 +43,12 @@ def _ns(**kw: object) -> argparse.Namespace:
     base: dict[str, object] = {
         "command": "score",
         "layer": "static",
+        "depth": None,
+        "concurrency": None,
+        "auth": None,
         "threshold": None,
         "skill": None,
+        "output": "table",
         "corpus_dir": None,
         "targets": [],
     }
@@ -89,6 +93,54 @@ class TestLayerToDepth:
 
 
 # --------------------------------------------------------------------------- #
+# llm_flags
+# --------------------------------------------------------------------------- #
+class TestLlmFlags:
+    def test_empty_when_unset(self) -> None:
+        assert es.llm_flags(_ns()) == []
+
+    def test_concurrency_only(self) -> None:
+        assert es.llm_flags(_ns(concurrency=8)) == ["--concurrency", "8"]
+
+    def test_auth_only(self) -> None:
+        assert es.llm_flags(_ns(auth="api-key")) == ["--auth", "api-key"]
+
+    def test_both(self) -> None:
+        assert es.llm_flags(_ns(concurrency=8, auth="api-key")) == [
+            "--concurrency",
+            "8",
+            "--auth",
+            "api-key",
+        ]
+
+
+# --------------------------------------------------------------------------- #
+# child_env — dedicated key maps to ANTHROPIC_API_KEY for the child ONLY
+# --------------------------------------------------------------------------- #
+class TestChildEnv:
+    def test_dedicated_key_maps_to_anthropic_api_key(self, mocker: MockerFixture) -> None:
+        mocker.patch.dict(es.os.environ, {es.EVAL_API_KEY_VAR: "sk-dedicated"}, clear=True)
+        env = es.child_env()
+        assert env["ANTHROPIC_API_KEY"] == "sk-dedicated"
+
+    def test_parent_environ_is_not_mutated(self, mocker: MockerFixture) -> None:
+        # The real os.environ must never gain ANTHROPIC_API_KEY (would affect Claude Code).
+        mocker.patch.dict(es.os.environ, {es.EVAL_API_KEY_VAR: "sk-dedicated"}, clear=True)
+        es.child_env()
+        assert "ANTHROPIC_API_KEY" not in es.os.environ
+
+    def test_no_dedicated_key_leaves_env_untouched(self, mocker: MockerFixture) -> None:
+        mocker.patch.dict(es.os.environ, {"FOO": "bar"}, clear=True)
+        env = es.child_env()
+        assert "ANTHROPIC_API_KEY" not in env
+        assert env["FOO"] == "bar"
+
+    def test_empty_dedicated_key_is_ignored(self, mocker: MockerFixture) -> None:
+        mocker.patch.dict(es.os.environ, {es.EVAL_API_KEY_VAR: ""}, clear=True)
+        assert "ANTHROPIC_API_KEY" not in es.child_env()
+
+
+# --------------------------------------------------------------------------- #
 # SkillResult.rel
 # --------------------------------------------------------------------------- #
 class TestSkillResultRel:
@@ -125,9 +177,7 @@ class TestDiscoverSkills:
             tmp_path / "b" / "skills" / "two",
         ]
 
-    def test_parent_is_the_directory_holding_skill_md(
-        self, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
+    def test_parent_is_the_directory_holding_skill_md(self, mocker: MockerFixture, tmp_path: Path) -> None:
         mocker.patch.object(es, "PLUGINS_DIR", tmp_path)
         nested = tmp_path / "p" / "skills" / "deep"
         nested.mkdir(parents=True)
@@ -139,9 +189,7 @@ class TestDiscoverSkills:
 # score_skill
 # --------------------------------------------------------------------------- #
 class TestScoreSkill:
-    def test_happy_path_parses_composite_and_sums_anti_patterns(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_happy_path_parses_composite_and_sums_anti_patterns(self, mocker: MockerFixture) -> None:
         payload = {
             "composite": {"score": 73.7, "badge": "silver"},
             "layers": [
@@ -150,17 +198,13 @@ class TestScoreSkill:
                 {},
             ],
         }
-        mocker.patch.object(
-            es.subprocess, "run", return_value=_proc(mocker, 0, json.dumps(payload))
-        )
-        r = es.score_skill(Path("/s"), GIT, "quick")
+        mocker.patch.object(es.subprocess, "run", return_value=_proc(mocker, 0, json.dumps(payload)))
+        r = es.score_skill(Path("/s"), GIT, "quick", [])
         assert (r.score, r.badge, r.anti_patterns, r.error) == (73.7, "silver", 3, None)
 
-    def test_missing_composite_yields_none_score_and_dash_badge(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_missing_composite_yields_none_score_and_dash_badge(self, mocker: MockerFixture) -> None:
         mocker.patch.object(es.subprocess, "run", return_value=_proc(mocker, 0, "{}"))
-        r = es.score_skill(Path("/s"), GIT, "quick")
+        r = es.score_skill(Path("/s"), GIT, "quick", [])
         assert r.score is None
         assert r.badge == "-"
         assert r.error is None
@@ -168,37 +212,29 @@ class TestScoreSkill:
     def test_falsy_badge_falls_back_to_dash(self, mocker: MockerFixture) -> None:
         body = json.dumps({"composite": {"score": 1.0, "badge": ""}})
         mocker.patch.object(es.subprocess, "run", return_value=_proc(mocker, 0, body))
-        assert es.score_skill(Path("/s"), GIT, "quick").badge == "-"
+        assert es.score_skill(Path("/s"), GIT, "quick", []).badge == "-"
 
-    def test_failure_with_empty_stdout_uses_last_stderr_line(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_failure_with_empty_stdout_uses_last_stderr_line(self, mocker: MockerFixture) -> None:
         mocker.patch.object(
             es.subprocess,
             "run",
             return_value=_proc(mocker, 1, "", "warn\nfatal: boom"),
         )
-        r = es.score_skill(Path("/s"), GIT, "quick")
+        r = es.score_skill(Path("/s"), GIT, "quick", [])
         assert r.score is None
         assert r.error == "fatal: boom"
 
-    def test_failure_with_no_output_uses_generic_message(
-        self, mocker: MockerFixture
-    ) -> None:
+    def test_failure_with_no_output_uses_generic_message(self, mocker: MockerFixture) -> None:
         mocker.patch.object(es.subprocess, "run", return_value=_proc(mocker, 1, "", ""))
-        assert es.score_skill(Path("/s"), GIT, "quick").error == "plugin-eval failed"
+        assert es.score_skill(Path("/s"), GIT, "quick", []).error == "plugin-eval failed"
 
     def test_unparsable_json_is_reported(self, mocker: MockerFixture) -> None:
-        mocker.patch.object(
-            es.subprocess, "run", return_value=_proc(mocker, 0, "not json")
-        )
-        assert es.score_skill(Path("/s"), GIT, "quick").error == "unparsable plugin-eval output"
+        mocker.patch.object(es.subprocess, "run", return_value=_proc(mocker, 0, "not json"))
+        assert es.score_skill(Path("/s"), GIT, "quick", []).error == "unparsable plugin-eval output"
 
     def test_command_vector_and_subprocess_kwargs(self, mocker: MockerFixture) -> None:
-        run = mocker.patch.object(
-            es.subprocess, "run", return_value=_proc(mocker, 0, "{}")
-        )
-        es.score_skill(Path("/skills/foo"), "SRC", "deep")
+        run = mocker.patch.object(es.subprocess, "run", return_value=_proc(mocker, 0, "{}"))
+        es.score_skill(Path("/skills/foo"), "SRC", "deep", ["--concurrency", "8"])
         cmd, kwargs = run.call_args[0][0], run.call_args[1]
         assert cmd == [
             "uvx",
@@ -211,8 +247,14 @@ class TestScoreSkill:
             "deep",
             "--output",
             "json",
+            "--concurrency",
+            "8",
         ]
-        assert kwargs == {"capture_output": True, "text": True, "check": False}
+        # env is the child_env() copy; assert the static kwargs plus an env mapping.
+        assert kwargs["capture_output"] is True
+        assert kwargs["text"] is True
+        assert kwargs["check"] is False
+        assert isinstance(kwargs["env"], dict)
 
 
 # --------------------------------------------------------------------------- #
@@ -228,7 +270,8 @@ class TestRunPassthrough:
         run = mocker.patch.object(es.subprocess, "run", return_value=_proc(mocker, 0))
         es.run_passthrough(["uvx", "y"])
         assert run.call_args[0][0] == ["uvx", "y"]
-        assert run.call_args[1] == {"check": False}
+        assert run.call_args[1]["check"] is False
+        assert isinstance(run.call_args[1]["env"], dict)
 
 
 # --------------------------------------------------------------------------- #
@@ -241,9 +284,7 @@ class TestPrintTable:
         assert out[0].startswith("SKILL")
         assert set(out[1]) == {"-"}
 
-    def test_ok_row_formatting(
-        self, mocker: MockerFixture, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_ok_row_formatting(self, mocker: MockerFixture, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         mocker.patch.object(es, "REPO_ROOT", tmp_path)
         r = es.SkillResult(tmp_path / "plugins" / "foo", 66.5, "bronze", 2, None)
         es.print_table([r])
@@ -281,9 +322,7 @@ class TestPrintTable:
 # run_score
 # --------------------------------------------------------------------------- #
 class TestRunScore:
-    def test_no_skills_discovered_exits_2(
-        self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_no_skills_discovered_exits_2(self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]) -> None:
         mocker.patch.object(es, "discover_skills", return_value=[])
         assert es.run_score(_ns(), GIT, "quick") == 2
         assert "No skills found" in capsys.readouterr().err
@@ -296,69 +335,93 @@ class TestRunScore:
         assert rc == 2
         assert str(tmp_path / "nope") in capsys.readouterr().err
 
-    def test_single_skill_scored_and_tabled(
-        self, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
+    def test_single_skill_scored_and_tabled(self, mocker: MockerFixture, tmp_path: Path) -> None:
         mocker.patch.object(es, "REPO_ROOT", tmp_path)
         skill = tmp_path / "plugins" / "x"
         skill.mkdir(parents=True)
         (skill / "SKILL.md").write_text("x")
-        score = mocker.patch.object(
-            es, "score_skill", return_value=es.SkillResult(skill, 90.0, "platinum", 0, None)
-        )
+        score = mocker.patch.object(es, "score_skill", return_value=es.SkillResult(skill, 90.0, "platinum", 0, None))
         table = mocker.patch.object(es, "print_table")
         assert es.run_score(_ns(skill=Path("plugins/x")), "SRC", "standard") == 0
-        score.assert_called_once_with(skill.resolve(), "SRC", "standard")
+        score.assert_called_once_with(skill.resolve(), "SRC", "standard", [])
         table.assert_called_once()
 
-    def test_no_threshold_no_pass_message(
-        self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_no_threshold_no_pass_message(self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]) -> None:
         mocker.patch.object(es, "discover_skills", return_value=[Path("/a")])
-        mocker.patch.object(
-            es, "score_skill", return_value=es.SkillResult(Path("/a"), 50.0, "-", 0, None)
-        )
+        mocker.patch.object(es, "score_skill", return_value=es.SkillResult(Path("/a"), 50.0, "-", 0, None))
         mocker.patch.object(es, "print_table")
         assert es.run_score(_ns(), GIT, "quick") == 0
         assert "PASS" not in capsys.readouterr().out
 
-    def test_threshold_all_pass(
-        self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_threshold_all_pass(self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]) -> None:
         mocker.patch.object(es, "discover_skills", return_value=[Path("/a")])
-        mocker.patch.object(
-            es, "score_skill", return_value=es.SkillResult(Path("/a"), 80.0, "g", 0, None)
-        )
+        mocker.patch.object(es, "score_skill", return_value=es.SkillResult(Path("/a"), 80.0, "g", 0, None))
         mocker.patch.object(es, "print_table")
         assert es.run_score(_ns(threshold=57.0), GIT, "quick") == 0
         assert "PASS: all skills >= threshold 57.0." in capsys.readouterr().out
 
-    def test_threshold_below_fails_exit_1(
-        self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_threshold_below_fails_exit_1(self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]) -> None:
         mocker.patch.object(es, "discover_skills", return_value=[Path("/a")])
-        mocker.patch.object(
-            es, "score_skill", return_value=es.SkillResult(Path("/a"), 10.0, "-", 0, None)
-        )
+        mocker.patch.object(es, "score_skill", return_value=es.SkillResult(Path("/a"), 10.0, "-", 0, None))
         mocker.patch.object(es, "print_table")
         assert es.run_score(_ns(threshold=57.0), GIT, "quick") == 1
         assert "FAIL" in capsys.readouterr().err
 
     def test_errored_skill_counts_as_failure(self, mocker: MockerFixture) -> None:
         mocker.patch.object(es, "discover_skills", return_value=[Path("/a")])
-        mocker.patch.object(
-            es, "score_skill", return_value=es.SkillResult(Path("/a"), None, "-", 0, "boom")
-        )
+        mocker.patch.object(es, "score_skill", return_value=es.SkillResult(Path("/a"), None, "-", 0, "boom"))
         mocker.patch.object(es, "print_table")
         assert es.run_score(_ns(threshold=57.0), GIT, "quick") == 1
 
     def test_none_score_without_error_is_not_a_failure(self, mocker: MockerFixture) -> None:
         mocker.patch.object(es, "discover_skills", return_value=[Path("/a")])
-        mocker.patch.object(
-            es, "score_skill", return_value=es.SkillResult(Path("/a"), None, "-", 0, None)
-        )
+        mocker.patch.object(es, "score_skill", return_value=es.SkillResult(Path("/a"), None, "-", 0, None))
         mocker.patch.object(es, "print_table")
         assert es.run_score(_ns(threshold=57.0), GIT, "quick") == 0
+
+
+# --------------------------------------------------------------------------- #
+# run_report — single-skill native-format streaming (backs `make eval-skill`)
+# --------------------------------------------------------------------------- #
+class TestRunReport:
+    def test_requires_a_skill(self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str]) -> None:
+        rp = mocker.patch.object(es, "run_passthrough")
+        assert es.run_report(_ns(output="markdown"), "SRC", "standard") == 2
+        assert "requires a single --skill" in capsys.readouterr().err
+        rp.assert_not_called()
+
+    def test_missing_skill_md_exits_2(
+        self, mocker: MockerFixture, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        mocker.patch.object(es, "REPO_ROOT", tmp_path)
+        rc = es.run_report(_ns(skill=Path("nope"), output="markdown"), "SRC", "standard")
+        assert rc == 2
+        assert str(tmp_path / "nope") in capsys.readouterr().err
+
+    def test_builds_command_with_output_and_flags(self, mocker: MockerFixture, tmp_path: Path) -> None:
+        mocker.patch.object(es, "REPO_ROOT", tmp_path)
+        skill = tmp_path / "plugins" / "x"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("x")
+        rp = mocker.patch.object(es, "run_passthrough", return_value=0)
+        args = _ns(skill=Path("plugins/x"), output="markdown", concurrency=8, auth="api-key")
+        es.run_report(args, "SRC", "deep")
+        assert rp.call_args[0][0] == [
+            "uvx",
+            "--from",
+            "SRC",
+            "plugin-eval",
+            "score",
+            str(skill.resolve()),
+            "--depth",
+            "deep",
+            "--output",
+            "markdown",
+            "--concurrency",
+            "8",
+            "--auth",
+            "api-key",
+        ]
 
 
 # --------------------------------------------------------------------------- #
@@ -387,9 +450,7 @@ class TestRunCertify:
         assert "certify requires exactly one" in capsys.readouterr().err
         rp.assert_not_called()
 
-    def test_builds_command_and_returns_passthrough_code(
-        self, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
+    def test_builds_command_and_returns_passthrough_code(self, mocker: MockerFixture, tmp_path: Path) -> None:
         mocker.patch.object(es, "REPO_ROOT", tmp_path)
         rp = mocker.patch.object(es, "run_passthrough", return_value=9)
         rc = es.run_certify(_ns(targets=[Path("plugins/x")]), "SRC")
@@ -422,9 +483,7 @@ class TestRunCompare:
         assert "compare requires exactly two" in capsys.readouterr().err
         rp.assert_not_called()
 
-    def test_builds_command_with_both_targets_and_depth(
-        self, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
+    def test_builds_command_with_both_targets_and_depth(self, mocker: MockerFixture, tmp_path: Path) -> None:
         mocker.patch.object(es, "REPO_ROOT", tmp_path)
         rp = mocker.patch.object(es, "run_passthrough", return_value=3)
         rc = es.run_compare(_ns(targets=[Path("/a"), Path("plugins/b")]), "SRC", "deep")
@@ -454,9 +513,7 @@ class TestRunInit:
         assert "init requires exactly one" in capsys.readouterr().err
         rp.assert_not_called()
 
-    def test_builds_command_without_corpus_dir(
-        self, mocker: MockerFixture, tmp_path: Path
-    ) -> None:
+    def test_builds_command_without_corpus_dir(self, mocker: MockerFixture, tmp_path: Path) -> None:
         mocker.patch.object(es, "REPO_ROOT", tmp_path)
         rp = mocker.patch.object(es, "run_passthrough", return_value=0)
         es.run_init(_ns(targets=[Path("/plugins")]), "SRC")
@@ -523,5 +580,33 @@ class TestMain:
 
     def test_invalid_layer_is_rejected(self, mocker: MockerFixture) -> None:
         self._argv(mocker, "--layer", "bogus")
+        with pytest.raises(SystemExit):
+            es.main()
+
+    def test_explicit_depth_overrides_layer_alias(self, mocker: MockerFixture) -> None:
+        self._argv(mocker, "--layer", "static", "--depth", "deep")
+        rs = mocker.patch.object(es, "run_score", return_value=0)
+        es.main()
+        assert rs.call_args[0][2] == "deep"
+
+    def test_output_markdown_dispatches_run_report(self, mocker: MockerFixture) -> None:
+        self._argv(mocker, "--skill", "x", "--output", "markdown")
+        rr = mocker.patch.object(es, "run_report", return_value=0)
+        rs = mocker.patch.object(es, "run_score", return_value=0)
+        es.main()
+        rr.assert_called_once()
+        rs.assert_not_called()
+
+    def test_default_output_table_dispatches_run_score(self, mocker: MockerFixture) -> None:
+        self._argv(mocker, "--skill", "x")
+        rr = mocker.patch.object(es, "run_report", return_value=0)
+        rs = mocker.patch.object(es, "run_score", return_value=0)
+        es.main()
+        rs.assert_called_once()
+        rr.assert_not_called()
+
+    @pytest.mark.parametrize("bad", ["0", "21", "-1"])
+    def test_concurrency_out_of_range_is_rejected(self, mocker: MockerFixture, bad: str) -> None:
+        self._argv(mocker, "--concurrency", bad)
         with pytest.raises(SystemExit):
             es.main()

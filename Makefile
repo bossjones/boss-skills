@@ -206,8 +206,9 @@ eval-skill: ## Deep-dive one skill (usage: make eval-skill SKILL=plugins/.../foo
 		exit 1; \
 	fi
 	@echo "🚀 Evaluating $(SKILL) at $(DEPTH) depth (concurrency=$(CONCURRENCY), auth=$(AUTH))"
-	@uvx --from "plugin-eval[llm] @ git+https://github.com/wshobson/agents.git#subdirectory=plugins/plugin-eval" \
-		plugin-eval score "$(SKILL)" --depth $(DEPTH) --concurrency $(CONCURRENCY) --auth $(AUTH) --output markdown
+	@# Routed through eval-skills.py (not uvx directly) so --auth api-key reads the
+	@# dedicated BOSS_SKILL_ANTHROPIC_API_KEY from .env without touching Claude Code's auth.
+	@./scripts/eval-skills.py --skill "$(SKILL)" --depth $(DEPTH) --concurrency $(CONCURRENCY) --auth $(AUTH) --output markdown
 
 .PHONY: eval-certify
 eval-certify: ## Full certification (deep, badge) for one skill (usage: make eval-certify SKILL=plugins/.../foo [CONCURRENCY=8] [AUTH=api-key])

@@ -44,7 +44,7 @@ knobs (`--concurrency`, `--auth`), confirmed via `plugin-eval … --help`:
 |------|------------------|-------|
 | `--depth` | `quick`\|`standard`\|`deep`\|`thorough` (`standard`) | Layer selection (see table above). `certify` is always `deep` and ignores it. |
 | `--concurrency` | int `1`–`20` (`4`) | Max parallel LLM calls within one score. |
-| `--auth` | `max`\|`api-key` (`max`) | `max` = Claude Code Max via `claude-agent-sdk`; `api-key` = `ANTHROPIC_API_KEY` via the `anthropic` SDK. |
+| `--auth` | `max`\|`api-key` (`max`) | `max` = Claude Code Max via `claude-agent-sdk`; `api-key` = the `anthropic` SDK. This repo's wrapper sources the key from `BOSS_SKILL_ANTHROPIC_API_KEY` in `.env` and maps it to `ANTHROPIC_API_KEY` for the plugin-eval subprocess only (so Claude Code's own auth is never touched). |
 | `--output` | `json`\|`markdown`\|`html` (`markdown`) | This repo uses `json` for the score table, `markdown` for reports. |
 | `--verbose` / `-v` | flag | Verbose plugin-eval output. |
 | `--threshold` | float | Exit code 1 if the composite is below it. |
@@ -52,7 +52,9 @@ knobs (`--concurrency`, `--auth`), confirmed via `plugin-eval … --help`:
 **When the judge silently no-ops:** a report whose Model Usage reads "No model usage
 (static-only evaluation)" with a flat `0.500` judge layer means the `--auth max` backend
 wasn't reachable (no Claude Code Max / `claude-agent-sdk` session). Re-run with
-`--auth api-key` and `ANTHROPIC_API_KEY` set so the judge dimensions actually score.
+`--auth api-key` after putting a key in `.env` as `BOSS_SKILL_ANTHROPIC_API_KEY` — the
+wrapper injects it as `ANTHROPIC_API_KEY` into the eval subprocess so the judge dimensions
+actually score, without exporting the key to your shell or Claude Code.
 
 ## The three layers
 

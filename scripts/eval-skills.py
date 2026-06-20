@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script --quiet
 # /// script
 # requires-python = ">=3.13"
-# dependencies = []
+# dependencies = ["python-dotenv"]
 # ///
 """Quality-gate boss-skills skills with plugin-eval.
 
@@ -28,6 +28,13 @@ judge backend — ``max`` needs Claude Code Max via ``claude-agent-sdk``, while
 ``api-key`` uses ``ANTHROPIC_API_KEY`` with the ``anthropic`` SDK. Both forward
 to ``score``, ``certify``, and ``compare``.
 
+Auth key isolation: under ``--auth api-key`` the judge needs ``ANTHROPIC_API_KEY``,
+but exporting that globally would also redirect Claude Code itself onto metered
+API billing. So this wrapper reads a dedicated ``BOSS_SKILL_ANTHROPIC_API_KEY``
+(from ``.env`` via python-dotenv) and maps it to ``ANTHROPIC_API_KEY`` only inside
+the plugin-eval subprocess (see ``child_env``) — the parent environment is never
+mutated, leaving Claude Code's own auth untouched.
+
 Usage:
     scripts/eval-skills.py                              # report all skills, never fails
     scripts/eval-skills.py --threshold 60               # fail if any skill < 60
@@ -35,6 +42,7 @@ Usage:
     scripts/eval-skills.py --skill plugins/.../foo --layer llm-judge
     scripts/eval-skills.py --skill plugins/.../foo --depth deep --concurrency 8
     scripts/eval-skills.py --skill plugins/.../foo --auth api-key
+    scripts/eval-skills.py --skill plugins/.../foo --output markdown   # stream the report
     scripts/eval-skills.py --command certify plugins/.../foo --concurrency 8
     scripts/eval-skills.py --command compare plugins/.../a plugins/.../b
     scripts/eval-skills.py --command init plugins/
@@ -53,10 +61,22 @@ import subprocess
 import sys
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()  # populate os.environ from .env for THIS process only
+except ImportError:  # dotenv is optional — fall back to the ambient environment
+    pass
+
 # Default: always-latest from the upstream marketplace repo, no vendoring.
 DEFAULT_SOURCE = "git+https://github.com/wshobson/agents.git#subdirectory=plugins/plugin-eval"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGINS_DIR = REPO_ROOT / "plugins"
+
+# Dedicated key for plugin-eval's --auth api-key path. Kept under its own name (not
+# ANTHROPIC_API_KEY) so it never reaches Claude Code; child_env() maps it into
+# ANTHROPIC_API_KEY for the plugin-eval subprocess only.
+EVAL_API_KEY_VAR = "BOSS_SKILL_ANTHROPIC_API_KEY"
 
 # Friendly --layer alias -> plugin-eval --depth.
 LAYER_TO_DEPTH = {
@@ -83,6 +103,20 @@ def llm_flags(args: argparse.Namespace) -> list[str]:
     if args.auth is not None:
         flags += ["--auth", args.auth]
     return flags
+
+
+def child_env() -> dict[str, str]:
+    """Env for plugin-eval subprocesses, with the dedicated key mapped to ANTHROPIC_API_KEY.
+
+    Returns a copy of os.environ so the parent (Claude Code) environment is never mutated.
+    When BOSS_SKILL_ANTHROPIC_API_KEY is set, it becomes ANTHROPIC_API_KEY for the child —
+    letting --auth api-key authenticate without ANTHROPIC_API_KEY ever leaking to the shell.
+    """
+    env = dict(os.environ)
+    dedicated = env.get(EVAL_API_KEY_VAR)
+    if dedicated:
+        env["ANTHROPIC_API_KEY"] = dedicated
+    return env
 
 
 def resolve_source(base: str, needs_llm: bool) -> str:
@@ -140,7 +174,7 @@ def score_skill(skill_dir: Path, source: str, depth: str, extra: list[str]) -> S
         "json",
         *extra,
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)  # noqa: S603
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=False, env=child_env())  # noqa: S603
     if proc.returncode != 0 and not proc.stdout.strip():
         detail = proc.stderr.strip().splitlines()
         return SkillResult(skill_dir, None, "-", 0, detail[-1] if detail else "plugin-eval failed")
@@ -158,7 +192,7 @@ def score_skill(skill_dir: Path, source: str, depth: str, extra: list[str]) -> S
 
 def run_passthrough(cmd: list[str]) -> int:
     """Run plugin-eval inheriting stdout/stderr; return its exit code."""
-    return subprocess.run(cmd, check=False).returncode  # noqa: S603
+    return subprocess.run(cmd, check=False, env=child_env()).returncode  # noqa: S603
 
 
 def print_table(results: list[SkillResult]) -> None:
@@ -173,6 +207,37 @@ def print_table(results: list[SkillResult]) -> None:
             continue
         score_txt = f"{r.score:.1f}" if r.score is not None else "-"
         print(f"{r.rel:<{width}}  {score_txt:>6}  {r.badge:<9}  {r.anti_patterns:>4}  ok")
+
+
+def run_report(args: argparse.Namespace, source: str, depth: str) -> int:
+    """Stream plugin-eval's native report for one skill in the requested --output format.
+
+    Backs `make eval-skill`: routing it through this script (instead of a direct `uvx`
+    call) means the dedicated-key mapping in child_env() applies to review-mode runs too.
+    """
+    if args.skill is None:
+        print(f"error: --output {args.output} requires a single --skill.", file=sys.stderr)
+        return 2
+    skill_dir = args.skill if args.skill.is_absolute() else REPO_ROOT / args.skill
+    if not (skill_dir / "SKILL.md").is_file():
+        print(f"error: no SKILL.md in {skill_dir}", file=sys.stderr)
+        return 2
+    cmd = [
+        "uvx",
+        "--from",
+        source,
+        "plugin-eval",
+        "score",
+        str(skill_dir.resolve()),
+        "--depth",
+        depth,
+        "--output",
+        args.output,
+        *llm_flags(args),
+    ]
+    if args.threshold is not None:
+        cmd += ["--threshold", str(args.threshold)]
+    return run_passthrough(cmd)
 
 
 def run_score(args: argparse.Namespace, source: str, depth: str) -> int:
@@ -332,6 +397,13 @@ def main() -> int:
         help="Evaluate a single skill directory instead of discovering all (score only).",
     )
     parser.add_argument(
+        "--output",
+        choices=["table", "markdown", "json", "html"],
+        default="table",
+        help="score output: table (default, score gate over all/one skill) or stream "
+        "plugin-eval's native markdown/json/html report for a single --skill.",
+    )
+    parser.add_argument(
         "--corpus-dir",
         type=Path,
         default=None,
@@ -355,6 +427,9 @@ def main() -> int:
     source = resolve_source(base, needs_llm)
 
     if args.command == "score":
+        # Default table = discovery + gate; any other format streams one skill's report.
+        if args.output != "table":
+            return run_report(args, source, depth)
         return run_score(args, source, depth)
     if args.command == "certify":
         return run_certify(args, source)

@@ -12,7 +12,7 @@ description: >
 argument-hint: "[--review | --fix | --certify] [--depth quick|standard|deep|thorough] [--concurrency N] [--auth max|api-key] [skill-path ...]"
 allowed-tools: Bash(make *) Bash(git diff *) Bash(git status *) Bash(./scripts/eval-skills.py *) Bash(test *) Bash(ls *) Read Edit Task
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # Skill Evals
@@ -49,9 +49,11 @@ this is empty — fall back to the defaults):
   `4`. Caps plugin-eval's parallel LLM calls *within* a single skill's score; `8` is a
   reasonable bump on a fast connection.
 - **Auth** — `--auth max|api-key` if present, otherwise `max`. `max` uses Claude Code Max
-  via `claude-agent-sdk`; `api-key` uses `ANTHROPIC_API_KEY` with the `anthropic` SDK. Reach
-  for `--auth api-key` when the judge layer reports "No model usage (static-only)" / a flat
-  `0.500` judge score — that means the Max backend wasn't reachable.
+  via `claude-agent-sdk`; `api-key` uses the `anthropic` SDK, authenticating from
+  `BOSS_SKILL_ANTHROPIC_API_KEY` in `.env` — the wrapper (`scripts/eval-skills.py`) maps it
+  to `ANTHROPIC_API_KEY` for the plugin-eval subprocess only, so Claude Code's own auth is
+  never touched. Reach for `--auth api-key` when the judge layer reports "No model usage
+  (static-only)" / a flat `0.500` judge score — that means the Max backend wasn't reachable.
 - **Targets** — any token that is not a `--flag` (or a flag's value) is an explicit skill
   directory path. If none are given, auto-detect from the branch diff (Step 1).
 
@@ -67,7 +69,7 @@ Echo the resolved mode and target list back to the user before running anything 
 | `--certify` | Run the full e2e `certify` (deep, all three layers, badge) instead of `score`. Slow. |
 | `--depth <d>` | `quick` (static only), `standard` (+ LLM judge, **default**), `deep` (+ Monte Carlo ×50), `thorough` (+ Monte Carlo ×100). Deeper = slower + more LLM calls. Ignored by `--certify` (always `deep`). |
 | `--concurrency <n>` | Max parallel LLM calls inside one skill's score (1–20; upstream default `4`). |
-| `--auth <a>` | `max` (Claude Code Max via `claude-agent-sdk`, **default**) or `api-key` (`ANTHROPIC_API_KEY` via the `anthropic` SDK). Use `api-key` when the judge layer falls back to static-only. |
+| `--auth <a>` | `max` (Claude Code Max via `claude-agent-sdk`, **default**) or `api-key` (the `anthropic` SDK, keyed from `BOSS_SKILL_ANTHROPIC_API_KEY` in `.env` — mapped to `ANTHROPIC_API_KEY` for the subprocess only). Use `api-key` when the judge layer falls back to static-only. |
 | `<path> ...` | One or more explicit skill directories. If omitted, targets are auto-detected by diffing against `main`. |
 
 `--fix` and `--certify` compose: certify first, then fix off the certified report. `--depth`,
@@ -179,6 +181,7 @@ $ /skill-evals --auth api-key                                     # use ANTHROPI
   certifying more than one or two skills.
 - `--depth` scales cost with the same shape: `quick` is static-only (free, instant),
   `standard` ≈ 4 calls, `deep` ≈ 54 calls (Monte Carlo ×50), `thorough` ≈ 104 calls (×100).
-  `--auth api-key` requires `ANTHROPIC_API_KEY` in the environment.
+  `--auth api-key` requires `BOSS_SKILL_ANTHROPIC_API_KEY` in `.env` (or the environment);
+  the wrapper maps it to `ANTHROPIC_API_KEY` for the plugin-eval subprocess only.
 - `EVALS.md` files are intentionally untracked output; they are regenerated each run.
 - All commands run from the repo root.
