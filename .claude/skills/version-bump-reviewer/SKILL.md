@@ -24,7 +24,7 @@ description: >
   first.
 allowed-tools: Bash(git diff *) Bash(git status *) Bash(git log *) Bash(git show *) Bash(git ls-tree *) Bash(git add *) Bash(git commit *) Bash(make *) Bash(uvx *) Bash(mkdir *) Bash(cp *) Read Edit
 metadata:
-  version: 0.1.0
+  version: 0.1.1
 ---
 
 # Version Bump Reviewer
@@ -220,11 +220,12 @@ rubric (Phase 5) remains the primary classifier.
 is no SKILL.md diff to score; report `plugin-eval: n/a (component change, no SKILL.md
 edit)` in the commit body.
 
-`plugin-eval` is pulled on demand via `uvx` — nothing is vendored. Use the same
-invocation contract as `scripts/eval-skills.py`:
+`plugin-eval` is built on demand via `uvx` from the vendored, locally-patched copy at
+`scripts/plugin_eval/`. Use the same invocation contract as `scripts/eval-skills.py`
+(`PLUGIN_EVAL_SOURCE` still overrides the default):
 
 ```
-$ SRC="${PLUGIN_EVAL_SOURCE:-git+https://github.com/wshobson/agents.git#subdirectory=plugins/plugin-eval}"
+$ SRC="${PLUGIN_EVAL_SOURCE:-./scripts/plugin_eval}"
 $ uvx --from "$SRC" plugin-eval score <dir> --depth quick --output json
 ```
 
