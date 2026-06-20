@@ -41,6 +41,22 @@ from a pull request, grouped by file.
    dependencies on demand. The GitHub token is auto-detected from the
    `GH_TOKEN` environment variable or `gh auth token`.
 
+### Script contract
+
+`scripts/fetch_unresolved_comments.py`:
+
+- **Input**: one positional argument, the PR URL
+  (`https://github.com/<owner>/<repo>/pull/<number>`).
+- **Auth**: `GH_TOKEN` if set, otherwise the token from `gh auth token`.
+  With neither, it exits non-zero with a `GH_TOKEN not found` message.
+- **Output**: a single JSON object on stdout — `total` (count of open
+  comments) plus `by_file`, mapping each file path to its still-open review
+  threads. Resolved threads are filtered out via the GraphQL `isResolved`
+  flag, which REST can't expose. A PR with no open feedback prints
+  `{"total": 0, "by_file": {}}`.
+
+See `references/graphql-and-output.md` for the query shape and the full schema.
+
 ## Example Output
 
 ```json
@@ -88,3 +104,25 @@ from a pull request, grouped by file.
   }
 }
 ```
+
+## Reference Files
+
+- `references/graphql-and-output.md` — consult when you need the exact GraphQL
+  query shape, why GraphQL (not REST) is required, or the full output JSON
+  schema field by field.
+- `references/troubleshooting.md` — consult when a run fails or surprises you:
+  auth/token errors, PR-not-found, private-repo permissions, empty results, the
+  resolved-vs-unresolved distinction, pagination on large PRs, or rate limiting.
+
+## Related skills
+
+Part of the PR-review family in this plugin; a typical loop:
+
+- [`../fetch-diff/SKILL.md`](../fetch-diff/SKILL.md) — pull the PR diff to see
+  what changed.
+- [`../add-review-comment/SKILL.md`](../add-review-comment/SKILL.md) — post a
+  review comment on a specific line.
+- [`../pr-review/SKILL.md`](../pr-review/SKILL.md) — run a structured review pass
+  over a PR.
+- **fetch-unresolved-comments** (this skill) — read the still-open threads
+  before addressing feedback, and again afterward to confirm nothing was missed.

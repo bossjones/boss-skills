@@ -39,6 +39,28 @@ uv run "${CLAUDE_SKILL_DIR}/scripts/fetch_diff.py" https://github.com/owner/repo
 The GitHub token is auto-detected from the `GH_TOKEN` environment variable or
 `gh auth token`.
 
+## Inputs and outputs
+
+`scripts/fetch_diff.py` takes:
+
+- **`pr_url`** (positional, required) — a GitHub PR URL of the form
+  `https://github.com/<owner>/<repo>/pull/<number>`. Sub-paths like `/files`
+  are not accepted; use the bare `/pull/<n>` form.
+- **`--files <pattern> ...`** (optional) — one or more `fnmatch` globs matched
+  against each file's new path. Files matching any pattern are kept; the rest
+  are dropped. No match yields an empty diff (not an error).
+- **`GH_TOKEN`** (env) — the token used to call the GitHub API. If unset, the
+  script falls back to `gh auth token`; if that also fails it exits with an
+  error.
+
+It prints the PR's unified diff to **stdout**, reorganized per file: each file
+keeps its `diff --git` header, then either line-annotated hunks (see
+[Line Annotation](#line-annotation)) or a one-line mask message for
+auto-generated and deleted files. A single diagnostic line goes to **stderr**
+when a stacked-PR incremental diff is detected. See
+[`references/output-format.md`](references/output-format.md) for the full
+schema.
+
 ## Output Example
 
 **Regular file:**
@@ -85,3 +107,24 @@ Each line is annotated as `old_line new_line | <marker> content`:
 - `-` marker (left number only) -> deleted line; comment with `side=LEFT`, `line=old_line`
 - `+` marker (right number only) -> added line; comment with `side=RIGHT`, `line=new_line`
 - No marker (both numbers) -> unchanged line; comment with `side=RIGHT`, `line=new_line`
+
+## Reference Files
+
+- [`references/output-format.md`](references/output-format.md) — consult when
+  parsing the annotated diff: the column schema, marker meanings, how masked and
+  deleted files render, and how stacked-PR incremental diffs are signaled.
+- [`references/troubleshooting.md`](references/troubleshooting.md) — consult when
+  the fetch fails or surprises you: auth errors, PR-not-found / private repos,
+  large diffs, `--files` glob behavior and no-match output, and line-anchoring
+  pitfalls when the result feeds `add-review-comment`.
+
+## Related skills
+
+This skill is the first step of the PR-review family in `agent-harness`:
+
+1. **fetch-diff** (this skill) — get the diff annotated with old/new line numbers.
+2. [`add-review-comment`](../add-review-comment/SKILL.md) — post an inline
+   comment using the `side`/`line` anchors this skill produces.
+3. [`pr-review`](../pr-review/SKILL.md) — review a whole PR end to end.
+4. [`fetch-unresolved-comments`](../fetch-unresolved-comments/SKILL.md) — pull
+   back the review threads that still need a response.
