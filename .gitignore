@@ -139,6 +139,8 @@ celerybeat.pid
 .envrc
 .venv
 **/.venv/
+# Vendored plugin-eval: its self-test (uv run --project) regenerates a lockfile we don't vendor.
+scripts/plugin_eval/uv.lock
 env/
 venv/
 ENV/
