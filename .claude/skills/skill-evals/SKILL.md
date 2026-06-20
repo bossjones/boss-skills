@@ -2,26 +2,26 @@
 name: skill-evals
 description: >
   Run wshobson PluginEval over this repo's skills and write a `# PluginEval Report`
-  to an `EVALS.md` in each skill's folder. Use when the user wants to evaluate,
-  score, grade, benchmark, or certify skills; (re)generate or refresh EVALS.md files;
+  to `docs/evals/<plugin>/<skill>.md`. Use when the user wants to evaluate,
+  score, grade, benchmark, or certify skills; (re)generate or refresh eval reports;
   check skill quality after editing a SKILL.md; or improve skills based on their eval
   results. Defaults to `--review` (score/standard depth, report only); `--fix` also edits
   the weakest skills' SKILL.md in place to raise their scores; `--certify` runs the full
   deep certification with a badge. Reach for this skill even when the user only says
-  "run the evals", "score these skills", or "make EVALS.md" without naming PluginEval.
+  "run the evals", "score these skills", or "refresh the eval reports" without naming PluginEval.
 argument-hint: "[--review | --fix | --certify] [--depth quick|standard|deep|thorough] [--concurrency N] [--auth max|api-key] [skill-path ...]"
 allowed-tools: Bash(make *) Bash(git diff *) Bash(git status *) Bash(./scripts/eval-skills.py *) Bash(test *) Bash(ls *) Read Edit Task
 metadata:
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # Skill Evals
 
 Evaluate this repo's skills with [PluginEval](references/plugin-eval.md) (pulled on demand
-via `uvx` from `wshobson/agents` — nothing is vendored) and drop a Markdown report into
-each skill's own folder as `EVALS.md`. The work fans out across **one subagent per skill**
-so reports are produced in parallel and each subagent's verbose `uvx`/LLM output stays out
-of the main context.
+via `uvx` from `wshobson/agents` — nothing is vendored) and write a Markdown report to
+`docs/evals/<plugin>/<skill>.md` (see [the report convention](#report-location)). The work
+fans out across **one subagent per skill** so reports are produced in parallel and each
+subagent's verbose `uvx`/LLM output stays out of the main context.
 
 The upstream docs are bundled so you can look them up without network access:
 
@@ -64,7 +64,7 @@ Echo the resolved mode and target list back to the user before running anything 
 
 | Argument | Meaning |
 |----------|---------|
-| `--review` | **Default.** Score each skill at standard depth (static + LLM judge) and write `EVALS.md`. No skill edits. |
+| `--review` | **Default.** Score each skill at standard depth (static + LLM judge) and write its `docs/evals/` report. No skill edits. |
 | `--fix` | Do `--review`, then improve the weakest skills' `SKILL.md` in the working tree (uncommitted) and re-run to confirm the gain. |
 | `--certify` | Run the full e2e `certify` (deep, all three layers, badge) instead of `score`. Slow. |
 | `--depth <d>` | `quick` (static only), `standard` (+ LLM judge, **default**), `deep` (+ Monte Carlo ×50), `thorough` (+ Monte Carlo ×100). Deeper = slower + more LLM calls. Ignored by `--certify` (always `deep`). |
@@ -131,26 +131,40 @@ Each subagent then:
    the `uvx` download/build/install lines — keeping the report from `# PluginEval Report`
    onward. For the expected report shape (Overall Score → Layer Breakdown → Dimensions →
    Anti-Patterns), see "Reading a report" in [`references/plugin-eval.md`](references/plugin-eval.md).
-3. Writes the clean report to `<path>/EVALS.md`.
+3. Writes the clean report to its `docs/evals/` destination (see [Report location](#report-location)),
+   creating parent directories as needed. **Reports never go inside the skill directory.**
 4. Does **not** edit the skill itself in review/certify mode.
 5. Reports back the composite score, badge, and any anti-patterns.
 
-Tell each subagent the exact `<path>` and its exact `EVALS.md` destination so there is no
-ambiguity. (This mirrors the manual run this skill was built from.)
+Tell each subagent the exact skill `<path>` and its exact `docs/evals/…` destination so there
+is no ambiguity. (This mirrors the manual run this skill was built from.)
+
+### Report location
+
+Eval reports live under `docs/evals/`, **not** in the skill folder — a report is process/meta
+output, not content an agent needs, so it stays out of the skill tree (which keeps the skill to
+`SKILL.md` + `references/` + `scripts/`). Map a skill path to its report path:
+
+- Plugin skill `plugins/<category>/<plugin>/skills/<skill>` → `docs/evals/<plugin>/<skill>.md`
+  (e.g. `plugins/boss-dev/agent-harness/skills/fetch-diff` → `docs/evals/agent-harness/fetch-diff.md`).
+- Repo-internal skill `.claude/skills/<skill>` → `docs/evals/<skill>.md`.
+
+Add the report to the index at [`docs/evals/README.md`](../../../docs/evals/README.md) if it
+isn't listed there yet.
 
 ## Step 3 — Report
 
 Summarise the results as a table: skill, composite score, badge, anti-pattern count, and
-the lowest-scoring dimension per skill. Confirm each `EVALS.md` was written (e.g.
-`git status --porcelain | grep EVALS.md`).
+the lowest-scoring dimension per skill. Confirm each report was written (e.g.
+`git status --porcelain | grep docs/evals`).
 
 ## Step 4 — Improve (`--fix` only)
 
 Only when `--fix` was requested. For each evaluated skill, in priority order of lowest
 score first:
 
-1. Read the skill's `EVALS.md` and pull out the **lowest-scoring dimensions** and any
-   anti-patterns.
+1. Read the skill's report under `docs/evals/` and pull out the **lowest-scoring dimensions**
+   and any anti-patterns.
 2. Map each weakness to a concrete remedy using [`references/fix-playbook.md`](references/fix-playbook.md),
    cross-checking against [`references/agent-skills-how-skills-work.md`](references/agent-skills-how-skills-work.md)
    so the change reflects what actually makes skills better — not just what nudges a metric.
@@ -158,8 +172,8 @@ score first:
    weakness is progressive disclosure). Edit the working tree only — **do not commit**.
    Keep changes principled: explain *why* in the prose, generalise rather than overfit to
    the score, and avoid piling on rigid MUST/NEVER directives.
-4. Re-run that skill's eval (`make eval-skill SKILL=<path>`), overwrite its `EVALS.md`,
-   and record the before→after composite score.
+4. Re-run that skill's eval (`make eval-skill SKILL=<path>`), overwrite its `docs/evals/`
+   report, and record the before→after composite score.
 
 Report the score deltas and leave all edits staged-but-uncommitted for the user to review.
 
@@ -183,5 +197,6 @@ $ /skill-evals --auth api-key                                     # use ANTHROPI
   `standard` ≈ 4 calls, `deep` ≈ 54 calls (Monte Carlo ×50), `thorough` ≈ 104 calls (×100).
   `--auth api-key` requires `BOSS_SKILL_ANTHROPIC_API_KEY` in `.env` (or the environment);
   the wrapper maps it to `ANTHROPIC_API_KEY` for the plugin-eval subprocess only.
-- `EVALS.md` files are intentionally untracked output; they are regenerated each run.
+- Eval reports live under `docs/evals/<plugin>/<skill>.md` (not in the skill folder) and are
+  regenerated each run — overwrite freely. See [Report location](#report-location).
 - All commands run from the repo root.

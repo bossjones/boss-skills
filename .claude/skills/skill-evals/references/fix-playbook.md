@@ -1,6 +1,7 @@
 # Fix playbook — weak dimension → concrete SKILL.md remedy
 
-Used by the `--fix` path. Read the skill's `EVALS.md`, sort dimensions ascending, and start
+Used by the `--fix` path. Read the skill's report under `docs/evals/` (see the Report
+location convention in `../SKILL.md`), sort dimensions ascending, and start
 with the lowest. Each remedy below is a starting point, not a checklist to apply blindly —
 cross-check against `agent-skills-how-skills-work.md` and keep edits principled (explain the
 *why*, generalize, don't overfit to the metric).
@@ -34,5 +35,5 @@ scripts are fine. Don't paste code into the SKILL.md to game this. Instead ensur
 clearly references the scripts, documents their inputs/outputs and failure modes, and shows
 example invocations. The honest fix is documentation quality, not inlining code.
 
-After editing, re-run `make eval-skill SKILL=<path>`, overwrite `EVALS.md`, and record the
+After editing, re-run `make eval-skill SKILL=<path>`, overwrite the `docs/evals/` report, and record the
 before→after composite score. Leave edits uncommitted for the user to review.
