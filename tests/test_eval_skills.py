@@ -67,7 +67,7 @@ class TestResolveSource:
         assert es.resolve_source(GIT, False) == GIT
 
     def test_llm_wraps_bare_git_url(self) -> None:
-        assert es.resolve_source(GIT, True) == f"plugin-eval[llm] @ {GIT}"
+        assert es.resolve_source(GIT, True) == f"plugin-eval[llm,api] @ {GIT}"
 
     def test_llm_does_not_double_wrap_existing_spec(self) -> None:
         spec = f"plugin-eval[llm] @ {GIT}"
@@ -550,14 +550,14 @@ class TestMain:
         es.main()
         _, source, depth = rs.call_args[0]
         assert depth == "standard"
-        assert source == f"plugin-eval[llm] @ {es.DEFAULT_SOURCE}"
+        assert source == f"plugin-eval[llm,api] @ {es.DEFAULT_SOURCE}"
 
     def test_certify_forces_llm_even_with_static_layer(self, mocker: MockerFixture) -> None:
         self._argv(mocker, "--command", "certify", "--layer", "static", "p")
         rc = mocker.patch.object(es, "run_certify", return_value=0)
         es.main()
         _, source = rc.call_args[0]
-        assert source == f"plugin-eval[llm] @ {es.DEFAULT_SOURCE}"
+        assert source == f"plugin-eval[llm,api] @ {es.DEFAULT_SOURCE}"
 
     def test_compare_dispatch_passes_depth(self, mocker: MockerFixture) -> None:
         self._argv(mocker, "--command", "compare", "--layer", "monte-carlo", "a", "b")
