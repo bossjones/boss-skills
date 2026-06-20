@@ -32,7 +32,27 @@ pull `plugin-eval` on demand via `uvx` from the `wshobson/agents` git subdirecto
 | `thorough` | static + judge + Monte Carlo (100) | Certified+ | ~6 min | ~104 LLM calls |
 
 The repo's `--layer` alias maps `static→quick`, `llm-judge→standard`, `monte-carlo→deep`,
-`all→thorough`.
+`all→thorough`. `make eval-skill` and `scripts/eval-skills.py` also accept `--depth`
+directly (it wins over `--layer` when both are set).
+
+## Flags (`score` / `certify` / `compare`)
+
+The full upstream `plugin-eval score` surface — `certify` and `compare` accept the same LLM
+knobs (`--concurrency`, `--auth`), confirmed via `plugin-eval … --help`:
+
+| Flag | Values (default) | Notes |
+|------|------------------|-------|
+| `--depth` | `quick`\|`standard`\|`deep`\|`thorough` (`standard`) | Layer selection (see table above). `certify` is always `deep` and ignores it. |
+| `--concurrency` | int `1`–`20` (`4`) | Max parallel LLM calls within one score. |
+| `--auth` | `max`\|`api-key` (`max`) | `max` = Claude Code Max via `claude-agent-sdk`; `api-key` = `ANTHROPIC_API_KEY` via the `anthropic` SDK. |
+| `--output` | `json`\|`markdown`\|`html` (`markdown`) | This repo uses `json` for the score table, `markdown` for reports. |
+| `--verbose` / `-v` | flag | Verbose plugin-eval output. |
+| `--threshold` | float | Exit code 1 if the composite is below it. |
+
+**When the judge silently no-ops:** a report whose Model Usage reads "No model usage
+(static-only evaluation)" with a flat `0.500` judge layer means the `--auth max` backend
+wasn't reachable (no Claude Code Max / `claude-agent-sdk` session). Re-run with
+`--auth api-key` and `ANTHROPIC_API_KEY` set so the judge dimensions actually score.
 
 ## The three layers
 

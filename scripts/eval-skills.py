@@ -13,7 +13,8 @@ the wshobson/agents git subdirectory — nothing is vendored).
 exits non-zero if any skill is below ``--threshold``. ``certify`` / ``compare``
 / ``init`` stream plugin-eval's native output for explicit positional targets.
 
-``--layer`` is a friendly alias for plugin-eval's ``--depth``:
+``--layer`` is a friendly alias for plugin-eval's ``--depth``; pass ``--depth``
+directly to bypass the alias (``--depth`` wins when both are given):
 
     layer                   depth      layers run                  cost
     static, static-analysis quick      static                      instant, free
@@ -21,12 +22,20 @@ exits non-zero if any skill is below ``--threshold``. ``certify`` / ``compare``
     monte-carlo             deep       static + judge + MC (50)    ~2-5 min
     all                     thorough   static + judge + MC (100)   slowest
 
+``--concurrency`` (1-20, upstream default 4) caps plugin-eval's parallel LLM
+calls; ``--auth`` (``max`` | ``api-key``, upstream default ``max``) picks the
+judge backend — ``max`` needs Claude Code Max via ``claude-agent-sdk``, while
+``api-key`` uses ``ANTHROPIC_API_KEY`` with the ``anthropic`` SDK. Both forward
+to ``score``, ``certify``, and ``compare``.
+
 Usage:
     scripts/eval-skills.py                              # report all skills, never fails
     scripts/eval-skills.py --threshold 60               # fail if any skill < 60
     scripts/eval-skills.py --skill plugins/.../foo      # single skill
     scripts/eval-skills.py --skill plugins/.../foo --layer llm-judge
-    scripts/eval-skills.py --command certify plugins/.../foo
+    scripts/eval-skills.py --skill plugins/.../foo --depth deep --concurrency 8
+    scripts/eval-skills.py --skill plugins/.../foo --auth api-key
+    scripts/eval-skills.py --command certify plugins/.../foo --concurrency 8
     scripts/eval-skills.py --command compare plugins/.../a plugins/.../b
     scripts/eval-skills.py --command init plugins/
 
@@ -57,6 +66,23 @@ LAYER_TO_DEPTH = {
     "monte-carlo": "deep",
     "all": "thorough",
 }
+
+# plugin-eval --depth values (quick=static only; deeper adds judge then Monte Carlo).
+DEPTHS = ("quick", "standard", "deep", "thorough")
+
+# plugin-eval --auth values: max = Claude Code Max (claude-agent-sdk);
+# api-key = ANTHROPIC_API_KEY via the anthropic SDK.
+AUTH_MODES = ("max", "api-key")
+
+
+def llm_flags(args: argparse.Namespace) -> list[str]:
+    """Shared --concurrency/--auth passthrough, omitted when the user left them unset."""
+    flags: list[str] = []
+    if args.concurrency is not None:
+        flags += ["--concurrency", str(args.concurrency)]
+    if args.auth is not None:
+        flags += ["--auth", args.auth]
+    return flags
 
 
 def resolve_source(base: str, needs_llm: bool) -> str:
@@ -99,7 +125,7 @@ def discover_skills() -> list[Path]:
     return sorted({p.parent for p in PLUGINS_DIR.rglob("SKILL.md")})
 
 
-def score_skill(skill_dir: Path, source: str, depth: str) -> SkillResult:
+def score_skill(skill_dir: Path, source: str, depth: str, extra: list[str]) -> SkillResult:
     """Run plugin-eval at the given depth and parse the composite score."""
     cmd = [
         "uvx",
@@ -112,6 +138,7 @@ def score_skill(skill_dir: Path, source: str, depth: str) -> SkillResult:
         depth,
         "--output",
         "json",
+        *extra,
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True, check=False)  # noqa: S603
     if proc.returncode != 0 and not proc.stdout.strip():
@@ -163,7 +190,8 @@ def run_score(args: argparse.Namespace, source: str, depth: str) -> int:
         print("No skills found under plugins/.", file=sys.stderr)
         return 2
 
-    results = [score_skill(d, source, depth) for d in skills]
+    extra = llm_flags(args)
+    results = [score_skill(d, source, depth, extra) for d in skills]
     print_table(results)
 
     failures = [
@@ -204,6 +232,7 @@ def run_certify(args: argparse.Namespace, source: str) -> int:
         _resolve_target(args.targets[0]),
         "--output",
         "markdown",
+        *llm_flags(args),
     ]
     if args.threshold is not None:
         cmd += ["--threshold", str(args.threshold)]
@@ -230,6 +259,7 @@ def run_compare(args: argparse.Namespace, source: str, depth: str) -> int:
         depth,
         "--output",
         "markdown",
+        *llm_flags(args),
     ]
     return run_passthrough(cmd)
 
@@ -271,6 +301,25 @@ def main() -> int:
         "Ignored by certify (always deep upstream) and init.",
     )
     parser.add_argument(
+        "--depth",
+        choices=DEPTHS,
+        default=None,
+        help="plugin-eval evaluation depth; overrides --layer when set. "
+        "Ignored by certify (always deep upstream) and init.",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="Max concurrent LLM calls passed to plugin-eval (1-20; upstream default 4).",
+    )
+    parser.add_argument(
+        "--auth",
+        choices=AUTH_MODES,
+        default=None,
+        help="plugin-eval judge backend: max (Claude Code Max) or api-key (ANTHROPIC_API_KEY). Upstream default: max.",
+    )
+    parser.add_argument(
         "--threshold",
         type=float,
         default=None,
@@ -296,8 +345,12 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.concurrency is not None and not 1 <= args.concurrency <= 20:
+        parser.error("--concurrency must be between 1 and 20")
+
     base = os.environ.get("PLUGIN_EVAL_SOURCE", DEFAULT_SOURCE)
-    depth = LAYER_TO_DEPTH[args.layer]
+    # Explicit --depth wins; otherwise fall back to the friendly --layer alias.
+    depth = args.depth if args.depth is not None else LAYER_TO_DEPTH[args.layer]
     needs_llm = depth != "quick" or args.command == "certify"
     source = resolve_source(base, needs_llm)
 

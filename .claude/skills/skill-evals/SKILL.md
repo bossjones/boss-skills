@@ -9,10 +9,10 @@ description: >
   the weakest skills' SKILL.md in place to raise their scores; `--certify` runs the full
   deep certification with a badge. Reach for this skill even when the user only says
   "run the evals", "score these skills", or "make EVALS.md" without naming PluginEval.
-argument-hint: "[--review | --fix | --certify] [skill-path ...]"
+argument-hint: "[--review | --fix | --certify] [--depth quick|standard|deep|thorough] [--concurrency N] [--auth max|api-key] [skill-path ...]"
 allowed-tools: Bash(make *) Bash(git diff *) Bash(git status *) Bash(./scripts/eval-skills.py *) Bash(test *) Bash(ls *) Read Edit Task
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Skill Evals
@@ -42,8 +42,18 @@ Parse it before anything else (when invoked automatically rather than via `/skil
 this is empty — fall back to the defaults):
 
 - **Mode** — `--certify` and/or `--fix` if present, otherwise `--review` (the default).
-- **Targets** — any token that is not a `--flag` is an explicit skill directory path. If
-  none are given, auto-detect from the branch diff (Step 1).
+- **Depth** — `--depth quick|standard|deep|thorough` if present, otherwise `standard`.
+  Controls how many layers run (see the Arguments table). `--certify` ignores it — certify
+  is always `deep` upstream.
+- **Concurrency** — `--concurrency N` (1–20) if present, otherwise the upstream default of
+  `4`. Caps plugin-eval's parallel LLM calls *within* a single skill's score; `8` is a
+  reasonable bump on a fast connection.
+- **Auth** — `--auth max|api-key` if present, otherwise `max`. `max` uses Claude Code Max
+  via `claude-agent-sdk`; `api-key` uses `ANTHROPIC_API_KEY` with the `anthropic` SDK. Reach
+  for `--auth api-key` when the judge layer reports "No model usage (static-only)" / a flat
+  `0.500` judge score — that means the Max backend wasn't reachable.
+- **Targets** — any token that is not a `--flag` (or a flag's value) is an explicit skill
+  directory path. If none are given, auto-detect from the branch diff (Step 1).
 
 Echo the resolved mode and target list back to the user before running anything — e.g.
 "Evaluating 5 skills in `--review` mode: …" — so the scope is confirmed up front.
@@ -55,9 +65,13 @@ Echo the resolved mode and target list back to the user before running anything 
 | `--review` | **Default.** Score each skill at standard depth (static + LLM judge) and write `EVALS.md`. No skill edits. |
 | `--fix` | Do `--review`, then improve the weakest skills' `SKILL.md` in the working tree (uncommitted) and re-run to confirm the gain. |
 | `--certify` | Run the full e2e `certify` (deep, all three layers, badge) instead of `score`. Slow. |
+| `--depth <d>` | `quick` (static only), `standard` (+ LLM judge, **default**), `deep` (+ Monte Carlo ×50), `thorough` (+ Monte Carlo ×100). Deeper = slower + more LLM calls. Ignored by `--certify` (always `deep`). |
+| `--concurrency <n>` | Max parallel LLM calls inside one skill's score (1–20; upstream default `4`). |
+| `--auth <a>` | `max` (Claude Code Max via `claude-agent-sdk`, **default**) or `api-key` (`ANTHROPIC_API_KEY` via the `anthropic` SDK). Use `api-key` when the judge layer falls back to static-only. |
 | `<path> ...` | One or more explicit skill directories. If omitted, targets are auto-detected by diffing against `main`. |
 
-`--fix` and `--certify` compose: certify first, then fix off the certified report.
+`--fix` and `--certify` compose: certify first, then fix off the certified report. `--depth`,
+`--concurrency`, and `--auth` are modifiers that apply on top of whichever mode is selected.
 
 This skill always evaluates **one skill at a time** through the per-skill `make eval-skill`
 (standard depth) and `make eval-certify` (deep) targets. It never uses the repo-wide
@@ -99,6 +113,14 @@ in other harnesses). Give each subagent exactly one skill and this task:
 
 - **Review mode (default):** run `make eval-skill SKILL=<path>` from the repo root.
 - **Certify mode (`--certify`):** run `make eval-certify SKILL=<path>` instead.
+
+Forward the resolved depth/concurrency/auth as make variables, but only the ones the user
+actually set — otherwise let the Makefile defaults (`DEPTH=standard`, `CONCURRENCY=4`,
+`AUTH=max`) stand:
+
+- Review: `make eval-skill SKILL=<path> DEPTH=<depth> CONCURRENCY=<n> AUTH=<auth>`
+- Certify: `make eval-certify SKILL=<path> CONCURRENCY=<n> AUTH=<auth>` (no `DEPTH` — certify
+  is always `deep`).
 
 Each subagent then:
 
@@ -146,6 +168,8 @@ $ /skill-evals                                                    # review skill
 $ /skill-evals --fix                                              # review, then improve the weakest skill's SKILL.md, then re-run
 $ /skill-evals --certify .claude/skills/doc-generator            # deep certification (badge) for one skill
 $ /skill-evals .claude/skills/doc-generator .claude/skills/twitter-media-downloader  # explicit targets
+$ /skill-evals --depth deep --concurrency 8 .claude/skills/doc-generator             # deeper score, 8 parallel calls
+$ /skill-evals --auth api-key                                     # use ANTHROPIC_API_KEY when the Max judge is unreachable
 ```
 
 ## Cost & notes
@@ -153,5 +177,8 @@ $ /skill-evals .claude/skills/doc-generator .claude/skills/twitter-media-downloa
 - `--review` (standard depth) ≈ 4 LLM calls / ~30s per skill via Claude Code Max (`claude-agent-sdk`).
 - `--certify` (deep) ≈ 54 LLM calls / ~15–20 min per skill — confirm with the user before
   certifying more than one or two skills.
+- `--depth` scales cost with the same shape: `quick` is static-only (free, instant),
+  `standard` ≈ 4 calls, `deep` ≈ 54 calls (Monte Carlo ×50), `thorough` ≈ 104 calls (×100).
+  `--auth api-key` requires `ANTHROPIC_API_KEY` in the environment.
 - `EVALS.md` files are intentionally untracked output; they are regenerated each run.
 - All commands run from the repo root.
