@@ -9,10 +9,12 @@ fail a build when a skill drops below a quality threshold.
 
 ## Overview
 
-`plugin-eval` is **not vendored**. On each run the script pulls it on demand
-with `uvx --from git+https://github.com/wshobson/agents.git#subdirectory=plugins/plugin-eval`,
-so you always evaluate against the latest upstream rubric. The first run for a
-given revision downloads and caches it; later runs reuse the `uv` cache.
+`plugin-eval` is **vendored** in-repo at `scripts/plugin_eval/` — a locally-patched
+copy of upstream `wshobson/agents` `plugins/plugin-eval` (see its `VENDORING.md`). On
+each run the script builds it on demand with `uvx --from <vendored copy>`. The first
+build downloads the package's dependencies and caches them; later runs reuse the `uv`
+cache. Set `PLUGIN_EVAL_SOURCE` to evaluate against a different revision instead (e.g.
+an upstream git URL).
 
 The script exposes four `plugin-eval` subcommands through a single `--command`
 flag:

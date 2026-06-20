@@ -182,8 +182,8 @@ make
 ### Skill Quality
 
 Skills are quality-gated with [`plugin-eval`](https://github.com/wshobson/agents/tree/main/plugins/plugin-eval),
-pulled on demand from upstream via `uvx` (nothing is vendored or submoduled, so
-you always get the latest version).
+vendored in-repo at `scripts/plugin_eval/` as a locally-patched copy and built on
+demand via `uvx` (set `PLUGIN_EVAL_SOURCE` to evaluate against a different revision).
 
 ```bash
 # Report static scores for every skill (never fails)
