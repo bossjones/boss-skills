@@ -5,8 +5,9 @@
 # ///
 """Quality-gate boss-skills skills with plugin-eval.
 
-Multi-mode wrapper around ``plugin-eval`` (pulled on demand via ``uvx`` from
-the wshobson/agents git subdirectory — nothing is vendored).
+Multi-mode wrapper around ``plugin-eval``, built on demand via ``uvx`` from the
+copy vendored in-repo at ``scripts/plugin_eval/`` (a locally-patched extract of
+wshobson/agents ``plugins/plugin-eval`` — see ``scripts/plugin_eval/VENDORING.md``).
 
 ``score`` (default) discovers every directory containing a ``SKILL.md`` under
 ``plugins/`` (or one ``--skill``), evaluates each, prints a score table, and
@@ -47,8 +48,8 @@ Usage:
     scripts/eval-skills.py --command compare plugins/.../a plugins/.../b
     scripts/eval-skills.py --command init plugins/
 
-Escape hatch (upstream churn): pin a specific revision without editing code by
-setting PLUGIN_EVAL_SOURCE, e.g.
+Escape hatch: PLUGIN_EVAL_SOURCE overrides the vendored default without editing
+code — e.g. to test an upstream revision instead of the in-repo copy:
     PLUGIN_EVAL_SOURCE='git+https://github.com/wshobson/agents.git@<sha>#subdirectory=plugins/plugin-eval'
 """
 
@@ -68,10 +69,13 @@ try:
 except ImportError:  # dotenv is optional — fall back to the ambient environment
     pass
 
-# Default: always-latest from the upstream marketplace repo, no vendoring.
-DEFAULT_SOURCE = "git+https://github.com/wshobson/agents.git#subdirectory=plugins/plugin-eval"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGINS_DIR = REPO_ROOT / "plugins"
+
+# Default: the in-repo vendored, locally-patched plugin-eval (scripts/plugin_eval/,
+# see its VENDORING.md). uvx --from builds it from this file:// URI. Override with
+# PLUGIN_EVAL_SOURCE (e.g. to test an upstream revision).
+DEFAULT_SOURCE = (REPO_ROOT / "scripts" / "plugin_eval").as_uri()
 
 # Dedicated key for plugin-eval's --auth api-key path. Kept under its own name (not
 # ANTHROPIC_API_KEY) so it never reaches Claude Code; child_env() maps it into
@@ -120,13 +124,18 @@ def child_env() -> dict[str, str]:
 
 
 def resolve_source(base: str, needs_llm: bool) -> str:
-    """uvx --from value; wrap a bare git/path source with the [llm] extra when needed."""
+    """uvx --from value; wrap a bare git/path source with the [llm,api] extras when needed.
+
+    Both extras install so either judge backend works: llm (claude-agent-sdk) for --auth max,
+    api (anthropic) for --auth api-key. Keeping the "request both" decision here — rather than
+    in the vendored pyproject.toml — keeps that copy a clean extract for a future upstream PR.
+    """
     if not needs_llm:
         return base
     # Already a PEP 508 spec (e.g. user-set PLUGIN_EVAL_SOURCE with extras): use as-is.
     if base.startswith("plugin-eval"):
         return base
-    return f"plugin-eval[llm] @ {base}"
+    return f"plugin-eval[llm,api] @ {base}"
 
 
 class SkillResult:
