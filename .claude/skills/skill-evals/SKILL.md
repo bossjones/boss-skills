@@ -12,13 +12,13 @@ description: >
 argument-hint: "[--review | --fix | --certify] [--depth quick|standard|deep|thorough] [--concurrency N] [--auth max|api-key] [skill-path ...]"
 allowed-tools: Bash(make *) Bash(git diff *) Bash(git status *) Bash(./scripts/eval-skills.py *) Bash(test *) Bash(ls *) Read Edit Task
 metadata:
-  version: "0.5.0"
+  version: "0.5.1"
 ---
 
 # Skill Evals
 
-Evaluate this repo's skills with [PluginEval](references/plugin-eval.md) (pulled on demand
-via `uvx` from `wshobson/agents` — nothing is vendored) and write a Markdown report to
+Evaluate this repo's skills with [PluginEval](references/plugin-eval.md) (built on demand
+via `uvx` from the vendored, locally-patched copy at `scripts/plugin_eval/`) and write a Markdown report to
 `docs/evals/<plugin>/<skill>.md` (see [the report convention](#report-location)). The work
 fans out across **one subagent per skill** so reports are produced in parallel and each
 subagent's verbose `uvx`/LLM output stays out of the main context.

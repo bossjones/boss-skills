@@ -6,8 +6,9 @@ PluginEval is a three-layer quality framework for Claude Code plugins and skills
 combines deterministic static analysis, LLM-based semantic judging, and Monte Carlo
 simulation into a calibrated composite score with a confidence label and a quality badge.
 
-This repo does **not** vendor it — `scripts/eval-skills.py` and the `make eval-*` targets
-pull `plugin-eval` on demand via `uvx` from the `wshobson/agents` git subdirectory.
+This repo vendors a locally-patched copy at `scripts/plugin_eval/` (see its `VENDORING.md`);
+`scripts/eval-skills.py` and the `make eval-*` targets build it on demand via `uvx --from`.
+`PLUGIN_EVAL_SOURCE` still overrides that default (e.g. to test an upstream revision).
 
 ## Commands (as wired in this repo)
 
