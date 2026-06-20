@@ -115,6 +115,9 @@ exclude_path = [
     # Exclude scraped third-party docs (point-in-time copies of code.claude.com);
     # their #anchor cross-references drift from the live Mintlify site.
     "(^|/)ai_docs/",
+    # Exclude the vendored plugin-eval tree (see scripts/plugin_eval/VENDORING.md); its
+    # README uses upstream-relative links that don't resolve in this repo layout.
+    "(^|/)scripts/plugin_eval/",
     # Exclude lychee report file (contains old broken links)
     "(^|/)\\.lychee-report\\.md$",
 ]

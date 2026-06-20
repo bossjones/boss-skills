@@ -49,6 +49,9 @@ dev = [
 # `tests.conftest` ImportPathMismatchError between the twitter skill suites.
 addopts = "--import-mode=importlib"
 testpaths = ["tests", "plugins"]
+# Belt-and-suspenders: testpaths already keeps collection out of scripts/, but the vendored
+# package ships its own tests/ — never recurse into it during the repo's own test run.
+norecursedirs = ["scripts/plugin_eval"]
 
 [tool.uv]
 package = false
@@ -58,7 +61,7 @@ python = "./.venv"
 python-version = "3.10"
 
 [tool.ty.src]
-exclude = [".claude/"]
+exclude = [".claude/", "scripts/plugin_eval/"]
 
 [tool.ty.rules]
 unresolved-import = "ignore"
@@ -68,7 +71,11 @@ unresolved-import = "ignore"
 target-version = "py310"
 line-length = 120
 fix = true
-exclude = [".claude/"]
+# scripts/plugin_eval/ is a vendored third-party tree (see its VENDORING.md). force-exclude
+# is required because devtools/lint.py passes "scripts" to ruff explicitly, which otherwise
+# overrides exclude for that subdir.
+exclude = [".claude/", "scripts/plugin_eval/"]
+force-exclude = true
 
 [tool.ruff.lint]
 select = [
@@ -157,6 +164,9 @@ preview = true
 # Ignore brand names and other valid terms that codespell flags.
 # - cruzer: SanDisk Cruzer USB drive product line.
 ignore-words-list = "cruzer"
+# Vendored third-party tree (see scripts/plugin_eval/VENDORING.md) — not ours to spellcheck.
+# lint.py passes "scripts" explicitly, so skip the subdir here.
+skip = "./scripts/plugin_eval"
 
 [tool.basedpyright]
 # devtools/lint.py invokes basedpyright on a curated path list (not the full
@@ -166,4 +176,5 @@ exclude = [
     ".claude/",
     "plugins/boss-dev/agent-harness/",
     "plugins/social-media/twitter-tools/",
+    "scripts/plugin_eval/",
 ]

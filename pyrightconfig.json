@@ -26,6 +26,7 @@
     "scripts/intelligent-markdown-lint.py",
     "scripts/markdown_linter.py",
     "scripts/note_smith.py",
+    "scripts/plugin_eval/**",
     "plugins/**/examples/**",
     "plugins/**/assets/templates/**",
     "plugins/**/tools/**",
