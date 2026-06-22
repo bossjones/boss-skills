@@ -43,7 +43,7 @@
         ]
       },
       {
-        "matcher": "",
+        "matcher": "permission_prompt|idle_prompt|elicitation_dialog",
         "hooks": [
           {
             "type": "command",
@@ -68,6 +68,17 @@
           {
             "type": "command",
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event stop"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event stopfailure"
           }
         ]
       }

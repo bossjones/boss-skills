@@ -38,6 +38,11 @@ dev = [
     "pytest-timeout>=2.4.0",
     "monkeytype>=23.3.0",
     "ty>=0.0.8",
+    # Real-tmux integration test for the agent-harness tmux_notify hook
+    # (plugins/boss-dev/agent-harness/hooks/tests/test_tmux_notify.py). Provides
+    # the `session`/`server` pytest fixtures; the test self-skips when no tmux
+    # binary is on PATH, so this is only exercised where tmux is installed.
+    "libtmux>=0.39",
     # Used by the git-worktree skill scripts for gitignore-accurate
     # .worktreeinclude matching; here so tests + basedpyright can import it
     # (the scripts themselves declare it via PEP 723 for standalone `uv run`).

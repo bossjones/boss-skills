@@ -182,7 +182,7 @@ inline `hooks` key in `plugin.json`). See [Manual wiring](#manual-wiring) to ena
 | `post_tool_use.py` | PostToolUse | Log successful tool executions. |
 | `post_tool_use_failure.py` | PostToolUseFailure | Log tool failures with error detail. |
 | `notification.py` | Notification | Log notifications; optionally announce via TTS. |
-| `tmux_notify.py` | Notification, Stop | Opt-in tmux-aware desktop notification that jumps to the waiting pane on click (see below). |
+| `tmux_notify.py` | Notification (filtered), Stop, StopFailure | Opt-in tmux-aware desktop notification that jumps to the waiting pane on click (see below). |
 | `subagent_start.py` | SubagentStart | Log subagent spawns; optional TTS announcement. |
 | `subagent_stop.py` | SubagentStop | Log subagent completion; summarize and announce via TTS. |
 | `pre_compact.py` | PreCompact | Log compaction; optionally back up the transcript. |
@@ -205,10 +205,16 @@ Hook runs write structured JSON to `logs/` for auditing and debugging.
 ### tmux desktop notifications (opt-in)
 
 Claude Code's built-in desktop notifications don't survive **tmux** (it emits plain OSC sequences;
-tmux needs DCS passthrough). `tmux_notify.py` sidesteps that: wired in parallel under the
-`Notification` and `Stop` events, it fires a desktop notification when the agent needs input or
-finishes, and on macOS attaches a click action that runs `tmux switch-client` / `select-window` to
-jump you straight to the exact `session:window` where Claude is waiting.
+tmux needs DCS passthrough). `tmux_notify.py` sidesteps that: wired in parallel under three events,
+it fires a desktop notification in the situations that matter, and on macOS attaches a click action
+that runs `tmux switch-client` / `select-window` to jump you straight to the exact `session:window`
+where Claude is waiting.
+
+| Event | When it fires | Notification |
+| --- | --- | --- |
+| `Notification` (filtered) | `permission_prompt`, `idle_prompt`, or `elicitation_dialog` only — not `auth_success` or elicitation echo events | "Claude Code — Waiting for you: &lt;message&gt;" |
+| `Stop` | Claude finishes responding normally | "Claude Code — Response finished" |
+| `StopFailure` | Turn ends on an API error (rate_limit, overloaded, server_error, …) | "Claude Code — Turn failed: &lt;error_type: error_message&gt;" |
 
 **Default off.** Enable it via the plugin's `userConfig` (configured at `/plugin install` /
 `/plugin config`, no manual `settings.json` editing):

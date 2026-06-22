@@ -252,5 +252,5 @@
         "documentation-generation@claude-code-workflows": true,
         "c4-architecture@claude-code-workflows": true,
         "documentation-standards@claude-code-workflows": true
-     }
+    }
 }

@@ -70,6 +70,11 @@ def tmux_context() -> tuple[str, str] | None:
 
 def build_text(event: str, payload: dict) -> tuple[str, str, str]:
     """Return (title, subtitle, message) for the given event."""
+    if event == "stopfailure":
+        etype = (payload.get("error_type") or "unknown").strip()
+        emsg = (payload.get("error_message") or "").strip()
+        detail = f"{etype}: {emsg}" if emsg else etype
+        return ("Claude Code", "Turn failed", f"The turn ended on an API error ({detail}).")
     if event == "stop":
         return ("Claude Code", "Response finished", "Claude finished and is ready for your next instruction.")
     message = (payload.get("message") or "").strip() or "Claude needs your input."
@@ -121,7 +126,7 @@ def notify_bell(subtitle: str, message: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--event", choices=["notification", "stop"], default="notification")
+    parser.add_argument("--event", choices=["notification", "stop", "stopfailure"], default="notification")
     args, _ = parser.parse_known_args()
 
     if not enabled():  # toggle gate: silent no-op unless opted in

@@ -1,32 +1,76 @@
-# Spec: tmux-aware desktop notifications for `agent-harness` (with install-time on/off toggle)
+# Spec: tmux-aware desktop notifications for `agent-harness`
 
 ## Context
 
-The user runs Claude Code inside **tmux on macOS** (and has Linux homelab boxes). Claude Code's built-in desktop notifications don't pass through tmux (it sends plain OSC sequences; tmux requires DCS passthrough — a known open issue), so after plan-mode approval or a permission prompt there's no reliable signal that the agent needs input, and no way to jump to the right tmux window.
+The user runs Claude Code inside **tmux on macOS** (and has Linux homelab boxes). Claude Code's
+built-in desktop notifications don't pass through tmux (it sends plain OSC sequences; tmux requires
+DCS passthrough — a known open issue), so after plan-mode approval or a permission prompt there's no
+reliable signal that the agent needs input, and no way to jump to the right tmux window.
 
-Claude Code fires two relevant lifecycle hooks:
-- **`Notification`** — when Claude is waiting for input (after plan-mode approval, permission requests, etc.)
-- **`Stop`** — when Claude finishes responding.
+The Claude Code hooks lifecycle fires several relevant events. As of the current docs
+(https://code.claude.com/docs/en/hooks), the full event catalog groups as:
 
-A hook-based notifier sidesteps the OSC/tmux issue entirely: the hook script captures the tmux context from `$TMUX` / `$TMUX_PANE`, fires a desktop notification, and (on macOS) attaches a click action that runs `tmux switch-client`/`select-window` to jump to the exact `session:window` where Claude is waiting.
+- **Once per session:** `SessionStart`, `SessionEnd`, `Setup`
+- **Once per turn:** `UserPromptSubmit`, `Stop`, `StopFailure`
+- **Per tool call:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PostToolBatch`,
+  `PermissionRequest`, `PermissionDenied`
+- **Async / event-driven:** `Notification`, `SubagentStart`, `SubagentStop`, `TeammateIdle`,
+  `PreCompact`/`PostCompact`, `InstructionsLoaded`, `ConfigChange`, `CwdChanged`, `FileChanged`,
+  `MessageDisplay`, `WorktreeCreate`/`WorktreeRemove`, `Elicitation`/`ElicitationResult`,
+  `TaskCreated`/`TaskCompleted`
 
-The intended outcome: when you install the `boss-skills` marketplace, you can flip **one config toggle** to turn tmux desktop notifications on/off. Default **off** so users without tmux/terminal-notifier are unaffected.
+Events of interest for this feature and why:
+
+| Event | When | Decision control | Why we use it |
+|---|---|---|---|
+| `Notification` | Claude sends a notification (permission request, idle, MCP elicitation, etc.) | None (logging/observability only) | Signals "Claude is blocked on you" |
+| `Stop` | Claude finishes responding normally | Can block or add context | Signals "turn complete" |
+| `StopFailure` | Turn ends on an API error (`rate_limit`, `overloaded`, `server_error`, …) | **Output and exit code ignored** | Signals "turn failed — check it" |
+
+Matcher notes that directly affect the wiring:
+- `Notification` matcher = `notification_type`. Values: `permission_prompt`, `idle_prompt`,
+  `auth_success`, `elicitation_dialog`, `elicitation_complete`, `elicitation_response`. Matchers
+  support `|`-alternation (e.g. `permission_prompt|idle_prompt`).
+- `Stop` matcher: none (always fires). Input carries `permission_mode` + `effort`.
+- `StopFailure` matcher = `error_type`. Input carries `error_type` + `error_message`. **Output/exit
+  code are ignored** — the hook's value is its side-effect (the notification).
+
+A hook-based notifier sidesteps the OSC/tmux issue entirely: the hook script captures the tmux
+context from `$TMUX` / `$TMUX_PANE`, fires a desktop notification, and (on macOS) attaches a click
+action that runs `tmux switch-client`/`select-window` to jump to the exact `session:window` where
+Claude is waiting.
+
+The intended outcome: when you install the `boss-skills` marketplace, you can flip **one config
+toggle** to turn tmux desktop notifications on/off. Default **off** so users without
+tmux/terminal-notifier are unaffected.
 
 ## Objective
 
-Add an opt-in, tmux-aware desktop-notification capability to the existing **`agent-harness`** plugin, controlled by a per-plugin **`userConfig`** toggle surfaced at install/configure time, wired into the plugin's existing `Notification` and `Stop` hooks without regressing current behavior.
+Add an opt-in, tmux-aware desktop-notification capability to the existing **`agent-harness`**
+plugin, controlled by a per-plugin **`userConfig`** toggle surfaced at install/configure time,
+wired into the plugin's `Notification`, `Stop`, and `StopFailure` hooks without regressing current
+behavior.
 
 ## Problem Statement
 
-There is currently no way to know — while working in another tmux window — that Claude has finished a turn or is blocked waiting for input. The built-in notification path is broken under tmux. We need a notification that (a) is reliable under tmux, (b) is clickable to jump to the right pane on macOS, (c) degrades gracefully on Linux and when optional tools are missing, and (d) is **off by default** and toggleable through the documented plugin user-configuration mechanism rather than manual settings edits.
+There is currently no way to know — while working in another tmux window — that Claude has finished
+a turn, is blocked waiting for input, or that a turn died on an API error. The built-in notification
+path is broken under tmux. We need a notification that (a) is reliable under tmux, (b) is clickable
+to jump to the right pane on macOS, (c) degrades gracefully on Linux and when optional tools are
+missing, and (d) is **off by default** and toggleable through the documented plugin user-configuration
+mechanism rather than manual settings edits.
 
 ## Solution Approach
 
-- Add a **new standalone Python hook script** `hooks/tmux_notify.py` (PEP 723, matching the repo's existing hook convention) to the `agent-harness` plugin.
-- Declare a **`userConfig`** block in the plugin's `plugin.json` with a boolean enable toggle plus two optional knobs (terminal bundle id to focus, notification sound). This is the first `userConfig` in the repo.
-- Gate the script with the exported env var **`CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS`** — the hook always runs but exits immediately (silent no-op) unless the toggle is on.
-- Wire the script as **parallel** hook entries under the existing `Notification` and `Stop` arrays so the current Python TTS/logging hooks are untouched.
-- Bump the plugin **minor** version in both `plugin.json` and `marketplace.json` (0.5.0 → 0.6.0).
+- A **standalone Python hook script** `hooks/tmux_notify.py` (PEP 723, stdlib-only) in the
+  `agent-harness` plugin handles all three notification events with a single `--event` flag.
+- A **`userConfig`** block in `plugin.json` exposes a boolean enable toggle plus two optional knobs
+  (terminal bundle id to focus, notification sound).
+- The script is gated by `CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS` — always runs but exits
+  immediately (silent no-op) unless the toggle is on.
+- The script is wired as **parallel** hook entries so the current Python TTS/logging hooks are
+  untouched. The `Notification` entry uses a **filtered matcher** so it only fires when Claude is
+  actually blocked on the user — not on `auth_success` or elicitation echo events.
 
 ### Design decisions (confirmed with the user)
 | Decision | Choice |
@@ -36,257 +80,106 @@ There is currently no way to know — while working in another tmux window — t
 | Platforms | **macOS (`terminal-notifier`) + Linux fallback (`notify-send`)**, then terminal bell |
 | Terminal focus | **Configurable bundle id, default `com.mitchellh.ghostty`** |
 
+---
+
+## v0.9.0 — Initial implementation (SHIPPED on branch `feature-implement-tmux-notify`)
+
+This increment shipped and is committed. The sections below document what was built.
+
+### Grounding facts at time of ship
+
+- `plugin.json` at `0.9.0`, with the full `userConfig` block present. Marketplace mirrors `0.9.0`.
+- `hooks.json` wires `Notification → notification.py --notify` and `Stop → stop.py --chat` as
+  existing entries, plus the new `tmux_notify.py` entries as parallel hook objects. Also contains
+  `SubagentStop`, `UserPromptSubmit`, `PreCompact`, `SessionStart`, `SessionEnd`, `PermissionRequest`,
+  `PostToolUseFailure`, `SubagentStart`, `Setup`.
+- Real `Notification` event JSON on stdin: `session_id`, `transcript_path`, `cwd`,
+  `hook_event_name`, `message`, `notification_type`. `Stop` events: `session_id`, `transcript_path`,
+  `cwd`, `hook_event_name`, `permission_mode`, `effort`.
+- Per Claude Code docs: `userConfig` in `.claude-plugin/plugin.json`; each value exported as
+  `CLAUDE_PLUGIN_OPTION_<KEY-UPPERCASED>` (booleans arrive as `"true"`/`"false"`), also substitutable
+  as `${user_config.KEY}`.
+
+### What shipped
+
+**`plugin.json`** — added `userConfig`:
+```json
+"userConfig": {
+  "tmux_notifications": { "type": "boolean", "default": false, ... },
+  "tmux_notify_activate_bundle_id": { "type": "string", "default": "com.mitchellh.ghostty", ... },
+  "tmux_notify_sound": { "type": "boolean", "default": false, ... }
+}
+```
+
+**`hooks/tmux_notify.py`** — stdlib-only PEP 723 script. Toggle gate → read stdin JSON → build
+title/subtitle/message → try `terminal-notifier` (macOS, with `-execute` click-to-jump) → try
+`notify-send` (Linux) → terminal bell fallback. Always exits `0`.
+
+**`hooks.json`** — parallel entry under `Notification` and `Stop`:
+```json
+{ "matcher": "", "hooks": [{ "type": "command",
+  "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event notification" }] }
+{ "matcher": "", "hooks": [{ "type": "command",
+  "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event stop" }] }
+```
+
+---
+
+## v0.10.0 — Refinements (SHIPPED, same branch)
+
+Two gaps surfaced by reviewing the current hooks lifecycle docs:
+
+1. **`Notification` matcher was too broad.** The `matcher: ""` fired on every notification type,
+   including `auth_success` and `elicitation_complete`/`elicitation_response` echoes — noise, not
+   "Claude needs you."
+2. **`StopFailure` was unwired.** API-error turns (`rate_limit`, `overloaded`, `server_error`, …)
+   fire `StopFailure` instead of `Stop`. The v0.9.0 wiring covered `Stop` only, so a failed turn
+   produced no notification.
+
+### Changes in this increment
+
+**`hooks.json` — narrow `Notification` tmux entry matcher:**
+```json
+"matcher": "permission_prompt|idle_prompt|elicitation_dialog"
+```
+Fires only when Claude is blocked on the user (permission / idle / MCP elicitation). The
+`notification.py` TTS entry's matcher is unchanged.
+
+**`hooks.json` — new `StopFailure` array:**
+```json
+"StopFailure": [
+  { "matcher": "",
+    "hooks": [{ "type": "command",
+      "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event stopfailure" }] }
+]
+```
+
+**`tmux_notify.py` — `stopfailure` event support:**
+- Added `"stopfailure"` to `--event` choices.
+- New `build_text` branch:
+  ```python
+  if event == "stopfailure":
+      etype = (payload.get("error_type") or "unknown").strip()
+      emsg = (payload.get("error_message") or "").strip()
+      detail = f"{etype}: {emsg}" if emsg else etype
+      return ("Claude Code", "Turn failed", f"The turn ended on an API error ({detail}).")
+  ```
+
+Plugin bumped `0.9.0` → `0.10.0` (minor — new hook event wired).
+
+---
+
 ## Relevant Files
 
-- `plugins/boss-dev/agent-harness/.claude-plugin/plugin.json` — add `userConfig` block; bump `version` 0.5.0 → 0.6.0.
-- `plugins/boss-dev/agent-harness/hooks/hooks.json` — append parallel hook objects to `Notification` and `Stop` arrays.
-- `.claude-plugin/marketplace.json` — bump `agent-harness` entry `version` 0.5.0 → 0.6.0 (parity required by `version-bump-reviewer`).
-- `plugins/boss-dev/agent-harness/README.md` — document prerequisites, toggle, and bundle-id examples.
-- Existing patterns to mirror: `plugins/boss-dev/agent-harness/hooks/notification.py` and `hooks/stop.py` (stdin JSON parse, graceful `exit 0`, PEP 723 shebang `#!/usr/bin/env -S uv run --script`).
+- `plugins/boss-dev/agent-harness/.claude-plugin/plugin.json` — `userConfig` block; version `0.10.0`.
+- `plugins/boss-dev/agent-harness/hooks/hooks.json` — `Notification`/`Stop`/`StopFailure` tmux entries.
+- `.claude-plugin/marketplace.json` — `agent-harness` entry at `0.10.0`.
+- `plugins/boss-dev/agent-harness/hooks/tmux_notify.py` — the notification hook (stdlib-only, PEP 723).
+- `plugins/boss-dev/agent-harness/README.md` — prerequisites, toggle, bundle-id examples.
+- Existing patterns mirrored: `hooks/notification.py` and `hooks/stop.py` (stdin JSON parse,
+  graceful `exit 0`, PEP 723 shebang).
 
-### New Files
-
-- `plugins/boss-dev/agent-harness/hooks/tmux_notify.py` — the notification hook (full source below).
-
-## Verified grounding facts
-
-- `plugin.json` is at `0.5.0`, **no** `userConfig` field today. Marketplace mirrors `0.5.0`.
-- `hooks.json` already wires `Notification → notification.py --notify` and `Stop → stop.py --chat`, and contains an inline **bash** PostToolUse hook — so non-trivial hook commands are an accepted convention.
-- Real `Notification` event JSON on stdin: `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `message`, `notification_type` (e.g. `"permission_prompt"`). `Stop` events: `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `stop_hook_active`.
-- Per Claude Code docs: `userConfig` lives in `.claude-plugin/plugin.json`; each value is exported to plugin subprocesses as `CLAUDE_PLUGIN_OPTION_<KEY-UPPERCASED>` (booleans arrive as the strings `"true"`/`"false"`), and is also substitutable in command strings as `${user_config.KEY}`. `${CLAUDE_PLUGIN_ROOT}` resolves to the plugin install dir.
-
-## Why a separate script + env-var gate (not folding into `notification.py`)
-
-- **Orthogonal concern.** tmux/terminal-notifier logic shares nothing with `notification.py`'s TTS/LLM utils. A separate file keeps the existing `tests/` suite valid and prevents the tmux path from regressing TTS/logging.
-- **Fail-safe off-state.** The hook always runs (Claude Code has no conditional-hook mechanism); gating on `CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS` inside the script means unset/false → immediate `exit 0`. This is also true for older Claude Code versions that ignore `userConfig` (env var unset → treated as off).
-- **Testable in isolation.** `CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS=true uv run tmux_notify.py --event notification < event.json` exercises it without Claude Code's substitution engine.
-
-## Step by Step Tasks
-
-IMPORTANT: Execute every step in order, top to bottom.
-
-### 1. Add `userConfig` to `plugin.json` and bump version
-- In `plugins/boss-dev/agent-harness/.claude-plugin/plugin.json`, change `"version": "0.5.0"` → `"0.6.0"`.
-- Add this top-level `userConfig` object (e.g. after `"keywords"`):
-
-```json
-  "userConfig": {
-    "tmux_notifications": {
-      "type": "boolean",
-      "title": "tmux desktop notifications",
-      "description": "Fire a clickable macOS/Linux desktop notification when the agent needs input or finishes, that jumps you to the exact tmux session:window. Requires tmux and terminal-notifier (macOS) or notify-send (Linux). Default off.",
-      "default": false,
-      "required": false
-    },
-    "tmux_notify_activate_bundle_id": {
-      "type": "string",
-      "title": "Terminal app bundle id (macOS)",
-      "description": "macOS bundle identifier of your terminal so the notification raises it on click (e.g. com.mitchellh.ghostty, com.googlecode.iterm2, dev.warp.Warp, com.apple.Terminal). Leave blank to skip activation.",
-      "default": "com.mitchellh.ghostty",
-      "required": false
-    },
-    "tmux_notify_sound": {
-      "type": "boolean",
-      "title": "Play notification sound",
-      "description": "Play the default notification sound (macOS terminal-notifier -sound default). Off keeps notifications silent.",
-      "default": false,
-      "required": false
-    }
-  }
-```
-
-Resulting env vars: `CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS`, `CLAUDE_PLUGIN_OPTION_TMUX_NOTIFY_ACTIVATE_BUNDLE_ID`, `CLAUDE_PLUGIN_OPTION_TMUX_NOTIFY_SOUND`. None are secrets, so no `sensitive: true`.
-
-### 2. Bump the marketplace entry
-- In `.claude-plugin/marketplace.json`, set the `agent-harness` plugin entry `"version"` to `"0.6.0"` to keep parity with `plugin.json`.
-
-### 3. Create `hooks/tmux_notify.py`
-- Add the new file with the full source below. Keep the PEP 723 shebang and `chmod +x`.
-
-```python
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.13"
-# ///
-"""tmux-aware desktop notification hook for agent-harness.
-
-Fires a clickable desktop notification (macOS terminal-notifier or Linux
-notify-send) when Claude needs input (Notification) or finishes (Stop).
-Clicking the macOS notification runs ``tmux switch-client`` to jump to the
-exact session:window where Claude is waiting.
-
-Invoked from hooks.json as::
-
-    uv run "${CLAUDE_PLUGIN_ROOT}"/hooks/tmux_notify.py --event notification
-    uv run "${CLAUDE_PLUGIN_ROOT}"/hooks/tmux_notify.py --event stop
-
-Hook event JSON arrives on stdin. Gated by the user_config toggle
-CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS (default off). This script must never
-fail the hook chain: it always exits 0 and swallows every error.
-"""
-
-from __future__ import annotations
-
-import argparse
-import json
-import os
-import shutil
-import subprocess
-import sys
-
-TRUTHY = {"true", "1", "yes", "on"}
-
-
-def _flag(name: str, default: str = "false") -> bool:
-    return os.environ.get(name, default).strip().lower() in TRUTHY
-
-
-def enabled() -> bool:
-    return _flag("CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS")
-
-
-def read_event() -> dict:
-    try:
-        return json.loads(sys.stdin.read() or "{}")
-    except (json.JSONDecodeError, ValueError):
-        return {}
-
-
-def tmux_context() -> tuple[str, str] | None:
-    """Return (socket, "session:window") for the current pane, or None.
-
-    None means "not inside tmux / tmux unavailable" -> notify without a
-    click-to-jump action.
-    """
-    tmux_env = os.environ.get("TMUX", "")
-    if not tmux_env or not shutil.which("tmux"):
-        return None
-    socket = tmux_env.split(",", 1)[0]  # TMUX == "<socket>,<pid>,<session>"
-    pane = os.environ.get("TMUX_PANE", "")
-    cmd = ["tmux", "-S", socket, "display-message", "-p"]
-    if pane:
-        cmd += ["-t", pane]
-    cmd += ["#{session_name}:#{window_index}"]
-    try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=5).stdout.strip()
-    except (subprocess.SubprocessError, OSError):
-        return None
-    return (socket, out) if out else None
-
-
-def build_text(event: str, payload: dict) -> tuple[str, str, str]:
-    """Return (title, subtitle, message) for the given event."""
-    if event == "stop":
-        return ("Claude Code", "Response finished", "Claude finished and is ready for your next instruction.")
-    message = (payload.get("message") or "").strip() or "Claude needs your input."
-    return ("Claude Code", "Waiting for you", message)
-
-
-def notify_macos(title: str, subtitle: str, message: str, group: str, ctx: tuple[str, str] | None) -> bool:
-    if not shutil.which("terminal-notifier"):
-        return False
-    args = ["terminal-notifier", "-title", title, "-subtitle", subtitle, "-message", message, "-group", group]
-    if _flag("CLAUDE_PLUGIN_OPTION_TMUX_NOTIFY_SOUND"):
-        args += ["-sound", "default"]
-    bundle = os.environ.get("CLAUDE_PLUGIN_OPTION_TMUX_NOTIFY_ACTIVATE_BUNDLE_ID", "").strip()
-    if bundle:
-        args += ["-activate", bundle]
-    if ctx:
-        socket, target = ctx
-        # Click action: jump to the exact tmux session:window via the same socket.
-        execute = f"tmux -S '{socket}' switch-client -t '{target}' \\; select-window -t '{target}'"
-        args += ["-execute", execute]
-    try:
-        subprocess.run(args, capture_output=True, timeout=10)
-        return True
-    except (subprocess.SubprocessError, OSError):
-        return False
-
-
-def notify_linux(title: str, subtitle: str, message: str, ctx: tuple[str, str] | None) -> bool:
-    if not shutil.which("notify-send"):
-        return False
-    body = message
-    if ctx:  # notify-send has no click-to-execute; surface the target as text.
-        body = f"{message}\ntmux: {ctx[1]}"
-    try:
-        subprocess.run(["notify-send", f"{title} — {subtitle}", body], capture_output=True, timeout=10)
-        return True
-    except (subprocess.SubprocessError, OSError):
-        return False
-
-
-def notify_bell(subtitle: str, message: str) -> None:
-    """Last resort: terminal bell + one line to the controlling tty."""
-    try:
-        with open("/dev/tty", "w") as tty:
-            tty.write(f"\a{subtitle}: {message}\n")
-    except OSError:
-        pass
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--event", choices=["notification", "stop"], default="notification")
-    args, _ = parser.parse_known_args()
-
-    if not enabled():  # toggle gate: silent no-op unless opted in
-        return
-
-    payload = read_event()
-    title, subtitle, message = build_text(args.event, payload)
-    group = f"claude-code-{payload.get('session_id') or 'default'}"
-    ctx = tmux_context()
-
-    if notify_macos(title, subtitle, message, group, ctx):
-        return
-    if notify_linux(title, subtitle, message, ctx):
-        return
-    notify_bell(subtitle, message)
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except Exception:  # never fail the hook chain
-        pass
-    sys.exit(0)
-```
-
-### 4. Wire parallel hook entries in `hooks.json`
-- Append a **second** hook object to the existing `Notification` array (leave the existing `notification.py --notify` object first):
-
-```json
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event notification"
-          }
-        ]
-      }
-```
-
-- Append a **second** hook object to the existing `Stop` array:
-
-```json
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event stop"
-          }
-        ]
-      }
-```
-
-### 5. Update the plugin README
-- In `plugins/boss-dev/agent-harness/README.md`, document: prerequisites (`tmux`; `brew install terminal-notifier` on macOS, `notify-send`/`libnotify` on Linux), the three `userConfig` knobs, default-off behavior, and example bundle ids.
-
-### 6. Validate
-- Run repo structure/lint checks and the manual test recipes (see Testing Strategy and Validation Commands).
+---
 
 ## Testing Strategy
 
@@ -294,66 +187,93 @@ All edge cases must be **silent and non-fatal** (the script always exits 0):
 
 | Case | Expected behavior |
 |---|---|
-| Toggle unset / `false` (default) | Immediate `exit 0`, no notification — invisible to existing users |
-| Older Claude Code ignoring `userConfig` | Env var unset → off → no-op |
+| Toggle unset / `false` (default) | Immediate `exit 0`, no notification |
+| `Notification` type `auth_success` | tmux notifier does not fire (matcher-filtered); TTS unaffected |
+| `Notification` type `permission_prompt` / `idle_prompt` / `elicitation_dialog` | Banner fires |
+| `Stop` (normal turn end) | "Response finished" banner |
+| `StopFailure` (`overloaded`) | "Turn failed — The turn ended on an API error (overloaded: …)" banner |
+| `StopFailure` with empty `error_message` | Shows just `error_type` |
 | Not inside tmux (`$TMUX` empty) | Notification fires, no click-jump action |
-| `tmux` not installed | Same graceful degradation as above |
-| `terminal-notifier` missing (macOS) | Falls to `notify-send`, then `/dev/tty` bell |
-| Linux homelab box | `notify-send`; tmux target shown in body (no click-to-jump) |
-| Neither notifier present | Terminal bell + one line to tty; swallowed if no tty |
+| `terminal-notifier` missing (macOS) | Falls to `notify-send`, then terminal bell |
+| Linux homelab | `notify-send`; tmux target shown in body |
+| Neither notifier present | Terminal bell + one tty line |
 | Malformed/empty stdin JSON | Falls back to generic message text |
-| Non-default tmux socket / multiple servers | `tmux -S "$socket"` (derived from `$TMUX`) targets the correct server for both query and click |
-| Many `Stop` events | `-group claude-code-<session_id>` coalesces per session on macOS |
 
-Manual recipes (run from repo root):
-
+Manual recipes (from repo root):
 ```bash
-# 1. Toggle OFF (default) -> nothing, exit 0
+# 1. Toggle OFF (default) → nothing, exit 0
 echo '{"hook_event_name":"Notification","message":"test","session_id":"t1"}' \
   | uv run plugins/boss-dev/agent-harness/hooks/tmux_notify.py --event notification; echo "exit=$?"
 
-# 2. Toggle ON, inside a tmux pane -> clickable macOS banner that jumps
+# 2. Toggle ON, Notification → banner + click-jump
 CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS=true \
 CLAUDE_PLUGIN_OPTION_TMUX_NOTIFY_ACTIVATE_BUNDLE_ID=com.mitchellh.ghostty \
   uv run plugins/boss-dev/agent-harness/hooks/tmux_notify.py --event notification \
   <<<'{"message":"Claude needs your input","session_id":"t2"}'
 
-# 3. Stop event variant
+# 3. Stop event
 CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS=true \
   uv run plugins/boss-dev/agent-harness/hooks/tmux_notify.py --event stop \
-  <<<'{"hook_event_name":"Stop","session_id":"t3","stop_hook_active":true}'
+  <<<'{"hook_event_name":"Stop","session_id":"t3"}'
 
-# 4. Simulate "no tmux"
+# 4. StopFailure, toggle ON
+CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS=true \
+  uv run plugins/boss-dev/agent-harness/hooks/tmux_notify.py --event stopfailure \
+  <<<'{"hook_event_name":"StopFailure","error_type":"overloaded","error_message":"server busy","session_id":"f1"}'
+
+# 5. StopFailure, toggle OFF → nothing, exit 0
+echo '{"error_type":"rate_limit"}' \
+  | uv run plugins/boss-dev/agent-harness/hooks/tmux_notify.py --event stopfailure; echo "exit=$?"
+
+# 6. Simulate "no tmux"
 env -u TMUX CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS=true \
   uv run plugins/boss-dev/agent-harness/hooks/tmux_notify.py --event notification <<<'{"message":"hi"}'
 ```
 
-End-to-end: enable `tmux_notifications` in plugin config, run Claude in a tmux pane, trigger a plan-mode approval (`Notification`) and let a turn finish (`Stop`); confirm a banner appears and clicking it jumps to the pane. Verify existing TTS/logging still works (proves parallel wiring didn't regress `notification.py`/`stop.py`).
+End-to-end: enable `tmux_notifications` in plugin config, run Claude in a tmux pane, trigger a
+plan-mode approval (`Notification`) and let a turn finish (`Stop`); confirm a banner appears and
+clicking it jumps to the pane. Trigger an API error (`StopFailure`) and confirm a "Turn failed"
+banner. Verify existing TTS/logging still works (proves parallel wiring didn't regress
+`notification.py`/`stop.py`). Confirm an `auth_success` notification (e.g. after `/login`) does
+**not** pop a tmux banner.
 
-## Acceptance Criteria
+## Acceptance Criteria (v0.10.0)
 
 - `plugin.json` declares the three `userConfig` keys; `tmux_notifications` defaults to `false`.
-- `plugin.json` and the `marketplace.json` `agent-harness` entry are both at `0.6.0`.
-- `hooks/tmux_notify.py` exists, is executable, and exits 0 in every path.
-- `hooks.json` runs `tmux_notify.py` as a parallel entry under both `Notification` and `Stop`; existing `notification.py`/`stop.py` entries are unchanged.
+- `plugin.json` and the `marketplace.json` `agent-harness` entry are both at `0.10.0`.
+- `hooks/tmux_notify.py` exists, is executable, exits 0 in every path, and accepts
+  `--event notification|stop|stopfailure`.
+- `hooks.json` tmux `Notification` entry uses `matcher: "permission_prompt|idle_prompt|elicitation_dialog"`.
+- `hooks.json` has a `StopFailure` array invoking `tmux_notify.py --event stopfailure`.
+- Existing `notification.py`/`stop.py` entries are unchanged.
 - With the toggle off/unset, the script produces no output and no notification.
-- With the toggle on inside tmux on macOS, a clickable notification appears and clicking it switches to the correct `session:window`.
-- Graceful degradation verified for: no tmux, no terminal-notifier (Linux path / bell), malformed JSON.
-- README documents prerequisites, the toggle, and bundle-id examples.
+- With the toggle on inside tmux on macOS, a clickable notification appears and clicking it switches
+  to the correct `session:window`.
+- `auth_success` notifications do not trigger the tmux banner.
+- A `StopFailure` event triggers a "Turn failed" banner with error detail.
+- Graceful degradation verified for: no tmux, no terminal-notifier (Linux / bell), malformed JSON.
+- README documents prerequisites, the toggle, bundle-id examples, and the three event types.
 
 ## Validation Commands
 
-- `uv run python -m py_compile plugins/boss-dev/agent-harness/hooks/tmux_notify.py` — script compiles.
-- `python -c "import json,sys; json.load(open('plugins/boss-dev/agent-harness/.claude-plugin/plugin.json'))"` — plugin.json is valid JSON.
-- `python -c "import json; json.load(open('plugins/boss-dev/agent-harness/hooks/hooks.json'))"` — hooks.json is valid JSON.
-- `python -c "import json; json.load(open('.claude-plugin/marketplace.json'))"` — marketplace.json is valid JSON.
-- `make lint` — ruff/codespell (note: `tmux_notify.py` lives under `plugins/` which is linted).
-- Manual recipes 1–4 above (toggle off = silent; toggle on = notifies).
-- Run the repo's plugin-structure verification script if present (e.g. `./scripts/verify-structure.py`) to confirm plugin/marketplace parity.
+```bash
+uv run python -m py_compile plugins/boss-dev/agent-harness/hooks/tmux_notify.py
+python -c "import json; json.load(open('plugins/boss-dev/agent-harness/hooks/hooks.json'))"
+python -c "import json; json.load(open('plugins/boss-dev/agent-harness/.claude-plugin/plugin.json'))"
+python -c "import json; json.load(open('.claude-plugin/marketplace.json'))"
+make lint
+make verify-structure
+```
 
 ## Notes
 
-- No new Python dependencies — the script uses only stdlib (`argparse`, `json`, `os`, `shutil`, `subprocess`, `sys`), so the PEP 723 block needs no `dependencies`.
-- The hook invocation uses `uv run "${CLAUDE_PLUGIN_ROOT}"/hooks/tmux_notify.py` (matching every other hook), so it does not depend on the executable bit.
-- This is the first `userConfig` in the repo; the `version-bump-reviewer` skill treats a feature-bearing plugin file + new hook wiring as a **minor** bump, and requires `plugin.json`/`marketplace.json` version parity.
-- Out of scope for v0.6.0: a bats/pytest harness for the bash-shaped behavior, and Linux click-to-jump (notify-send action buttons need a running listener). Documented as limitations.
+- No new Python dependencies — the script uses only stdlib (`argparse`, `json`, `os`, `shutil`,
+  `subprocess`, `sys`), so the PEP 723 block needs no `dependencies`.
+- `StopFailure`'s "output/exit code ignored" semantics are fine: the script's value is the
+  side-effect (the banner), and it already exits 0.
+- Deliberately out of scope: `SubagentStop`/`SubagentStart` (frequent, already TTS-wired),
+  `TeammateIdle`, raw `Elicitation`/`ElicitationResult` (`elicitation_dialog` Notification covers
+  the "MCP wants input" banner), and all tool-level events. Keeping the list narrow avoids
+  notification spam.
+- Linux click-to-jump is not supported (`notify-send` action buttons need a running listener) — tmux
+  target is shown in the body instead. Documented as a limitation.
