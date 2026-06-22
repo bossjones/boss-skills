@@ -12,6 +12,12 @@ allowed-tools:
 Posts one inline review comment to a specific line in a GitHub pull request
 using the GitHub REST API via the `gh` CLI.
 
+This is a pure worker skill: one invocation posts exactly one comment. Give it
+the anchor (`path`, `line`, optional range and `side`) and the comment `body`;
+it resolves the head commit, posts the comment, and returns the new comment's
+`html_url`. It does not decide *what* to review or batch multiple findings — a
+caller (such as `pr-review`) drives that and calls this once per finding.
+
 ## When to Use
 
 - You have a single finding and want to anchor a comment to the exact line.
@@ -84,3 +90,34 @@ gh api repos/<owner>/<repo>/pulls/<pr_number>/comments \
   every instance.
 - For bugs, state the problem, why it matters, and a concrete fix.
 - Always end the comment body with `🤖 Generated with Claude` on its own line.
+
+## Output
+
+A successful post returns the new comment's `html_url` (a permalink to the
+inline comment) — that single URL is what the caller gets back and can surface
+or log. A failed post returns a non-zero exit and an HTTP error from `gh api`
+(typically 401 for auth or 422 for a bad line anchor); see the troubleshooting
+reference for how to read each one.
+
+## Reference Files
+
+- `references/api-reference.md` — consult when constructing the request: the
+  `gh api` endpoint, the full parameter table, single-line vs multi-line anchor
+  rules, `side` selection, and `suggestion` block syntax.
+- `references/troubleshooting.md` — consult when a post fails: auth errors and
+  the line-anchor pitfalls behind 422 responses (line not in the diff, wrong
+  `side`, stale `commit_id`, inverted `start_line`).
+
+## Related skills
+
+This skill is the "post one comment" worker in the PR-review family. A typical
+flow chains them:
+
+- [`fetch-diff`](../fetch-diff/SKILL.md) — fetch the PR diff with real file line
+  numbers, so you know which `path`/`line`/`side` to anchor to.
+- [`add-review-comment`](./SKILL.md) (this skill) — post a single inline comment
+  to one of those lines.
+- [`pr-review`](../pr-review/SKILL.md) — review a whole PR and drive this skill
+  once per finding.
+- [`fetch-unresolved-comments`](../fetch-unresolved-comments/SKILL.md) — read the
+  open review threads on a PR, e.g. to follow up on comments left here.

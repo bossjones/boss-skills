@@ -6,8 +6,9 @@ PluginEval is a three-layer quality framework for Claude Code plugins and skills
 combines deterministic static analysis, LLM-based semantic judging, and Monte Carlo
 simulation into a calibrated composite score with a confidence label and a quality badge.
 
-This repo does **not** vendor it — `scripts/eval-skills.py` and the `make eval-*` targets
-pull `plugin-eval` on demand via `uvx` from the `wshobson/agents` git subdirectory.
+This repo vendors a locally-patched copy at `scripts/plugin_eval/` (see its `VENDORING.md`);
+`scripts/eval-skills.py` and the `make eval-*` targets build it on demand via `uvx --from`.
+`PLUGIN_EVAL_SOURCE` still overrides that default (e.g. to test an upstream revision).
 
 ## Commands (as wired in this repo)
 
@@ -32,7 +33,29 @@ pull `plugin-eval` on demand via `uvx` from the `wshobson/agents` git subdirecto
 | `thorough` | static + judge + Monte Carlo (100) | Certified+ | ~6 min | ~104 LLM calls |
 
 The repo's `--layer` alias maps `static→quick`, `llm-judge→standard`, `monte-carlo→deep`,
-`all→thorough`.
+`all→thorough`. `make eval-skill` and `scripts/eval-skills.py` also accept `--depth`
+directly (it wins over `--layer` when both are set).
+
+## Flags (`score` / `certify` / `compare`)
+
+The full upstream `plugin-eval score` surface — `certify` and `compare` accept the same LLM
+knobs (`--concurrency`, `--auth`), confirmed via `plugin-eval … --help`:
+
+| Flag | Values (default) | Notes |
+|------|------------------|-------|
+| `--depth` | `quick`\|`standard`\|`deep`\|`thorough` (`standard`) | Layer selection (see table above). `certify` is always `deep` and ignores it. |
+| `--concurrency` | int `1`–`20` (`4`) | Max parallel LLM calls within one score. |
+| `--auth` | `max`\|`api-key` (`max`) | `max` = Claude Code Max via `claude-agent-sdk`; `api-key` = the `anthropic` SDK. This repo's wrapper sources the key from `BOSS_SKILL_ANTHROPIC_API_KEY` in `.env` and maps it to `ANTHROPIC_API_KEY` for the plugin-eval subprocess only (so Claude Code's own auth is never touched). |
+| `--output` | `json`\|`markdown`\|`html` (`markdown`) | This repo uses `json` for the score table, `markdown` for reports. |
+| `--verbose` / `-v` | flag | Verbose plugin-eval output. |
+| `--threshold` | float | Exit code 1 if the composite is below it. |
+
+**When the judge silently no-ops:** a report whose Model Usage reads "No model usage
+(static-only evaluation)" with a flat `0.500` judge layer means the `--auth max` backend
+wasn't reachable (no Claude Code Max / `claude-agent-sdk` session). Re-run with
+`--auth api-key` after putting a key in `.env` as `BOSS_SKILL_ANTHROPIC_API_KEY` — the
+wrapper injects it as `ANTHROPIC_API_KEY` into the eval subprocess so the judge dimensions
+actually score, without exporting the key to your shell or Claude Code.
 
 ## The three layers
 

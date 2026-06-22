@@ -2,25 +2,26 @@
 name: skill-evals
 description: >
   Run wshobson PluginEval over this repo's skills and write a `# PluginEval Report`
-  to an `EVALS.md` in each skill's folder. Use when the user wants to evaluate,
-  score, grade, benchmark, or certify skills; (re)generate or refresh EVALS.md files;
+  to `docs/evals/<plugin>/<skill>.md`. Use when the user wants to evaluate,
+  score, grade, benchmark, or certify skills; (re)generate or refresh eval reports;
   check skill quality after editing a SKILL.md; or improve skills based on their eval
   results. Defaults to `--review` (score/standard depth, report only); `--fix` also edits
   the weakest skills' SKILL.md in place to raise their scores; `--certify` runs the full
   deep certification with a badge. Reach for this skill even when the user only says
-  "run the evals", "score these skills", or "make EVALS.md" without naming PluginEval.
+  "run the evals", "score these skills", or "refresh the eval reports" without naming PluginEval.
+argument-hint: "[--review | --fix | --certify] [--depth quick|standard|deep|thorough] [--concurrency N] [--auth max|api-key] [skill-path ...]"
 allowed-tools: Bash(make *) Bash(git diff *) Bash(git status *) Bash(./scripts/eval-skills.py *) Bash(test *) Bash(ls *) Read Edit Task
 metadata:
-  version: "0.1.0"
+  version: "0.5.1"
 ---
 
 # Skill Evals
 
-Evaluate this repo's skills with [PluginEval](references/plugin-eval.md) (pulled on demand
-via `uvx` from `wshobson/agents` — nothing is vendored) and drop a Markdown report into
-each skill's own folder as `EVALS.md`. The work fans out across **one subagent per skill**
-so reports are produced in parallel and each subagent's verbose `uvx`/LLM output stays out
-of the main context.
+Evaluate this repo's skills with [PluginEval](references/plugin-eval.md) (built on demand
+via `uvx` from the vendored, locally-patched copy at `scripts/plugin_eval/`) and write a Markdown report to
+`docs/evals/<plugin>/<skill>.md` (see [the report convention](#report-location)). The work
+fans out across **one subagent per skill** so reports are produced in parallel and each
+subagent's verbose `uvx`/LLM output stays out of the main context.
 
 The upstream docs are bundled so you can look them up without network access:
 
@@ -31,16 +32,48 @@ The upstream docs are bundled so you can look them up without network access:
 - [`references/fix-playbook.md`](references/fix-playbook.md) — translating a weak
   dimension into a concrete SKILL.md edit (used by `--fix`).
 
+## What was requested
+
+This run was invoked with:
+
+> `$ARGUMENTS`
+
+Parse it before anything else (when invoked automatically rather than via `/skill-evals`,
+this is empty — fall back to the defaults):
+
+- **Mode** — `--certify` and/or `--fix` if present, otherwise `--review` (the default).
+- **Depth** — `--depth quick|standard|deep|thorough` if present, otherwise `standard`.
+  Controls how many layers run (see the Arguments table). `--certify` ignores it — certify
+  is always `deep` upstream.
+- **Concurrency** — `--concurrency N` (1–20) if present, otherwise the upstream default of
+  `4`. Caps plugin-eval's parallel LLM calls *within* a single skill's score; `8` is a
+  reasonable bump on a fast connection.
+- **Auth** — `--auth max|api-key` if present, otherwise `max`. `max` uses Claude Code Max
+  via `claude-agent-sdk`; `api-key` uses the `anthropic` SDK, authenticating from
+  `BOSS_SKILL_ANTHROPIC_API_KEY` in `.env` — the wrapper (`scripts/eval-skills.py`) maps it
+  to `ANTHROPIC_API_KEY` for the plugin-eval subprocess only, so Claude Code's own auth is
+  never touched. Reach for `--auth api-key` when the judge layer reports "No model usage
+  (static-only)" / a flat `0.500` judge score — that means the Max backend wasn't reachable.
+- **Targets** — any token that is not a `--flag` (or a flag's value) is an explicit skill
+  directory path. If none are given, auto-detect from the branch diff (Step 1).
+
+Echo the resolved mode and target list back to the user before running anything — e.g.
+"Evaluating 5 skills in `--review` mode: …" — so the scope is confirmed up front.
+
 ## Arguments
 
 | Argument | Meaning |
 |----------|---------|
-| `--review` | **Default.** Score each skill at standard depth (static + LLM judge) and write `EVALS.md`. No skill edits. |
+| `--review` | **Default.** Score each skill at standard depth (static + LLM judge) and write its `docs/evals/` report. No skill edits. |
 | `--fix` | Do `--review`, then improve the weakest skills' `SKILL.md` in the working tree (uncommitted) and re-run to confirm the gain. |
 | `--certify` | Run the full e2e `certify` (deep, all three layers, badge) instead of `score`. Slow. |
+| `--depth <d>` | `quick` (static only), `standard` (+ LLM judge, **default**), `deep` (+ Monte Carlo ×50), `thorough` (+ Monte Carlo ×100). Deeper = slower + more LLM calls. Ignored by `--certify` (always `deep`). |
+| `--concurrency <n>` | Max parallel LLM calls inside one skill's score (1–20; upstream default `4`). |
+| `--auth <a>` | `max` (Claude Code Max via `claude-agent-sdk`, **default**) or `api-key` (the `anthropic` SDK, keyed from `BOSS_SKILL_ANTHROPIC_API_KEY` in `.env` — mapped to `ANTHROPIC_API_KEY` for the subprocess only). Use `api-key` when the judge layer falls back to static-only. |
 | `<path> ...` | One or more explicit skill directories. If omitted, targets are auto-detected by diffing against `main`. |
 
-`--fix` and `--certify` compose: certify first, then fix off the certified report.
+`--fix` and `--certify` compose: certify first, then fix off the certified report. `--depth`,
+`--concurrency`, and `--auth` are modifiers that apply on top of whichever mode is selected.
 
 This skill always evaluates **one skill at a time** through the per-skill `make eval-skill`
 (standard depth) and `make eval-certify` (deep) targets. It never uses the repo-wide
@@ -83,6 +116,14 @@ in other harnesses). Give each subagent exactly one skill and this task:
 - **Review mode (default):** run `make eval-skill SKILL=<path>` from the repo root.
 - **Certify mode (`--certify`):** run `make eval-certify SKILL=<path>` instead.
 
+Forward the resolved depth/concurrency/auth as make variables, but only the ones the user
+actually set — otherwise let the Makefile defaults (`DEPTH=standard`, `CONCURRENCY=4`,
+`AUTH=max`) stand:
+
+- Review: `make eval-skill SKILL=<path> DEPTH=<depth> CONCURRENCY=<n> AUTH=<auth>`
+- Certify: `make eval-certify SKILL=<path> CONCURRENCY=<n> AUTH=<auth>` (no `DEPTH` — certify
+  is always `deep`).
+
 Each subagent then:
 
 1. Captures stdout (use a generous timeout — standard ≈30s–2min per skill; certify ≈15–20 min).
@@ -90,26 +131,40 @@ Each subagent then:
    the `uvx` download/build/install lines — keeping the report from `# PluginEval Report`
    onward. For the expected report shape (Overall Score → Layer Breakdown → Dimensions →
    Anti-Patterns), see "Reading a report" in [`references/plugin-eval.md`](references/plugin-eval.md).
-3. Writes the clean report to `<path>/EVALS.md`.
+3. Writes the clean report to its `docs/evals/` destination (see [Report location](#report-location)),
+   creating parent directories as needed. **Reports never go inside the skill directory.**
 4. Does **not** edit the skill itself in review/certify mode.
 5. Reports back the composite score, badge, and any anti-patterns.
 
-Tell each subagent the exact `<path>` and its exact `EVALS.md` destination so there is no
-ambiguity. (This mirrors the manual run this skill was built from.)
+Tell each subagent the exact skill `<path>` and its exact `docs/evals/…` destination so there
+is no ambiguity. (This mirrors the manual run this skill was built from.)
+
+### Report location
+
+Eval reports live under `docs/evals/`, **not** in the skill folder — a report is process/meta
+output, not content an agent needs, so it stays out of the skill tree (which keeps the skill to
+`SKILL.md` + `references/` + `scripts/`). Map a skill path to its report path:
+
+- Plugin skill `plugins/<category>/<plugin>/skills/<skill>` → `docs/evals/<plugin>/<skill>.md`
+  (e.g. `plugins/boss-dev/agent-harness/skills/fetch-diff` → `docs/evals/agent-harness/fetch-diff.md`).
+- Repo-internal skill `.claude/skills/<skill>` → `docs/evals/<skill>.md`.
+
+Add the report to the index at [`docs/evals/README.md`](../../../docs/evals/README.md) if it
+isn't listed there yet.
 
 ## Step 3 — Report
 
 Summarise the results as a table: skill, composite score, badge, anti-pattern count, and
-the lowest-scoring dimension per skill. Confirm each `EVALS.md` was written (e.g.
-`git status --porcelain | grep EVALS.md`).
+the lowest-scoring dimension per skill. Confirm each report was written (e.g.
+`git status --porcelain | grep docs/evals`).
 
 ## Step 4 — Improve (`--fix` only)
 
 Only when `--fix` was requested. For each evaluated skill, in priority order of lowest
 score first:
 
-1. Read the skill's `EVALS.md` and pull out the **lowest-scoring dimensions** and any
-   anti-patterns.
+1. Read the skill's report under `docs/evals/` and pull out the **lowest-scoring dimensions**
+   and any anti-patterns.
 2. Map each weakness to a concrete remedy using [`references/fix-playbook.md`](references/fix-playbook.md),
    cross-checking against [`references/agent-skills-how-skills-work.md`](references/agent-skills-how-skills-work.md)
    so the change reflects what actually makes skills better — not just what nudges a metric.
@@ -117,8 +172,8 @@ score first:
    weakness is progressive disclosure). Edit the working tree only — **do not commit**.
    Keep changes principled: explain *why* in the prose, generalise rather than overfit to
    the score, and avoid piling on rigid MUST/NEVER directives.
-4. Re-run that skill's eval (`make eval-skill SKILL=<path>`), overwrite its `EVALS.md`,
-   and record the before→after composite score.
+4. Re-run that skill's eval (`make eval-skill SKILL=<path>`), overwrite its `docs/evals/`
+   report, and record the before→after composite score.
 
 Report the score deltas and leave all edits staged-but-uncommitted for the user to review.
 
@@ -129,6 +184,8 @@ $ /skill-evals                                                    # review skill
 $ /skill-evals --fix                                              # review, then improve the weakest skill's SKILL.md, then re-run
 $ /skill-evals --certify .claude/skills/doc-generator            # deep certification (badge) for one skill
 $ /skill-evals .claude/skills/doc-generator .claude/skills/twitter-media-downloader  # explicit targets
+$ /skill-evals --depth deep --concurrency 8 .claude/skills/doc-generator             # deeper score, 8 parallel calls
+$ /skill-evals --auth api-key                                     # use ANTHROPIC_API_KEY when the Max judge is unreachable
 ```
 
 ## Cost & notes
@@ -136,5 +193,10 @@ $ /skill-evals .claude/skills/doc-generator .claude/skills/twitter-media-downloa
 - `--review` (standard depth) ≈ 4 LLM calls / ~30s per skill via Claude Code Max (`claude-agent-sdk`).
 - `--certify` (deep) ≈ 54 LLM calls / ~15–20 min per skill — confirm with the user before
   certifying more than one or two skills.
-- `EVALS.md` files are intentionally untracked output; they are regenerated each run.
+- `--depth` scales cost with the same shape: `quick` is static-only (free, instant),
+  `standard` ≈ 4 calls, `deep` ≈ 54 calls (Monte Carlo ×50), `thorough` ≈ 104 calls (×100).
+  `--auth api-key` requires `BOSS_SKILL_ANTHROPIC_API_KEY` in `.env` (or the environment);
+  the wrapper maps it to `ANTHROPIC_API_KEY` for the plugin-eval subprocess only.
+- Eval reports live under `docs/evals/<plugin>/<skill>.md` (not in the skill folder) and are
+  regenerated each run — overwrite freely. See [Report location](#report-location).
 - All commands run from the repo root.

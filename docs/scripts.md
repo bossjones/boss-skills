@@ -19,7 +19,8 @@ demand via `uvx`.
 
 Discovers every skill under `plugins/`, runs `plugin-eval` against each, prints
 a score table, and can fail a build when a skill drops below a threshold.
-`plugin-eval` is fetched on demand via `uvx` — nothing is vendored.
+`plugin-eval` is vendored in-repo at `scripts/plugin_eval/` (a locally-patched copy of
+upstream; see its `VENDORING.md`) and built on demand via `uvx`.
 
 ```text
 ./scripts/eval-skills.py                              # Report all skills, never fails

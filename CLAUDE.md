@@ -100,6 +100,15 @@ Zero linter warnings/errors required before task completion.
 
 The skill parser executes backtick patterns inside fenced code blocks. Never use `!`backtick patterns in SKILL.md - use `$ command` notation instead.
 
+### Eval reports
+
+PluginEval reports live under `docs/evals/<plugin>/<skill>.md` (repo-internal skills:
+`docs/evals/<skill>.md`) — **not** inside the skill directory. An eval report is generated
+process/meta output, not content an agent needs to do the job, so a skill folder stays limited
+to `SKILL.md` + `references/` + `scripts/`. The [`/skill-evals`](.claude/skills/skill-evals/SKILL.md)
+skill / `make eval-skill` writes there; see [`docs/evals/README.md`](docs/evals/README.md) for the
+index. These files are regenerated output — overwrite freely.
+
 ## Testing
 
 - Place tests in `tests/` directory as `test_*.py`

@@ -1,19 +1,21 @@
 #!/usr/bin/env -S uv run --script --quiet
 # /// script
 # requires-python = ">=3.13"
-# dependencies = []
+# dependencies = ["python-dotenv"]
 # ///
 """Quality-gate boss-skills skills with plugin-eval.
 
-Multi-mode wrapper around ``plugin-eval`` (pulled on demand via ``uvx`` from
-the wshobson/agents git subdirectory — nothing is vendored).
+Multi-mode wrapper around ``plugin-eval``, built on demand via ``uvx`` from the
+copy vendored in-repo at ``scripts/plugin_eval/`` (a locally-patched extract of
+wshobson/agents ``plugins/plugin-eval`` — see ``scripts/plugin_eval/VENDORING.md``).
 
 ``score`` (default) discovers every directory containing a ``SKILL.md`` under
 ``plugins/`` (or one ``--skill``), evaluates each, prints a score table, and
 exits non-zero if any skill is below ``--threshold``. ``certify`` / ``compare``
 / ``init`` stream plugin-eval's native output for explicit positional targets.
 
-``--layer`` is a friendly alias for plugin-eval's ``--depth``:
+``--layer`` is a friendly alias for plugin-eval's ``--depth``; pass ``--depth``
+directly to bypass the alias (``--depth`` wins when both are given):
 
     layer                   depth      layers run                  cost
     static, static-analysis quick      static                      instant, free
@@ -21,17 +23,33 @@ exits non-zero if any skill is below ``--threshold``. ``certify`` / ``compare``
     monte-carlo             deep       static + judge + MC (50)    ~2-5 min
     all                     thorough   static + judge + MC (100)   slowest
 
+``--concurrency`` (1-20, upstream default 4) caps plugin-eval's parallel LLM
+calls; ``--auth`` (``max`` | ``api-key``, upstream default ``max``) picks the
+judge backend — ``max`` needs Claude Code Max via ``claude-agent-sdk``, while
+``api-key`` uses ``ANTHROPIC_API_KEY`` with the ``anthropic`` SDK. Both forward
+to ``score``, ``certify``, and ``compare``.
+
+Auth key isolation: under ``--auth api-key`` the judge needs ``ANTHROPIC_API_KEY``,
+but exporting that globally would also redirect Claude Code itself onto metered
+API billing. So this wrapper reads a dedicated ``BOSS_SKILL_ANTHROPIC_API_KEY``
+(from ``.env`` via python-dotenv) and maps it to ``ANTHROPIC_API_KEY`` only inside
+the plugin-eval subprocess (see ``child_env``) — the parent environment is never
+mutated, leaving Claude Code's own auth untouched.
+
 Usage:
     scripts/eval-skills.py                              # report all skills, never fails
     scripts/eval-skills.py --threshold 60               # fail if any skill < 60
     scripts/eval-skills.py --skill plugins/.../foo      # single skill
     scripts/eval-skills.py --skill plugins/.../foo --layer llm-judge
-    scripts/eval-skills.py --command certify plugins/.../foo
+    scripts/eval-skills.py --skill plugins/.../foo --depth deep --concurrency 8
+    scripts/eval-skills.py --skill plugins/.../foo --auth api-key
+    scripts/eval-skills.py --skill plugins/.../foo --output markdown   # stream the report
+    scripts/eval-skills.py --command certify plugins/.../foo --concurrency 8
     scripts/eval-skills.py --command compare plugins/.../a plugins/.../b
     scripts/eval-skills.py --command init plugins/
 
-Escape hatch (upstream churn): pin a specific revision without editing code by
-setting PLUGIN_EVAL_SOURCE, e.g.
+Escape hatch: PLUGIN_EVAL_SOURCE overrides the vendored default without editing
+code — e.g. to test an upstream revision instead of the in-repo copy:
     PLUGIN_EVAL_SOURCE='git+https://github.com/wshobson/agents.git@<sha>#subdirectory=plugins/plugin-eval'
 """
 
@@ -44,10 +62,25 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Default: always-latest from the upstream marketplace repo, no vendoring.
-DEFAULT_SOURCE = "git+https://github.com/wshobson/agents.git#subdirectory=plugins/plugin-eval"
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()  # populate os.environ from .env for THIS process only
+except ImportError:  # dotenv is optional — fall back to the ambient environment
+    pass
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGINS_DIR = REPO_ROOT / "plugins"
+
+# Default: the in-repo vendored, locally-patched plugin-eval (scripts/plugin_eval/,
+# see its VENDORING.md). uvx --from builds it from this file:// URI. Override with
+# PLUGIN_EVAL_SOURCE (e.g. to test an upstream revision).
+DEFAULT_SOURCE = (REPO_ROOT / "scripts" / "plugin_eval").as_uri()
+
+# Dedicated key for plugin-eval's --auth api-key path. Kept under its own name (not
+# ANTHROPIC_API_KEY) so it never reaches Claude Code; child_env() maps it into
+# ANTHROPIC_API_KEY for the plugin-eval subprocess only.
+EVAL_API_KEY_VAR = "BOSS_SKILL_ANTHROPIC_API_KEY"
 
 # Friendly --layer alias -> plugin-eval --depth.
 LAYER_TO_DEPTH = {
@@ -58,15 +91,51 @@ LAYER_TO_DEPTH = {
     "all": "thorough",
 }
 
+# plugin-eval --depth values (quick=static only; deeper adds judge then Monte Carlo).
+DEPTHS = ("quick", "standard", "deep", "thorough")
+
+# plugin-eval --auth values: max = Claude Code Max (claude-agent-sdk);
+# api-key = ANTHROPIC_API_KEY via the anthropic SDK.
+AUTH_MODES = ("max", "api-key")
+
+
+def llm_flags(args: argparse.Namespace) -> list[str]:
+    """Shared --concurrency/--auth passthrough, omitted when the user left them unset."""
+    flags: list[str] = []
+    if args.concurrency is not None:
+        flags += ["--concurrency", str(args.concurrency)]
+    if args.auth is not None:
+        flags += ["--auth", args.auth]
+    return flags
+
+
+def child_env() -> dict[str, str]:
+    """Env for plugin-eval subprocesses, with the dedicated key mapped to ANTHROPIC_API_KEY.
+
+    Returns a copy of os.environ so the parent (Claude Code) environment is never mutated.
+    When BOSS_SKILL_ANTHROPIC_API_KEY is set, it becomes ANTHROPIC_API_KEY for the child —
+    letting --auth api-key authenticate without ANTHROPIC_API_KEY ever leaking to the shell.
+    """
+    env = dict(os.environ)
+    dedicated = env.get(EVAL_API_KEY_VAR)
+    if dedicated:
+        env["ANTHROPIC_API_KEY"] = dedicated
+    return env
+
 
 def resolve_source(base: str, needs_llm: bool) -> str:
-    """uvx --from value; wrap a bare git/path source with the [llm] extra when needed."""
+    """uvx --from value; wrap a bare git/path source with the [llm,api] extras when needed.
+
+    Both extras install so either judge backend works: llm (claude-agent-sdk) for --auth max,
+    api (anthropic) for --auth api-key. Keeping the "request both" decision here — rather than
+    in the vendored pyproject.toml — keeps that copy a clean extract for a future upstream PR.
+    """
     if not needs_llm:
         return base
     # Already a PEP 508 spec (e.g. user-set PLUGIN_EVAL_SOURCE with extras): use as-is.
     if base.startswith("plugin-eval"):
         return base
-    return f"plugin-eval[llm] @ {base}"
+    return f"plugin-eval[llm,api] @ {base}"
 
 
 class SkillResult:
@@ -99,7 +168,7 @@ def discover_skills() -> list[Path]:
     return sorted({p.parent for p in PLUGINS_DIR.rglob("SKILL.md")})
 
 
-def score_skill(skill_dir: Path, source: str, depth: str) -> SkillResult:
+def score_skill(skill_dir: Path, source: str, depth: str, extra: list[str]) -> SkillResult:
     """Run plugin-eval at the given depth and parse the composite score."""
     cmd = [
         "uvx",
@@ -112,8 +181,9 @@ def score_skill(skill_dir: Path, source: str, depth: str) -> SkillResult:
         depth,
         "--output",
         "json",
+        *extra,
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)  # noqa: S603
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=False, env=child_env())  # noqa: S603
     if proc.returncode != 0 and not proc.stdout.strip():
         detail = proc.stderr.strip().splitlines()
         return SkillResult(skill_dir, None, "-", 0, detail[-1] if detail else "plugin-eval failed")
@@ -131,7 +201,7 @@ def score_skill(skill_dir: Path, source: str, depth: str) -> SkillResult:
 
 def run_passthrough(cmd: list[str]) -> int:
     """Run plugin-eval inheriting stdout/stderr; return its exit code."""
-    return subprocess.run(cmd, check=False).returncode  # noqa: S603
+    return subprocess.run(cmd, check=False, env=child_env()).returncode  # noqa: S603
 
 
 def print_table(results: list[SkillResult]) -> None:
@@ -146,6 +216,37 @@ def print_table(results: list[SkillResult]) -> None:
             continue
         score_txt = f"{r.score:.1f}" if r.score is not None else "-"
         print(f"{r.rel:<{width}}  {score_txt:>6}  {r.badge:<9}  {r.anti_patterns:>4}  ok")
+
+
+def run_report(args: argparse.Namespace, source: str, depth: str) -> int:
+    """Stream plugin-eval's native report for one skill in the requested --output format.
+
+    Backs `make eval-skill`: routing it through this script (instead of a direct `uvx`
+    call) means the dedicated-key mapping in child_env() applies to review-mode runs too.
+    """
+    if args.skill is None:
+        print(f"error: --output {args.output} requires a single --skill.", file=sys.stderr)
+        return 2
+    skill_dir = args.skill if args.skill.is_absolute() else REPO_ROOT / args.skill
+    if not (skill_dir / "SKILL.md").is_file():
+        print(f"error: no SKILL.md in {skill_dir}", file=sys.stderr)
+        return 2
+    cmd = [
+        "uvx",
+        "--from",
+        source,
+        "plugin-eval",
+        "score",
+        str(skill_dir.resolve()),
+        "--depth",
+        depth,
+        "--output",
+        args.output,
+        *llm_flags(args),
+    ]
+    if args.threshold is not None:
+        cmd += ["--threshold", str(args.threshold)]
+    return run_passthrough(cmd)
 
 
 def run_score(args: argparse.Namespace, source: str, depth: str) -> int:
@@ -163,7 +264,8 @@ def run_score(args: argparse.Namespace, source: str, depth: str) -> int:
         print("No skills found under plugins/.", file=sys.stderr)
         return 2
 
-    results = [score_skill(d, source, depth) for d in skills]
+    extra = llm_flags(args)
+    results = [score_skill(d, source, depth, extra) for d in skills]
     print_table(results)
 
     failures = [
@@ -204,6 +306,7 @@ def run_certify(args: argparse.Namespace, source: str) -> int:
         _resolve_target(args.targets[0]),
         "--output",
         "markdown",
+        *llm_flags(args),
     ]
     if args.threshold is not None:
         cmd += ["--threshold", str(args.threshold)]
@@ -230,6 +333,7 @@ def run_compare(args: argparse.Namespace, source: str, depth: str) -> int:
         depth,
         "--output",
         "markdown",
+        *llm_flags(args),
     ]
     return run_passthrough(cmd)
 
@@ -271,6 +375,25 @@ def main() -> int:
         "Ignored by certify (always deep upstream) and init.",
     )
     parser.add_argument(
+        "--depth",
+        choices=DEPTHS,
+        default=None,
+        help="plugin-eval evaluation depth; overrides --layer when set. "
+        "Ignored by certify (always deep upstream) and init.",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="Max concurrent LLM calls passed to plugin-eval (1-20; upstream default 4).",
+    )
+    parser.add_argument(
+        "--auth",
+        choices=AUTH_MODES,
+        default=None,
+        help="plugin-eval judge backend: max (Claude Code Max) or api-key (ANTHROPIC_API_KEY). Upstream default: max.",
+    )
+    parser.add_argument(
         "--threshold",
         type=float,
         default=None,
@@ -281,6 +404,13 @@ def main() -> int:
         type=Path,
         default=None,
         help="Evaluate a single skill directory instead of discovering all (score only).",
+    )
+    parser.add_argument(
+        "--output",
+        choices=["table", "markdown", "json", "html"],
+        default="table",
+        help="score output: table (default, score gate over all/one skill) or stream "
+        "plugin-eval's native markdown/json/html report for a single --skill.",
     )
     parser.add_argument(
         "--corpus-dir",
@@ -296,12 +426,19 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.concurrency is not None and not 1 <= args.concurrency <= 20:
+        parser.error("--concurrency must be between 1 and 20")
+
     base = os.environ.get("PLUGIN_EVAL_SOURCE", DEFAULT_SOURCE)
-    depth = LAYER_TO_DEPTH[args.layer]
+    # Explicit --depth wins; otherwise fall back to the friendly --layer alias.
+    depth = args.depth if args.depth is not None else LAYER_TO_DEPTH[args.layer]
     needs_llm = depth != "quick" or args.command == "certify"
     source = resolve_source(base, needs_llm)
 
     if args.command == "score":
+        # Default table = discovery + gate; any other format streams one skill's report.
+        if args.output != "table":
+            return run_report(args, source, depth)
         return run_score(args, source, depth)
     if args.command == "certify":
         return run_certify(args, source)
