@@ -72,5 +72,10 @@ jobs:
         if: matrix.python-version == '3.13'
         run: make eval-ci
 
+      - name: Install tmux (for the agent-harness tmux_notify integration test)
+        # tmux_context() is exercised against a real tmux server via libtmux's
+        # pytest fixtures; without the binary that single test self-skips.
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
       - name: Run tests
         run: make ci

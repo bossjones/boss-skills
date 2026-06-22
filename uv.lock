@@ -156,6 +156,7 @@ dependencies = [
 dev = [
     { name = "basedpyright" },
     { name = "codespell" },
+    { name = "libtmux" },
     { name = "monkeytype" },
     { name = "pathspec" },
     { name = "pytest" },
@@ -190,6 +191,7 @@ requires-dist = [
 dev = [
     { name = "basedpyright", specifier = ">=1.29.1" },
     { name = "codespell", specifier = ">=2.4.1" },
+    { name = "libtmux", specifier = ">=0.39" },
     { name = "monkeytype", specifier = ">=23.3.0" },
     { name = "pathspec", specifier = ">=0.12.1" },
     { name = "pytest", specifier = ">=8.0.0" },
@@ -699,6 +701,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/83/ce/24d7d49478ffb61207f229239879845da40a374965874f5ee60f96b02ddb/libcst-1.8.6-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:6a65f844d813ab4ef351443badffa0ae358f98821561d19e18b3190f59e71996", size = 2392605, upload-time = "2025-11-03T22:33:12.962Z" },
     { url = "https://files.pythonhosted.org/packages/39/c3/829092ead738b71e96a4e96896c96f276976e5a8a58b4473ed813d7c962b/libcst-1.8.6-cp314-cp314t-win_amd64.whl", hash = "sha256:bdb14bc4d4d83a57062fed2c5da93ecb426ff65b0dc02ddf3481040f5f074a82", size = 2181581, upload-time = "2025-11-03T22:33:14.514Z" },
     { url = "https://files.pythonhosted.org/packages/98/6d/5d6a790a02eb0d9d36c4aed4f41b277497e6178900b2fa29c35353aa45ed/libcst-1.8.6-cp314-cp314t-win_arm64.whl", hash = "sha256:819c8081e2948635cab60c603e1bbdceccdfe19104a242530ad38a36222cb88f", size = 2065000, upload-time = "2025-11-03T22:33:16.257Z" },
+]
+
+[[package]]
+name = "libtmux"
+version = "0.58.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c7/58/346776e0491ede33e1554a4bff9b545dbe9f3164e45abac483195938a1cf/libtmux-0.58.1.tar.gz", hash = "sha256:a294dd585aa419d4ecce36f3e55df656693743c97a0b5b5bb1e5fea31ada2482", size = 519541, upload-time = "2026-06-17T00:03:31.81Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/22/4d/e44ada32edfe947c40d4dfc596a6f5355400a16d08be06016bd754375e41/libtmux-0.58.1-py3-none-any.whl", hash = "sha256:ab0f47d03a59d674962bc23e36e188fcfa4a82b0f270d474afab519e3076839b", size = 113653, upload-time = "2026-06-17T00:03:30.48Z" },
 ]
 
 [[package]]
