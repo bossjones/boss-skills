@@ -16,7 +16,9 @@ Adobe-discounted Anthropic/Bedrock pricing.
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -121,6 +123,34 @@ def get_pricing(model_id: str) -> tuple[float, float]:
     return ADOBE_PRICING.get(normalize_model_id(model_id), DEFAULT_PRICING)
 
 
+def shorten_cwd(path: str) -> str:
+    """Collapse $HOME to ~ for a compact cwd display."""
+    if not path:
+        return "~"
+    home = str(Path.home())
+    if path.startswith(home):
+        return "~" + path[len(home) :]
+    return path
+
+
+def get_git_branch(cwd: str) -> str | None:
+    """Return the current git branch for `cwd`, or None if not a git repo."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", cwd or ".", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if result.returncode == 0:
+            branch = result.stdout.strip()
+            if branch:
+                return branch
+    except Exception:
+        pass
+    return None
+
+
 def compute_session_cost(transcript_path: str | None) -> float:
     """Compute total session cost (USD) from a transcript JSONL using Adobe prices.
 
@@ -179,6 +209,9 @@ def generate_status_line(input_data: dict) -> str:
 
     session_id = input_data.get("session_id", "") or "--------"
 
+    workspace = input_data.get("workspace", {}) or {}
+    current_dir = workspace.get("current_dir") or input_data.get("cwd") or os.getcwd()
+
     context_data = input_data.get("context_window", {}) or {}
     used_percentage = context_data.get("used_percentage", 0) or 0
     context_window_size = context_data.get("context_window_size", 200000) or 200000
@@ -196,6 +229,11 @@ def generate_status_line(input_data: dict) -> str:
     parts: list[str] = []
 
     parts.append(f"{CYAN}[{model_name}]{RESET}")
+
+    parts.append(f"{BLUE}cwd:{shorten_cwd(current_dir)}{RESET}")
+
+    branch = get_git_branch(current_dir)
+    parts.append(f"{GREEN}branch:{branch if branch else 'n/a'}{RESET}")
 
     progress_bar = create_progress_bar(used_percentage)
     parts.append(f"{MAGENTA}#{RESET} {progress_bar}")
