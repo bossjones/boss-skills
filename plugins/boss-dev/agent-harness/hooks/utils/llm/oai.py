@@ -9,8 +9,21 @@
 
 import os
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
+
+# Resolve ENGINEER_NAME via the plugin user-config (CLAUDE_PLUGIN_OPTION_ENGINEER_NAME,
+# bare-env fallback) using the shared hooks/utils/config.py. Keep an inline fallback so
+# the script still runs standalone if utils/config.py is ever missing.
+sys.path.insert(0, str(Path(__file__).parent.parent))
+try:
+    from config import engineer_name as _resolve_engineer_name
+except Exception:
+
+    def _resolve_engineer_name() -> str:
+        val = os.environ.get("CLAUDE_PLUGIN_OPTION_ENGINEER_NAME") or os.environ.get("ENGINEER_NAME")
+        return (val or "").strip()
 
 
 def prompt_llm(prompt_text):
@@ -54,7 +67,7 @@ def generate_completion_message():
     Returns:
         str: A natural language completion message, or None if error
     """
-    engineer_name = os.getenv("ENGINEER_NAME", "").strip()
+    engineer_name = _resolve_engineer_name()
 
     if engineer_name:
         name_instruction = (

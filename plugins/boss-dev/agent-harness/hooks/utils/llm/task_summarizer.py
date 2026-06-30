@@ -17,8 +17,21 @@ Designed for TTS announcements to provide personalized feedback.
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
+
+# Resolve ENGINEER_NAME via the plugin user-config (CLAUDE_PLUGIN_OPTION_ENGINEER_NAME,
+# bare-env fallback) using the shared hooks/utils/config.py. Keep an inline fallback so
+# the script still runs standalone if utils/config.py is ever missing.
+sys.path.insert(0, str(Path(__file__).parent.parent))
+try:
+    from config import engineer_name as _resolve_engineer_name
+except Exception:
+
+    def _resolve_engineer_name() -> str:
+        val = os.environ.get("CLAUDE_PLUGIN_OPTION_ENGINEER_NAME") or os.environ.get("ENGINEER_NAME")
+        return (val or "").strip()
 
 
 def debug_log(message: str) -> None:
@@ -55,9 +68,12 @@ def summarize_subagent_task(task_description: str, agent_name: str | None = None
 
     debug_log(f"API key found (length: {len(api_key)})")
 
-    # Address the user by name; ENGINEER_NAME overrides the default "bossjones"
-    user_name = os.getenv("ENGINEER_NAME", "").strip() or "bossjones"
-    address = f'Address the user as "{user_name}" directly (but not always at the start)'
+    # Address the user by name only if configured; otherwise stay generic
+    user_name = _resolve_engineer_name()
+    if user_name:
+        address = f'Address the user as "{user_name}" directly (but not always at the start)'
+    else:
+        address = "Address the user directly and conversationally (e.g. 'your', 'you')"
 
     # Build agent context for the prompt
     if agent_name:
