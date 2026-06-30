@@ -1,58 +1,117 @@
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Read|Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ./hooks/read_hook.js"
-          }
+    "permissions": {
+        "allow": [
+            "Bash(awk:*)",
+            "Bash(cat:*)",
+            "Bash(chmod:*)",
+            "Bash(cp:*)",
+            "Bash(detect-secrets scan:*)",
+            "Bash(docker info:*)",
+            "Bash(echo:*)",
+            "Bash(file:*)",
+            "Bash(find:*)",
+            "Bash(gallery-dl:*)",
+            "Bash(gh label create:*)",
+            "Bash(gh pr *)",
+            "Bash(gh pr checks:*)",
+            "Bash(gh pr list:*)",
+            "Bash(gh pr view:*)",
+            "Bash(gh release list:*)",
+            "Bash(gh:*)",
+            "Bash(git *)",
+            "Bash(git add:*)",
+            "Bash(git diff:*)",
+            "Bash(git log:*)",
+            "Bash(git merge-base:*)",
+            "Bash(git mv:*)",
+            "Bash(git remote get-url:*)",
+            "Bash(git tag:*)",
+            "Bash(git:*)",
+            "Bash(grep:*)",
+            "Bash(head:*)",
+            "Bash(ls:*)",
+            "Bash(make lint:*)",
+            "Bash(make markdown-lint:*)",
+            "Bash(make verify-structure:*)",
+            "Bash(make:*)",
+            "Bash(mkdir:*)",
+            "Bash(mv:*)",
+            "Bash(npm:*)",
+            "Bash(pre-commit run:*)",
+            "Bash(python3:*)",
+            "Bash(rtk:*)",
+            "Bash(ruff check:*)",
+            "Bash(sort:*)",
+            "Bash(tee:*)",
+            "Bash(touch:*)",
+            "Bash(unzip:*)",
+            "Bash(uv --version)",
+            "Bash(uv run pytest:*)",
+            "Bash(uv run:*)",
+            "Bash(uv:*)",
+            "Bash(uvx:*)",
+            "Bash(wc:*)",
+            "Bash(xargs:*)",
+            "Edit",
+            "mcp__plugin_telegram__*",
+            "Read(//private/tmp/**)",
+            "Skill(superpowers:*)",
+            "WebFetch(domain:docs.astral.sh)",
+            "WebFetch(domain:docs.claude.ai)",
+            "WebFetch(domain:docs.claude.com)",
+            "WebFetch(domain:docs.github.com)",
+            "WebFetch(domain:ghcr.io)",
+            "WebFetch(domain:github.com)",
+            "WebFetch(domain:raw.githubusercontent.com)",
+            "WebSearch",
+            "Write"
+        ],
+        "deny": [],
+        "additionalDirectories": [
+            "/Users/bossjones/dev/wshobson/agents",
+            "/Users/bossjones/dev/mlflow/",
+            "/Users/bossjones/dev/adobe-aifoundations/aif-skills",
+            "/Users/bossjones/dev/FlorianBruniaux/claude-code-ultimate-guide",
+            "/Users/bossjones/dev/anthropics/claude-code-action",
+            "/Users/bossjones/dev/anthropics/claude-code-security-review"
         ]
-      },
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node $PWD/hooks/query_hook.js",
-            "timeout": 300
-          }
+    },
+    "statusLine": {
+        "type": "command",
+        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/status_lines/status_line_v10.py",
+        "padding": 0
+    },
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/skill-edit-review.py"
+                    },
+                    {
+                        "type": "command",
+                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/version-bump-reviewer.py"
+                    }
+                ]
+            }
         ]
-      },
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq . > pre-log.json"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '.tool_response.filePath // .tool_input.file_path // empty' | xargs -I {} npx --yes prettier --write {} 2>/dev/null || true"
-          },
-          {
-            "type": "command",
-            "command": "node $PWD/hooks/tsc.js"
-          }
-        ]
-      },
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq . > post-log.json"
-          }
-        ]
-      }
-    ]
-  }
+    },
+    "enabledPlugins": {
+        "agent-harness@boss-skills": true,
+        "superpowers@claude-plugins-official": true,
+        "code-review@claude-plugins-official": true,
+        "skill-creator@claude-plugins-official": true,
+        "claude-code-setup@claude-plugins-official": true,
+        "frontend-design@claude-plugins-official": true,
+        "context7@claude-plugins-official": true,
+        "code-simplifier@claude-plugins-official": true,
+        "playwright@claude-plugins-official": true,
+        "claude-md-management@claude-plugins-official": true,
+        "code-documentation@claude-code-workflows": true,
+        "documentation-generation@claude-code-workflows": true,
+        "c4-architecture@claude-code-workflows": true,
+        "documentation-standards@claude-code-workflows": true
+    }
 }

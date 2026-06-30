@@ -21,6 +21,16 @@ try:
 except ImportError:
     pass  # dotenv is optional
 
+# Resolve TTS config (plugin user-config with env fallback). Keep an inline
+# fallback so the hook still runs if utils/config.py is ever missing.
+sys.path.insert(0, str(Path(__file__).parent))
+try:
+    from utils.config import tts_enabled
+except ImportError:
+
+    def tts_enabled() -> bool:  # type: ignore[misc]
+        return os.getenv("ENABLE_TTS", "1").strip().lower() not in {"0", "false", "no", "off"}
+
 
 def get_completion_messages():
     """Return list of friendly completion messages."""
@@ -115,6 +125,9 @@ def get_llm_completion_message():
 def announce_completion():
     """Announce completion using the best available TTS service."""
     try:
+        if not tts_enabled():
+            return  # TTS disabled
+
         tts_script = get_tts_script_path()
         if not tts_script:
             return  # No TTS scripts available

@@ -21,6 +21,19 @@ try:
 except ImportError:
     pass  # dotenv is optional
 
+# Resolve TTS config (plugin user-config with env fallback). Keep an inline
+# fallback so the hook still runs if utils/config.py is ever missing.
+sys.path.insert(0, str(Path(__file__).parent))
+try:
+    from utils.config import engineer_name, tts_enabled
+except ImportError:
+
+    def tts_enabled() -> bool:  # type: ignore[misc]
+        return os.getenv("ENABLE_TTS", "1").strip().lower() not in {"0", "false", "no", "off"}
+
+    def engineer_name() -> str:  # type: ignore[misc]
+        return os.getenv("ENGINEER_NAME", "").strip()
+
 
 def get_tts_script_path():
     """
@@ -40,16 +53,19 @@ def get_tts_script_path():
 def announce_notification():
     """Announce that the agent needs user input."""
     try:
+        if not tts_enabled():
+            return  # TTS disabled
+
         tts_script = get_tts_script_path()
         if not tts_script:
             return  # No TTS scripts available
 
         # Get engineer name if available
-        engineer_name = os.getenv("ENGINEER_NAME", "").strip()
+        engineer_name_val = engineer_name()
 
         # Create notification message with 30% chance to include name
-        if engineer_name and random.random() < 0.3:
-            notification_message = f"{engineer_name}, your agent needs your input"
+        if engineer_name_val and random.random() < 0.3:
+            notification_message = f"{engineer_name_val}, your agent needs your input"
         else:
             notification_message = "Your agent needs your input"
 

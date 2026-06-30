@@ -56,11 +56,6 @@
             "mcp__plugin_telegram__*",
             "Read(//private/tmp/**)",
             "Skill(superpowers:*)",
-            "Skill(superpowers:brainstorming)",
-            "Skill(superpowers:dispatching-parallel-agents)",
-            "Skill(superpowers:test-driven-development)",
-            "Skill(superpowers:verification-before-completion)",
-            "Skill(superpowers:writing-plans)",
             "WebFetch(domain:docs.astral.sh)",
             "WebFetch(domain:docs.claude.ai)",
             "WebFetch(domain:docs.claude.com)",
@@ -75,7 +70,7 @@
         "additionalDirectories": [
             "/Users/bossjones/dev/wshobson/agents",
             "/Users/bossjones/dev/mlflow/",
-            "/Users/bossjones/dev/aif-skills/",
+            "/Users/bossjones/dev/adobe-aifoundations/aif-skills",
             "/Users/bossjones/dev/FlorianBruniaux/claude-code-ultimate-guide",
             "/Users/bossjones/dev/anthropics/claude-code-action",
             "/Users/bossjones/dev/anthropics/claude-code-security-review"
@@ -87,25 +82,10 @@
         "padding": 0
     },
     "hooks": {
-        "PreToolUse": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/pre_tool_use.py"
-                    }
-                ]
-            }
-        ],
         "PostToolUse": [
             {
                 "matcher": "",
                 "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/post_tool_use.py"
-                    },
                     {
                         "type": "command",
                         "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/skill-edit-review.py"
@@ -116,129 +96,10 @@
                     }
                 ]
             }
-        ],
-        "Notification": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/notification.py --notify"
-                    }
-                ]
-            }
-        ],
-        "Stop": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/stop.py --chat"
-                    }
-                ]
-            }
-        ],
-        "SubagentStop": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/subagent_stop.py --notify"
-                    }
-                ]
-            }
-        ],
-        "UserPromptSubmit": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/user_prompt_submit.py --log-only --store-last-prompt --name-agent"
-                    }
-                ]
-            }
-        ],
-        "PreCompact": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/pre_compact.py"
-                    }
-                ]
-            }
-        ],
-        "SessionStart": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/session_start.py"
-                    }
-                ]
-            }
-        ],
-        "SessionEnd": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/session_end.py"
-                    }
-                ]
-            }
-        ],
-        "PermissionRequest": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/permission_request.py --log-only"
-                    }
-                ]
-            }
-        ],
-        "PostToolUseFailure": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/post_tool_use_failure.py"
-                    }
-                ]
-            }
-        ],
-        "SubagentStart": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/subagent_start.py"
-                    }
-                ]
-            }
-        ],
-        "Setup": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/setup.py"
-                    }
-                ]
-            }
         ]
     },
     "enabledPlugins": {
+        "agent-harness@boss-skills": true,
         "superpowers@claude-plugins-official": true,
         "code-review@claude-plugins-official": true,
         "skill-creator@claude-plugins-official": true,
