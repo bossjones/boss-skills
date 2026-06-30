@@ -37,17 +37,21 @@ uv run "${CLAUDE_SKILL_DIR}/tools/cluster_status.py"
 ## Core Capabilities
 
 **Template Management**
+
 - Ubuntu/Debian cloud-init templates with virtio-scsi
 - Serial console configuration for cloud images
 - Proper boot order and cloud-init CD-ROM (ide2)
 
 **Network Infrastructure**
+
 - Linux bridges, bridge-port mapping, optional VLAN tagging
 
 **Storage**
+
 - Directory, LVM-thin, and NFS pools for VM disks, backups, and ISOs
 
 **API Automation**
+
 - Python via `proxmoxer`
 - Ansible via `community.general.proxmox_*`
 - Terraform/OpenTofu via the Telmate/proxmox provider

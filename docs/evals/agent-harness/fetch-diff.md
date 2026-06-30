@@ -1,19 +1,26 @@
 # PluginEval Report
+
 **Path:** `/Users/bossjones/dev/bossjones/boss-skills/plugins/boss-dev/agent-harness/skills/fetch-diff`
 **Timestamp:** 2026-06-20T16:02:18.240082+00:00
 **Depth:** standard
+
 ## Overall Score
+
 | Metric | Value |
 |--------|-------|
 | Score | **81.6/100** |
 | Confidence | Assessed |
 | Badge | Gold |
+
 ## Layer Breakdown
+
 | Layer | Score | Anti-Patterns |
 |-------|-------|---------------|
 | static | 0.734 | 0 |
 | judge | 0.887 | 0 |
+
 ## Dimension Scores
+
 | Dimension | Weight | Score | Grade |
 |-----------|--------|-------|-------|
 | Triggering Accuracy | 25% | 0.835 | B |
@@ -26,9 +33,13 @@
 | Structural Completeness | 3% | 0.650 | D |
 | Code Template Quality | 2% | 0.000 | — |
 | Ecosystem Coherence | 2% | 0.750 | C |
+
 ## Anti-Patterns Detected
+
 _No anti-patterns detected._
+
 ## Model Usage
+
 | Model | Tokens |
 |-------|--------|
 | claude-sonnet-4-6 | 4,777 |

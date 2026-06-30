@@ -18,6 +18,7 @@ Generate comprehensive markdown documentation from Python source code.
 ## Input
 
 Accept either:
+
 - Single Python file path
 - Directory path (recursively process .py files)
 - List of specific files
@@ -57,6 +58,8 @@ Description from docstring.
 ```python
 # Extract from docstring examples or generate basic usage
 ```
+
+
 ```
 
 ## Analysis Approach

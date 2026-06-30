@@ -15,12 +15,14 @@ skill folder keeps the skill tree limited to `SKILL.md` + `references/` + `scrip
 ## agent-harness
 
 ### PR-review family
+
 - [fetch-diff](agent-harness/fetch-diff.md)
 - [add-review-comment](agent-harness/add-review-comment.md)
 - [pr-review](agent-harness/pr-review.md)
 - [fetch-unresolved-comments](agent-harness/fetch-unresolved-comments.md)
 
 ### Worktree lifecycle suite
+
 - [git-worktree](agent-harness/git-worktree.md)
 - [git-worktree-clean](agent-harness/git-worktree-clean.md)
 - [git-worktree-remove](agent-harness/git-worktree-remove.md)
@@ -28,6 +30,7 @@ skill folder keeps the skill tree limited to `SKILL.md` + `references/` + `scrip
 - [worktree-doctor](agent-harness/worktree-doctor.md)
 
 ### Other
+
 - [release-notes-generator](agent-harness/release-notes-generator.md)
 - [stop-slop](agent-harness/stop-slop.md)
 - [unicode-hygiene](agent-harness/unicode-hygiene.md)

@@ -79,6 +79,7 @@ Technical format for developers:
 
 Uses a release PR template if the repository provides one (e.g.
 `.github/PULL_REQUEST_TEMPLATE/release.md`):
+
 - Objective summary
 - Features with specs links
 - Bug fixes with error tracker references
@@ -89,6 +90,7 @@ Uses a release PR template if the repository provides one (e.g.
 ### 3. Slack Announcement
 
 Product-focused format based on `assets/slack-template.md`:
+
 - **PR link** included for traceability
 - Non-technical language
 - Focus on user impact (end-users, admins, stakeholders)

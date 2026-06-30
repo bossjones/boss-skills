@@ -63,6 +63,7 @@ uv run scripts/create_reel.py "TWEET_URL" [VIDEO_FILE] [options]
 ```
 
 Options:
+
 | Option | Description |
 |--------|-------------|
 | `-o, --output` | Output file path (default: reel_output.mp4) |
@@ -86,6 +87,7 @@ uv run scripts/screenshot_tweet.py "TWEET_URL" -o screenshot.png
 ```
 
 Options:
+
 | Option | Description |
 |--------|-------------|
 | `-o, --output` | Output file path |
@@ -113,6 +115,7 @@ uv run scripts/create_reel.py "https://x.com/NASA/status/123456" -o nasa_reel.mp
 ```
 
 With authentication for protected tweets:
+
 ```bash
 uv run scripts/create_reel.py "https://x.com/user/status/123" --browser firefox -o reel.mp4
 ```
@@ -130,6 +133,7 @@ uv run scripts/create_reel.py "https://x.com/user/status/123" ./downloads/*.mp4 
 ```
 
 Or provide a video file directly:
+
 ```bash
 uv run scripts/create_reel.py "https://x.com/NASA/status/123456" my_video.mp4 -o reel.mp4
 ```
@@ -137,6 +141,7 @@ uv run scripts/create_reel.py "https://x.com/NASA/status/123456" my_video.mp4 -o
 ### Customization
 
 Dark theme with bottom positioning:
+
 ```bash
 uv run scripts/create_reel.py "https://x.com/user/status/123" \
   --theme dark --position bottom -o my_reel.mp4
