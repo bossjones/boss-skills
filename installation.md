@@ -1,4 +1,8 @@
-## Installing uv and Python
+# Installing uv and Python
+
+> This is a prerequisites cheat sheet for working on the repo. To **install and use** the published
+> plugins you don't need any of this — see the [root README](README.md). For the full dev workflow,
+> see [`development.md`](development.md).
 
 This project is set up to use [**uv**](https://docs.astral.sh/uv/), the new package
 manager for Python. `uv` replaces traditional use of `pyenv`, `pipx`, `poetry`, `pip`,
