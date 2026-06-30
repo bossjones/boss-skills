@@ -3,7 +3,7 @@
 Canonical doc: <https://github.com/wshobson/agents/blob/main/docs/agent-skills.md#how-skills-work>
 
 Skills are modular packages that extend Claude with specialized knowledge, following
-Anthropic's [Agent Skills Specification](https://github.com/anthropics/skills/blob/main/agent_skills_spec.md).
+Anthropic's [Agent Skills Specification](https://github.com/anthropics/skills/blob/main/spec/agent-skills-spec.md).
 Use this when deciding *how* to improve a skill (the `--fix` path), so changes reflect what
 genuinely makes a skill better rather than just nudging a metric.
 
