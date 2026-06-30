@@ -49,8 +49,8 @@ subagents.
 
 | Component | Count | Active on install? |
 |-----------|-------|--------------------|
-| Skills | 9 | Yes |
-| Commands | 12 | Yes |
+| Skills | 13 | Yes |
+| Commands | 13 | Yes |
 | Agents | 6 | Yes |
 | Output styles | 8 | Yes |
 | Hooks | 13 | Manual wiring |
@@ -104,6 +104,26 @@ Configure strictness per-project via `pyrightconfig.json` or `[tool.basedpyright
 [`plugins/boss-dev/basedpyright-lsp/README.md`](plugins/boss-dev/basedpyright-lsp/README.md) or the
 [expanded docs](docs/plugins/basedpyright-lsp.md) for prerequisites and troubleshooting.
 
+### boss-dev/python-dev
+
+Python development tooling for Claude Code: debug GitHub Actions CI failures end-to-end and ship
+changes via conventional-commit pull requests. Assumes a `uv`-based project with `ruff`, `ty`,
+`deptry`, `pre-commit`, and `mkdocs`.
+
+```bash
+/plugin install python-dev@boss-skills
+```
+
+**Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `/python-dev:debug-ci` | Diagnose a failed GitHub Actions run, fix it locally, validate, push, and poll until green (up to 3 cycles) |
+| `/python-dev:commit-push-pr` | Stage changes, write a conventional commit, push, and open/update a PR via `gh` |
+| `/python-dev:fix-gh-pr-comments` | Fetch unresolved PR review comments, apply fixes, push, and reply per thread (up to 3 cycles) |
+
+See the [expanded docs](docs/plugins/python-dev.md) for project assumptions and usage examples.
+
 ### boss-dev/github-pr-review
 
 Professional GitHub PR reviews with pending reviews, code suggestions, and a user-approval workflow
@@ -148,6 +168,23 @@ Twitter/X social media tools for downloading media and converting tweets to Inst
 
 See [`plugins/social-media/twitter-tools/README.md`](plugins/social-media/twitter-tools/README.md) for details.
 
+### boss-homelab/proxmox-infra
+
+Homelab Proxmox VE tooling for Claude Code: a single comprehensive skill for managing nodes, VMs, LXC
+containers, storage, and networking via the [proxmoxer](https://github.com/proxmoxer/proxmoxer)
+Python library, Ansible (`community.general.proxmox`), and Terraform/OpenTofu (the Telmate provider).
+
+```bash
+/plugin install proxmox-infra@boss-skills
+```
+
+The `proxmox-infrastructure` skill bundles reference docs (cloud-init, networking, storage), helper
+scripts (cluster/Ceph health checks, template validation), multi-step workflows (cluster formation,
+Ceph deployment), and a worked example. Ask it in natural language to provision a VM from a
+cloud-init template or to check the health of your Proxmox cluster.
+
+See the [expanded docs](docs/plugins/proxmox-infra.md) for bundled resources and usage examples.
+
 ## Quick Start Examples
 
 ### Download Twitter Media
@@ -175,6 +212,19 @@ uv run python scripts/create_reel.py "https://x.com/user/status/123" --browser f
 # With explicit video file
 uv run python scripts/create_reel.py "https://x.com/user/status/123" video.mp4 -o reel.mp4
 ```
+
+## Documentation
+
+| Guide | For |
+|-------|-----|
+| [docs/](docs/README.md) | Index of all documentation |
+| [docs/plugins/](docs/plugins/README.md) | Per-plugin reference pages |
+| [docs/tutorials/](docs/tutorials/README.md) | Hands-on usage walkthroughs |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to add a new plugin or skill |
+| [development.md](development.md) | Local dev environment and `make` targets |
+| [installation.md](installation.md) | uv / Python prerequisites |
+| [publishing.md](publishing.md) | Releasing a new or updated plugin |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
 
 ## Development
 

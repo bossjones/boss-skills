@@ -15,7 +15,11 @@ into a numbered series with bundled screenshots over time.
 
 | Plugin | Tutorial | What you'll do |
 |--------|----------|----------------|
+| [agent-harness](agent-harness/README.md) | [Ship a feature with the agent-harness loop](agent-harness/README.md) | Run plan → worktree → autobuild → PR → address review, end to end |
 | [github-pr-review](github-pr-review/README.md) | [Review your first PR](github-pr-review/README.md) | Install the plugin and post an approval-gated PR review with inline code suggestions |
+| [python-dev](python-dev/README.md) | [Get a red CI run green, then ship the fix](python-dev/README.md) | Debug a failed GitHub Actions run and open a conventional-commit PR |
+| [twitter-tools](twitter-tools/README.md) | [From tweet to Instagram Reel](twitter-tools/README.md) | Download tweet media and compose a 9:16 vertical Reel |
+| [proxmox-infra](proxmox-infra/README.md) | [Provision a Proxmox VM from a cloud-init template](proxmox-infra/README.md) | Clone a template into a running VM, then verify cluster health |
 
 ## Adding a tutorial
 
