@@ -7,7 +7,7 @@
   },
   "metadata": {
     "description": "Boss Skills Repo and Lab for my personal Claude Code configs and skills",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "plugins": [
     {
@@ -100,6 +100,30 @@
         "email": "bossjones@theblacktonystark.com",
         "url": "https://github.com/bossjones"
       }
+    },
+    {
+      "name": "github-pr-review",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/aidankinzett/claude-git-pr-skill.git",
+        "path": "github-pr-review",
+        "ref": "v1.1.1",
+        "sha": "3660dca92424b91f1eb716b5815b476c3913450e"
+      },
+      "description": "Professional GitHub PR reviews with pending reviews, code suggestions, and a user-approval workflow via the gh CLI.",
+      "version": "1.1.1",
+      "category": "boss-dev",
+      "keywords": [
+        "github",
+        "pr",
+        "review",
+        "code-suggestions",
+        "gh-cli"
+      ],
+      "author": {
+        "name": "Aidan Kinzett"
+      },
+      "homepage": "https://github.com/aidankinzett/claude-git-pr-skill"
     },
     {
       "name": "proxmox-infra",
