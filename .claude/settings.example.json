@@ -98,8 +98,18 @@
             }
         ]
     },
+    "extraKnownMarketplaces": [
+        {
+            "name": "github-pr-skills",
+            "source": {
+                "source": "github",
+                "repo": "aidankinzett/claude-git-pr-skill"
+            }
+        }
+    ],
     "enabledPlugins": {
         "agent-harness@boss-skills": true,
+        "github-pr-review@github-pr-skills": true,
         "superpowers@claude-plugins-official": true,
         "code-review@claude-plugins-official": true,
         "skill-creator@claude-plugins-official": true,

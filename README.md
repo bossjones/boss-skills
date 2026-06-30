@@ -22,13 +22,15 @@ Then install individual plugins:
 ## Available Plugins
 
 Full per-plugin documentation — components, install commands, and usage examples — lives in
-[`docs/plugins/`](docs/plugins/README.md).
+[`docs/plugins/`](docs/plugins/README.md). For hands-on, step-by-step walkthroughs, see
+[`docs/tutorials/`](docs/tutorials/README.md).
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.4.1 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
+| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.12.1 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
 | [basedpyright-lsp](#boss-devbasedpyright-lsp) | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [↗](docs/plugins/basedpyright-lsp.md) |
 | python-dev | `boss-dev` | 0.1.1 | Debug GitHub Actions CI and ship conventional-commit PRs | [↗](docs/plugins/python-dev.md) |
+| [github-pr-review](#boss-devgithub-pr-review) | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [↗](docs/plugins/github-pr-review.md) |
 | [twitter-tools](#social-mediatwitter-tools) | `social-media` | 0.1.1 | Download X/Twitter media and convert tweets to Reels | [↗](docs/plugins/twitter-tools.md) |
 | proxmox-infra | `boss-homelab` | 0.1.1 | Manage Proxmox VE homelab infrastructure and IaC | [↗](docs/plugins/proxmox-infra.md) |
 
@@ -101,6 +103,25 @@ Configure strictness per-project via `pyrightconfig.json` or `[tool.basedpyright
 `pyproject.toml`. See
 [`plugins/boss-dev/basedpyright-lsp/README.md`](plugins/boss-dev/basedpyright-lsp/README.md) or the
 [expanded docs](docs/plugins/basedpyright-lsp.md) for prerequisites and troubleshooting.
+
+### boss-dev/github-pr-review
+
+Professional GitHub PR reviews with pending reviews, code suggestions, and a user-approval workflow
+via the `gh` CLI. Ask Claude to *"Review PR #123 and suggest improvements"* and it drafts the review,
+shows you exactly what will be posted, and only submits after you approve.
+
+```bash
+/plugin install github-pr-review@boss-skills
+```
+
+> **External plugin.** This is the marketplace's first remote entry — it is **not** vendored into
+> this repo. It is authored by [Aidan Kinzett](https://github.com/aidankinzett) (MIT) and referenced
+> as a `git-subdir` source pinned to `v1.1.1` (`sha 3660dca…`), so it never updates silently. See the
+> [integration spec](specs/claude-git-pr-skill.md) for the pin/update procedure.
+
+Walk through it end to end in the
+[github-pr-review tutorial](docs/tutorials/github-pr-review/README.md), or see the
+[expanded docs](docs/plugins/github-pr-review.md) for the install fallback and full workflow.
 
 ### social-media/twitter-tools
 
@@ -236,7 +257,8 @@ boss-skills/
 │   └── social-media/
 │       └── twitter-tools/      # media download + tweet-to-Reel skills
 ├── docs/
-│   └── plugins/                # expanded per-plugin documentation
+│   ├── plugins/                # expanded per-plugin documentation
+│   └── tutorials/              # hands-on, plugin-first usage walkthroughs
 ├── devtools/
 ├── scripts/
 └── tests/
