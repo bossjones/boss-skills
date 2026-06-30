@@ -30,7 +30,7 @@ credentials are present, so they're safe to leave on.
 | --- | --- | --- | --- |
 | `PreToolUse` | [`pre_tool_use.py`](../hooks/pre_tool_use.py) | all | Block dangerous `rm -rf` and `.env` access; log tool calls. |
 | `PostToolUse` | [`post_tool_use.py`](../hooks/post_tool_use.py) | all | Log successful tool executions. |
-| `PostToolUse` | inline `jq` + `ruff` | `Edit\|MultiEdit\|Write` | Auto-lint and format edited Python files (see below). |
+| `PostToolUse` | [`ruff_autoformat.py`](../hooks/ruff_autoformat.py) | `Edit\|MultiEdit\|Write` | Auto-lint and format edited Python files, only when the project has a ruff config (see below). |
 | `Notification` | [`notification.py`](../hooks/notification.py) | all | Log notifications; announce via TTS (`--notify`). |
 | `Notification` | [`tmux_notify.py`](../hooks/tmux_notify.py) | `permission_prompt\|idle_prompt\|elicitation_dialog` | Fire a clickable desktop notification when the agent needs input. |
 | `Stop` | [`stop.py`](../hooks/stop.py) | all | Log session stop; transcript export + TTS (`--chat`). |
@@ -51,19 +51,17 @@ credentials are present, so they're safe to leave on.
 
 ## The Python auto-format hook
 
-The second `PostToolUse` entry matches `Edit|MultiEdit|Write` and formats Python on the fly. It does
-**not** call a plugin script — it's an inline shell pipeline:
+The second `PostToolUse` entry matches `Edit|MultiEdit|Write` and formats Python on the fly via
+[`ruff_autoformat.py`](../hooks/ruff_autoformat.py). It reads the edited file path from the tool
+input and acts only on `.py` files. Crucially, it is **config-gated**: it does nothing unless the
+edited file lives in a project that declares a ruff config — `ruff.toml`, `.ruff.toml`, or a
+`[tool.ruff]` table in `pyproject.toml`, found by walking up from the file. This keeps the plugin
+from reformatting files in unrelated projects that never opted into ruff.
 
-```bash
-jq -r '.tool_input.file_path' | while read file_path; do
-  if [[ "$file_path" =~ \.py$ ]]; then
-    uv run ruff check --fix "$file_path" && uv run ruff format "$file_path"
-  fi
-done
-```
-
-It reads the edited file path from the tool input via `jq`, and only acts on `.py` files. This is
-why `jq` is a prerequisite (see [getting-started.md](./getting-started.md#step-1--prerequisites)).
+It then runs `ruff check --fix` followed by `ruff format`, preferring a `ruff` on `PATH` and
+falling back to `uvx ruff`. (It deliberately avoids `uv run ruff`, which fails when ruff isn't a
+declared project dependency.) If no ruff config is present, or ruff can't be found, the hook is a
+silent no-op — it never blocks or errors the edit.
 
 ## TTS and desktop notifications
 
@@ -151,7 +149,6 @@ seeing exactly which tools ran, which were blocked, and why.
 ## Dependencies
 
 - **`uv`** — runs every hook script (PEP 723; dependencies auto-resolved).
-- **`jq`** — required by the Python auto-format `PostToolUse` hook.
 - **Optional `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`** (or local Ollama) — enable LLM agent naming and
   summaries.
 - **Optional TTS backend** — offline `pyttsx3` (no key), OpenAI, or ElevenLabs for spoken

@@ -43,7 +43,6 @@ the full feature set. `gh` (the GitHub CLI) is required for the PR- and CI-orien
 | Python 3.13+ | All bundled scripts (PEP 723) | Managed automatically by `uv` |
 | `git` 2.5.0+ | Worktree skills | Preinstalled on most systems |
 | [`gh`](https://cli.github.com/) (authenticated) | PR-review skills, `fix-gh-pr-comments`, `commit-push-pr`, `debug-ci` | `brew install gh && gh auth login` |
-| `jq` | The Python auto-format hook (PostToolUse) | `brew install jq` |
 
 > `uv` resolves each script's dependencies on demand from inline PEP 723 metadata, so there is **no
 > `pip install` step** — `aiohttp`, `pydantic`, `jsonschema`, and `python-dotenv` are fetched the
@@ -183,7 +182,7 @@ needs so you only install what you'll use.
 | Skills — `fetch-diff`, `fetch-unresolved-comments`, `pr-review`, `add-review-comment` | `uv`, `gh` (or `GH_TOKEN`) | PEP 723 deps auto-resolved |
 | Skill — `release-notes-generator` | `git`, `gh` | Reads commits + PR metadata |
 | Skills — `stop-slop`, `unicode-hygiene` | Nothing (uv for the unicode scanner) | Prose hygiene / supply-chain scan |
-| Hooks — logging / guards / auto-format | `uv`, `jq` (format hook only) | Active on install via `hooks/hooks.json` |
+| Hooks — logging / guards / auto-format | `uv`; `ruff` on `PATH` or `uvx` (format hook only) | Active on install via `hooks/hooks.json`; format hook runs only in projects with a ruff config |
 | Hooks — LLM agent naming / summaries | `ANTHROPIC_API_KEY` **or** `OPENAI_API_KEY` (or local Ollama) | Optional; degrades gracefully if unset |
 | Hooks / agents — TTS announcements | offline `pyttsx3` (no key), or `OPENAI_API_KEY`, or ElevenLabs | Optional; toggle with `ENABLE_TTS` via `/plugin` → Configure |
 | Hooks — tmux desktop notifications | `tmux` + `terminal-notifier` (macOS) / `notify-send` (Linux) | Off by default; enable `tmux_notifications` |
@@ -198,7 +197,7 @@ needs so you only install what you'll use.
 | `/agent-harness:*` commands don't appear | Re-run `/plugin install agent-harness@boss-skills`; check `/plugin` shows it enabled. |
 | A skill or hook errors with "uv: command not found" | Install `uv` (see Step 1) and restart Claude Code. |
 | PR/CI commands fail immediately | Run `gh auth login`; commands hard-stop if `gh auth status` fails. |
-| Python auto-format hook does nothing | Install `jq`; the PostToolUse format hook pipes `tool_input` through it. |
+| Python auto-format hook does nothing | By design it only runs when the project has a ruff config (`ruff.toml`, `.ruff.toml`, or `[tool.ruff]` in `pyproject.toml`) and `ruff`/`uvx` is available. Add a ruff config to opt in. |
 | TTS still speaks after you wanted silence | Set `ENABLE_TTS` to `0`/`false`/`no`/`off` (via `/plugin` → Configure or env var). |
 | LLM agent-naming / TTS silent | Optional — set `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`, or rely on the offline `pyttsx3` backend. |
 
