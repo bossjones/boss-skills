@@ -961,6 +961,42 @@ def check_manifest_conflicts(
     return warnings, info_only
 
 
+# Matches a semver token like "v0.12.1" in a docs header blockquote.
+DOC_VERSION_RE = re.compile(r"v(\d+\.\d+\.\d+)")
+
+
+def check_doc_version_drift(repo_root: Path, plugin_name: str, market_version: str, source: Any) -> list[str]:
+    """Warn when a doc header's version disagrees with marketplace.json.
+
+    Checks the first header blockquote of ``docs/plugins/<name>.md`` and, for local
+    plugins, the plugin-root ``README.md``. Missing files are not an error here. Only a
+    ``vX.Y.Z`` token on a ``>``-prefixed line near the top is inspected, so prose never
+    triggers a false positive.
+    """
+    warnings: list[str] = []
+    targets: list[Path] = [repo_root / "docs" / "plugins" / f"{plugin_name}.md"]
+    if isinstance(source, str):  # local plugin -> also check its root README
+        targets.append(repo_root / source / "README.md")
+
+    for path in targets:
+        if not path.exists():
+            continue
+        try:
+            head = path.read_text(encoding="utf-8").splitlines()[:8]
+        except OSError:
+            continue
+        for line in head:
+            if line.lstrip().startswith(">"):
+                match = DOC_VERSION_RE.search(line)
+                if match and match.group(1) != market_version:
+                    warnings.append(
+                        f"{plugin_name}: {path.relative_to(repo_root)} shows "
+                        f"v{match.group(1)} but marketplace.json says v{market_version}"
+                    )
+                break
+    return warnings
+
+
 def check_plugin_manifest(  # noqa: C901
     plugin_dir: Path,
     marketplace_entry: dict[str, Any] | None = None,
@@ -1222,6 +1258,17 @@ def check_marketplace_structure() -> dict[str, Any]:  # noqa: C901
             plugin_dir, marketplace_entry=plugin_entry, require_manifest=require_manifest
         )
         result["plugin_results"][plugin_name] = plugin_results
+
+    # Flag docs whose version header has drifted from marketplace.json (warning;
+    # fails under --strict). Runs for every plugin that produced a result, including
+    # external (git-subdir) entries — those have only a docs/plugins/<name>.md page.
+    for plugin_entry in plugins_list:
+        name = str(plugin_entry.get("name", ""))
+        version = plugin_entry.get("version")
+        if name in result["plugin_results"] and isinstance(version, str):
+            result["plugin_results"][name]["warnings"].extend(
+                check_doc_version_drift(repo_root, name, version, plugin_entry.get("source"))
+            )
 
     return result
 
