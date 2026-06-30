@@ -1,6 +1,6 @@
 # python-dev
 
-> `boss-dev` · v0.1.0 · [plugin source](../../plugins/boss-dev/python-dev/)
+> `boss-dev` · v0.1.1 · [plugin source](../../plugins/boss-dev/python-dev/)
 
 Python development tooling for Claude Code: debug GitHub Actions CI failures end-to-end and
 ship changes via conventional-commit pull requests. The plugin ships two slash commands and
@@ -21,6 +21,7 @@ Slash commands are namespaced `/python-dev:<command>`.
 |---------|---------------|-------------|
 | `/python-dev:debug-ci` | Bash, Read, Edit, Write, Glob, Grep, Agent | Diagnose a failed GitHub Actions run, fix the issues locally, validate, commit, push, and poll until the new run passes. Up to 3 outer retry cycles. |
 | `/python-dev:commit-push-pr` | Bash, Read, Glob, Grep | Stage modified files (skipping secrets), write a conventional commit, push to the remote, and open or update a GitHub PR via `gh`. |
+| `/python-dev:fix-gh-pr-comments` | Bash, Read, Edit, Write, Glob, Grep | Fetch unresolved PR review comments via `gh`, apply fixes locally, validate, push, and reply per thread. Up to 3 outer cycles. |
 
 ## Project assumptions
 

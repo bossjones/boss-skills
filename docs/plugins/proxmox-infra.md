@@ -1,6 +1,6 @@
 # proxmox-infra
 
-> `boss-homelab` · v0.1.0 · [plugin source](../../plugins/boss-homelab/proxmox-infra/)
+> `boss-homelab` · v0.1.1 · [plugin source](../../plugins/boss-homelab/proxmox-infra/)
 
 Homelab Proxmox VE tooling for Claude Code: a single comprehensive skill for managing
 nodes, VMs, LXC containers, storage, and networking via the

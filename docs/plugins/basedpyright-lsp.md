@@ -96,6 +96,53 @@ reportImplicitOverride = "error"
 See the [basedpyright configuration docs](https://docs.basedpyright.com/latest/configuration/config-files/)
 for the full option list.
 
+## Usage examples
+
+This plugin has no commands to run — once installed, the language server attaches automatically and
+Claude consumes its diagnostics, hovers, and symbol info while it works. You "use" it by editing
+Python and asking Claude type-aware questions in natural language.
+
+### Let diagnostics catch a type error as Claude edits
+
+```text
+Add a discount field to the Order dataclass and apply it in total().
+```
+
+With the LSP attached, if Claude introduces a mismatch (say it assigns `discount: float = "0.1"`),
+the server surfaces a diagnostic in the `/plugin` Errors tab and Claude sees it immediately — so it
+fixes the type before handing the change back, instead of you discovering it at runtime.
+
+### Ask type-aware questions
+
+```text
+What type does parse_config() return, and where is it defined?
+```
+
+Claude answers from the language server's hover/definition data rather than guessing — useful in code
+it hasn't fully read.
+
+### Tighten strictness for a single package
+
+```toml
+# pyproject.toml — make one package strict without changing the rest of the repo
+[tool.basedpyright]
+include = ["src/payments"]
+typeCheckingMode = "strict"
+reportImplicitOverride = "error"
+```
+
+Re-open a file under `src/payments/` and the stricter findings appear live.
+
+### Adopt baselines on a legacy codebase
+
+```bash
+# Snapshot existing findings so only NEW issues surface going forward
+basedpyright --writebaseline
+```
+
+After writing a baseline, the Errors tab shows only regressions you introduce — handy when turning on
+strict mode in a project that wasn't clean to begin with.
+
 ## Verification
 
 1. Open any `.py` file in a project that uses basedpyright.
