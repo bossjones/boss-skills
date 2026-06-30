@@ -1,71 +1,55 @@
-## Publishing Releases
+# Publishing to the boss-skills marketplace
 
-This is how to publish a Python package to [**PyPI**](https://pypi.org/) from GitHub
-Actions, when using the
-[**simple-modern-uv**](https://github.com/jlevy/simple-modern-uv) template.
+`boss-skills` is a Claude Code **plugin marketplace**, not a PyPI package — there is no wheel to
+upload. "Publishing" here means making a new or updated plugin available to anyone who has added the
+marketplace. That happens entirely through the repo: install consumers pick up changes from the
+default branch (or when they run `/plugin marketplace update boss-skills`).
 
-Thanks to [the dynamic versioning
-plugin](https://github.com/ninoseki/uv-dynamic-versioning/) and the
-[`publish.yml` workflow](https://github.com/jlevy/simple-modern-uv/blob/main/template/.github/workflows/publish.yml),
-you can simply create tagged releases (using standard format for the tag name, e.g.
-`v0.1.0`) on GitHub and the tag will trigger a release build, which then uploads it to
-PyPI.
+The single rule that gates whether users actually receive an update: **the plugin's `version` must be
+bumped in both `plugin.json` and its `.claude-plugin/marketplace.json` entry.** If the version
+doesn't change, installed clients keep the old copy.
 
-### How to Publish the First Time
+## Publishing a new plugin
 
-This part is a little confusing the first time.
-Here is the simplest way to do it.
-For the purposes of this example replace OWNER and PROJECT with the right values.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full scaffold → validate → document flow. In short:
 
-1. **Get a PyPI account** at [pypi.org](https://pypi.org/) and sign in.
+1. Scaffold with `/create-plugin <category>/<plugin-name>` (or copy `templates/plugin-template/`).
+2. Register it in `.claude-plugin/marketplace.json` (the command does this for you).
+3. Validate: `make verify-structure`, `make lint`, `make eval`.
+4. Document it (`docs/plugins/<name>.md` + both plugin tables).
+5. Commit and merge to the default branch.
 
-2. **Pick a name for the project** that isn't already taken.
+The initial publish is `v0.1.0` by convention, with `plugin.json.version` and the marketplace entry
+in parity.
 
-   - Go to `https://pypi.org/project/PROJECT` to see if another project with that name
-     already exits.
+## Releasing an update to an existing plugin
 
-   - If needed, update your `pyproject.yml` with the correct name.
+1. Make your change to the plugin's components.
+2. Run the [`version-bump-reviewer`](.claude/skills/version-bump-reviewer/SKILL.md) skill (it also
+   auto-triggers via a hook on component edits). It classifies the change as major/minor/patch and
+   bumps **both** `plugin.json.version` and the matching `marketplace.json` entry in lockstep, then
+   writes a conventional-commit message.
+3. Validate: `make verify-structure` and `make lint`.
+4. Refresh the changelog:
 
-3. **Authorize** your repository to publish to PyPI:
+   ```bash
+   make changelog-preview     # preview the unreleased section
+   make changelog             # regenerate CHANGELOG.md from conventional commits (git-cliff)
+   ```
 
-   - Go to [the publishing settings page](https://pypi.org/manage/account/publishing/).
+5. Commit and merge. Consumers receive the update on their next
+   `/plugin marketplace update boss-skills` (or automatically if they enabled autoUpdate).
 
-   - Find "Trusted Publisher Management" and register your GitHub repo as a new
-     "pending" trusted publisher
+## Updating an external (pinned) plugin
 
-   - Enter the project name, repo owner, repo name, and `publish.yml` as the workflow
-     name. (You can leave the "environment name" field blank.)
+External plugins (e.g. [`github-pr-review`](docs/plugins/github-pr-review.md)) are referenced as a
+`git-subdir` source pinned to a `ref` + `sha`. They never update silently — taking a newer upstream
+release is a deliberate edit of `ref`/`sha` (and `version`) in `.claude-plugin/marketplace.json`,
+followed by `make verify-structure`. See [`specs/claude-git-pr-skill.md`](specs/claude-git-pr-skill.md)
+for the procedure.
 
-4. **Create a release** on GitHub:
+## Tagging a repo release (optional)
 
-   - Commit code and make sure it's running correctly.
-
-   - Go to your GitHub project page, then click on Actions tab.
-
-   - Confirm all tests are passing in the last CI workflow.
-     (If you want, you can even publish this template when it's empty as just a stub
-     project, to try all this out.)
-
-   - Go to your GitHub project page, click on Releases.
-
-   - Fill in the tag and the release name.
-     Select to create a new tag, and pick a version.
-     A good option is `v0.1.0`. (It's wise to have it start with a `v`.)
-
-   - Submit to create the release.
-
-5. **Confirm it publishes to PyPI**
-
-   - Watch for the release workflow in the GitHub Actions tab.
-
-   - If it succeeds, you should see it appear at `https://pypi.org/project/PROJECT`.
-
-### How to Publish Subsequent Releases
-
-Just create a new release!
-Everything is the same as the last two steps above.
-
-* * *
-
-*This file was built with
-[simple-modern-uv](https://github.com/jlevy/simple-modern-uv).*
+If you cut GitHub releases for the marketplace as a whole, use a `v`-prefixed semver tag (e.g.
+`v0.2.0`) that matches the marketplace `metadata.version`, and let `make changelog` populate the
+release notes from the conventional commits since the last tag.

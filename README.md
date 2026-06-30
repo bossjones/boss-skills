@@ -22,13 +22,15 @@ Then install individual plugins:
 ## Available Plugins
 
 Full per-plugin documentation — components, install commands, and usage examples — lives in
-[`docs/plugins/`](docs/plugins/README.md).
+[`docs/plugins/`](docs/plugins/README.md). For hands-on, step-by-step walkthroughs, see
+[`docs/tutorials/`](docs/tutorials/README.md).
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.4.1 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
+| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.12.1 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
 | [basedpyright-lsp](#boss-devbasedpyright-lsp) | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [↗](docs/plugins/basedpyright-lsp.md) |
 | python-dev | `boss-dev` | 0.1.1 | Debug GitHub Actions CI and ship conventional-commit PRs | [↗](docs/plugins/python-dev.md) |
+| [github-pr-review](#boss-devgithub-pr-review) | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [↗](docs/plugins/github-pr-review.md) |
 | [twitter-tools](#social-mediatwitter-tools) | `social-media` | 0.1.1 | Download X/Twitter media and convert tweets to Reels | [↗](docs/plugins/twitter-tools.md) |
 | proxmox-infra | `boss-homelab` | 0.1.1 | Manage Proxmox VE homelab infrastructure and IaC | [↗](docs/plugins/proxmox-infra.md) |
 
@@ -47,8 +49,8 @@ subagents.
 
 | Component | Count | Active on install? |
 |-----------|-------|--------------------|
-| Skills | 9 | Yes |
-| Commands | 12 | Yes |
+| Skills | 13 | Yes |
+| Commands | 13 | Yes |
 | Agents | 6 | Yes |
 | Output styles | 8 | Yes |
 | Hooks | 13 | Manual wiring |
@@ -102,6 +104,45 @@ Configure strictness per-project via `pyrightconfig.json` or `[tool.basedpyright
 [`plugins/boss-dev/basedpyright-lsp/README.md`](plugins/boss-dev/basedpyright-lsp/README.md) or the
 [expanded docs](docs/plugins/basedpyright-lsp.md) for prerequisites and troubleshooting.
 
+### boss-dev/python-dev
+
+Python development tooling for Claude Code: debug GitHub Actions CI failures end-to-end and ship
+changes via conventional-commit pull requests. Assumes a `uv`-based project with `ruff`, `ty`,
+`deptry`, `pre-commit`, and `mkdocs`.
+
+```bash
+/plugin install python-dev@boss-skills
+```
+
+**Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `/python-dev:debug-ci` | Diagnose a failed GitHub Actions run, fix it locally, validate, push, and poll until green (up to 3 cycles) |
+| `/python-dev:commit-push-pr` | Stage changes, write a conventional commit, push, and open/update a PR via `gh` |
+| `/python-dev:fix-gh-pr-comments` | Fetch unresolved PR review comments, apply fixes, push, and reply per thread (up to 3 cycles) |
+
+See the [expanded docs](docs/plugins/python-dev.md) for project assumptions and usage examples.
+
+### boss-dev/github-pr-review
+
+Professional GitHub PR reviews with pending reviews, code suggestions, and a user-approval workflow
+via the `gh` CLI. Ask Claude to *"Review PR #123 and suggest improvements"* and it drafts the review,
+shows you exactly what will be posted, and only submits after you approve.
+
+```bash
+/plugin install github-pr-review@boss-skills
+```
+
+> **External plugin.** This is the marketplace's first remote entry — it is **not** vendored into
+> this repo. It is authored by [Aidan Kinzett](https://github.com/aidankinzett) (MIT) and referenced
+> as a `git-subdir` source pinned to `v1.1.1` (`sha 3660dca…`), so it never updates silently. See the
+> [integration spec](specs/claude-git-pr-skill.md) for the pin/update procedure.
+
+Walk through it end to end in the
+[github-pr-review tutorial](docs/tutorials/github-pr-review/README.md), or see the
+[expanded docs](docs/plugins/github-pr-review.md) for the install fallback and full workflow.
+
 ### social-media/twitter-tools
 
 Twitter/X social media tools for downloading media and converting tweets to Instagram Reels format.
@@ -126,6 +167,23 @@ Twitter/X social media tools for downloading media and converting tweets to Inst
 - JSON output mode for programmatic integration
 
 See [`plugins/social-media/twitter-tools/README.md`](plugins/social-media/twitter-tools/README.md) for details.
+
+### boss-homelab/proxmox-infra
+
+Homelab Proxmox VE tooling for Claude Code: a single comprehensive skill for managing nodes, VMs, LXC
+containers, storage, and networking via the [proxmoxer](https://github.com/proxmoxer/proxmoxer)
+Python library, Ansible (`community.general.proxmox`), and Terraform/OpenTofu (the Telmate provider).
+
+```bash
+/plugin install proxmox-infra@boss-skills
+```
+
+The `proxmox-infrastructure` skill bundles reference docs (cloud-init, networking, storage), helper
+scripts (cluster/Ceph health checks, template validation), multi-step workflows (cluster formation,
+Ceph deployment), and a worked example. Ask it in natural language to provision a VM from a
+cloud-init template or to check the health of your Proxmox cluster.
+
+See the [expanded docs](docs/plugins/proxmox-infra.md) for bundled resources and usage examples.
 
 ## Quick Start Examples
 
@@ -154,6 +212,19 @@ uv run python scripts/create_reel.py "https://x.com/user/status/123" --browser f
 # With explicit video file
 uv run python scripts/create_reel.py "https://x.com/user/status/123" video.mp4 -o reel.mp4
 ```
+
+## Documentation
+
+| Guide | For |
+|-------|-----|
+| [docs/](docs/README.md) | Index of all documentation |
+| [docs/plugins/](docs/plugins/README.md) | Per-plugin reference pages |
+| [docs/tutorials/](docs/tutorials/README.md) | Hands-on usage walkthroughs |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to add a new plugin or skill |
+| [development.md](development.md) | Local dev environment and `make` targets |
+| [installation.md](installation.md) | uv / Python prerequisites |
+| [publishing.md](publishing.md) | Releasing a new or updated plugin |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
 
 ## Development
 
@@ -236,7 +307,8 @@ boss-skills/
 │   └── social-media/
 │       └── twitter-tools/      # media download + tweet-to-Reel skills
 ├── docs/
-│   └── plugins/                # expanded per-plugin documentation
+│   ├── plugins/                # expanded per-plugin documentation
+│   └── tutorials/              # hands-on, plugin-first usage walkthroughs
 ├── devtools/
 ├── scripts/
 └── tests/

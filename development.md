@@ -1,10 +1,15 @@
 # Development
 
+This guide covers setting up a local dev environment for working on the `boss-skills` repo itself.
+To **install and use** the published plugins, see the [root README](README.md). To **add a new
+plugin/skill**, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 ## Setting Up uv
 
 This project is set up to use [uv](https://docs.astral.sh/uv/) to manage Python and
 dependencies. First, be sure you
-[have uv installed](https://docs.astral.sh/uv/getting-started/installation/).
+[have uv installed](https://docs.astral.sh/uv/getting-started/installation/) — see
+[`installation.md`](installation.md) for a quick cheat sheet.
 
 Then [fork the bossjones/boss-skills
 repo](https://github.com/bossjones/boss-skills/fork) (having your own
@@ -42,7 +47,7 @@ make upgrade
 
 # To run tests by hand:
 uv run pytest   # all tests
-uv run pytest -s src/module/some_file.py  # one test, showing outputs
+uv run pytest -s tests/test_some_file.py  # one test, showing outputs
 
 # Build and install current dev executables, to let you use your dev copies
 # as local tools:
@@ -89,13 +94,26 @@ extensions:
   for type checking. Note that this extension works with non-Microsoft VSCode forks like
   Cursor.
 
+## Marketplace-specific checks
+
+Beyond `make lint` and `make test`, this repo has targets for validating plugins and docs:
+
+```shell
+# Validate marketplace structure + every plugin manifest
+make verify-structure
+
+# Static quality scores for every skill (plugin-eval; never fails)
+make eval
+# The CI quality gate (fails below the threshold)
+make eval-ci
+
+# Lint and link-check Markdown
+make markdown-lint
+make link-check
+```
+
 ## Documentation
 
-- [uv docs](https://docs.astral.sh/uv/)
-
-- [basedpyright docs](https://docs.basedpyright.com/latest/)
-
-* * *
-
-*This file was built with
-[simple-modern-uv](https://github.com/jlevy/simple-modern-uv).*
+- [Documentation index](docs/README.md) — everything under `docs/`
+- [Contributing a plugin](CONTRIBUTING.md)
+- [uv docs](https://docs.astral.sh/uv/) · [basedpyright docs](https://docs.basedpyright.com/latest/)

@@ -1,6 +1,6 @@
 # twitter-tools
 
-> `social-media` · v0.1.0 · [plugin source](../../plugins/social-media/twitter-tools/)
+> `social-media` · v0.1.1 · [plugin source](../../plugins/social-media/twitter-tools/)
 
 Twitter/X social media tools for downloading media and converting tweets into Instagram
 Reels format. The plugin ships two skills: a [gallery-dl](https://github.com/mikf/gallery-dl)

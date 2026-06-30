@@ -2,18 +2,22 @@
 
 PLUGIN_DESCRIPTION
 
+> Template scaffold. Replace the `PLUGIN_*` placeholders and the example components, then register the
+> plugin in `.claude-plugin/marketplace.json`. See [`CONTRIBUTING.md`](../../CONTRIBUTING.md) for the
+> full add-a-plugin workflow (or use `/create-plugin <category>/<plugin-name>`).
+
 ## Installation
 
-Add the lunar-claude marketplace:
+Add the boss-skills marketplace:
 
 ```bash
-/plugin marketplace add owner/lunar-claude
+/plugin marketplace add bossjones/boss-skills
 ```
 
 Install this plugin:
 
 ```bash
-/plugin install PLUGIN_NAME@lunar-claude
+/plugin install PLUGIN_NAME@boss-skills
 ```
 
 ## Components

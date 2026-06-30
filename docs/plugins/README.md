@@ -21,6 +21,11 @@ more optional component directories:
 | Hook | `hooks/hooks.json` | Lifecycle events | Event-driven automation |
 | LSP | `.lsp.json` | File-type editor events | Wire a language server for diagnostics and navigation |
 
+A plugin doesn't have to live in this repo. Entries can also be **external** — referenced remotely
+via a `git-subdir` source pinned to a `ref` + `sha` — so the marketplace can offer third-party
+plugins without vendoring their code. [`github-pr-review`](github-pr-review.md) is the first such
+entry; see its page for how pinning and the install fallback work.
+
 ## Installing plugins
 
 Add the marketplace once, then install plugins by name:
@@ -46,9 +51,10 @@ after the marketplace changes:
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| agent-harness | `boss-dev` | 0.4.1 | Subagents, commands, and skills for agentic dev workflows | [agent-harness.md](agent-harness.md) |
+| agent-harness | `boss-dev` | 0.12.1 | Subagents, commands, and skills for agentic dev workflows | [agent-harness.md](agent-harness.md) |
 | basedpyright-lsp | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [basedpyright-lsp.md](basedpyright-lsp.md) |
 | python-dev | `boss-dev` | 0.1.1 | Debug GitHub Actions CI and ship conventional-commit PRs | [python-dev.md](python-dev.md) |
+| github-pr-review | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [github-pr-review.md](github-pr-review.md) |
 | twitter-tools | `social-media` | 0.1.1 | Download X/Twitter media and convert tweets to Reels | [twitter-tools.md](twitter-tools.md) |
 | proxmox-infra | `boss-homelab` | 0.1.1 | Manage Proxmox VE homelab infrastructure and IaC | [proxmox-infra.md](proxmox-infra.md) |
 
@@ -64,7 +70,14 @@ plugins/
 │   └── proxmox-infra/      # 1 skill (proxmox-infrastructure)
 └── social-media/
     └── twitter-tools/      # 2 skills
+
+# github-pr-review has no local directory — it's an external git-subdir entry
+# (aidankinzett/claude-git-pr-skill, pinned v1.1.1) declared in marketplace.json
 ```
 
-Every plugin also keeps its own `README.md` next to its `plugin.json`. The pages in this
-directory collect that information — components and usage examples — in one place.
+Every *local* plugin also keeps its own `README.md` next to its `plugin.json`. The pages in this
+directory collect that information — components and usage examples — in one place. External plugins
+(like [`github-pr-review`](github-pr-review.md)) have no local directory, so their page links to the
+upstream source instead.
+
+For hands-on, step-by-step walkthroughs of these plugins, see [`../tutorials/`](../tutorials/README.md).
