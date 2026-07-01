@@ -5,6 +5,16 @@ alwaysApply: false
 
 # Path Traversal Prevention
 
+## Contents
+1. Do Not Use User Input in File Paths
+2. Python Built-in Path Sanitization Functions
+3. Use Safe Path Construction Methods
+4. Implement Strict Input Validation
+5. Use Secure File Upload Handling
+6. Common Path Traversal Payloads to Block
+7. Additional Security Measures
+8. Testing for Path Traversal
+
 Path traversal attacks occur when user-controlled input is used to construct file paths, allowing attackers to access files outside the intended directory. This can lead to unauthorized file access, data leakage, or system compromise.
 
 ## 1. Do Not Use User Input in File Paths

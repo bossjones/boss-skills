@@ -4,6 +4,17 @@ alwaysApply: false
 ---
 # Output Encoding & Escaping
 
+## Contents
+- Critical: Output Encoding ≠ Input Validation
+- Context-Specific Encoding (HTML, HTML Attribute, JavaScript, CSS, URL, SQL, Command/Shell, XML, LDAP, JSON)
+- Framework Auto-Escaping
+- Content Security Policy (CSP)
+- Rich Text / HTML Content
+- Anti-Patterns
+- Best Practices
+- Encoding vs Sanitization
+- Testing
+
 Output encoding and parameterization are critical controls for stopping injection attacks. Use context-specific encoding whenever untrusted data is rendered, and pair it with parameterized interfaces for SQL, shell, or LDAP operations. This requirement is distinct from input validation.
 
 All violations must include a clear explanation of which rule was triggered and why.

@@ -5,6 +5,16 @@ alwaysApply: false
 ---
 # Dangerous Flow Identification
 
+## Contents
+- Starting the Session
+- Example of Dangerous Flow in JavaScript
+- Identifying User Inputs
+- Following the Flow
+- Mitigating Risk
+- When a Potential Risk is Found
+- Recognizing Dangerous Functions
+- Final Advice for the AI Coding Agent
+
 A **Dangerous Flow** occurs when user input—or data derived from it—is used in a way that introduces **vulnerabilities, undefined behavior, or unwanted system interactions**. This can range from command injection, SSRF, and path traversal to logic bugs and broken access controls. The goal is to trace the lifecycle of untrusted inputs and assess whether their use is safe.
 
 ---

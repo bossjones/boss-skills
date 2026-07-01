@@ -3,6 +3,25 @@ description:
 globs: **/*.py,**/*.ipynb,**/*.pyw
 alwaysApply: false
 ---
+
+## Contents
+1. Validate All External Input
+2. Do Not Use User Input Directly in File Paths
+3. Use Parameterized Database Queries
+4. Avoid `eval`, `exec`, and `compile` on Dynamic Input
+5. Use Constant-Time Comparison for Secrets
+6. Do Not Log Sensitive Data
+7. Safe Subprocess Usage
+8. Escape Output in Web Contexts
+9. Avoid Hardcoded Secrets
+10. Restrict Dynamic Imports
+11. Avoid Implicit Truthiness in Security Logic
+12. Do Not Use `pickle` with Untrusted Data
+13. Safe YAML Loading
+14. Preserve Framework Security Defaults
+15. Dependency Hygiene
+16. Security-Sensitive Code Requires Justification
+
 These rules apply to all Python code in the repository and aim to prevent common security risks through disciplined handling of input validation, output encoding, safe execution, secure configuration, and dependency hygiene.
 
 All violations must include a clear explanation of which rule was triggered and why, to help developers understand and fix the issue effectively.
