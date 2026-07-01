@@ -73,7 +73,8 @@
             "/Users/bossjones/dev/adobe-aifoundations/aif-skills",
             "/Users/bossjones/dev/FlorianBruniaux/claude-code-ultimate-guide",
             "/Users/bossjones/dev/anthropics/claude-code-action",
-            "/Users/bossjones/dev/anthropics/claude-code-security-review"
+            "/Users/bossjones/dev/anthropics/claude-code-security-review",
+            "/Users/bossjones/dev/obsidian-wiki"
         ]
     },
     "statusLine": {
@@ -112,6 +113,7 @@
         "code-documentation@claude-code-workflows": true,
         "documentation-generation@claude-code-workflows": true,
         "c4-architecture@claude-code-workflows": true,
-        "documentation-standards@claude-code-workflows": true
+        "documentation-standards@claude-code-workflows": true,
+        "obsidian@obsidian-skills": true
     }
 }

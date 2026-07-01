@@ -294,3 +294,6 @@ temp/
 # Skill port artifact (not part of the repo)
 skills.zip
 plugins/boss-dev/agent-harness/.claude/
+
+# symlink-plugins backups (make symlink-plugins / unlink-plugins)
+.backups/
