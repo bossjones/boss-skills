@@ -222,7 +222,7 @@ class SettingsError(RuntimeError):
     """Raised when settings.json cannot be safely loaded or written."""
 
 
-def load_settings(path: Path) -> dict:
+def load_settings(path: Path) -> dict[str, object]:
     """Parse existing settings or return ``{}``; abort on invalid JSON."""
     if not path.exists():
         return {}
@@ -237,7 +237,7 @@ def load_settings(path: Path) -> dict:
     return data
 
 
-def plan_mcp(current: dict) -> tuple[dict, list[str]]:
+def plan_mcp(current: dict[str, object]) -> tuple[dict[str, object], list[str]]:
     """Return ``(merged, changes)`` — add the qmd MCP server, keeping others."""
     merged = json.loads(json.dumps(current))  # deep copy
     changes: list[str] = []
