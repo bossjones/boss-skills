@@ -109,6 +109,23 @@ to `SKILL.md` + `references/` + `scripts/`. The [`/skill-evals`](.claude/skills/
 skill / `make eval-skill` writes there; see [`docs/evals/README.md`](docs/evals/README.md) for the
 index. These files are regenerated output — overwrite freely.
 
+## Second Brain (obsidian-wiki)
+
+[`obsidian-wiki`](https://github.com/ar9av/obsidian-wiki) is a globally-installed uv tool that maintains an Obsidian markdown "digital brain" (Karpathy's LLM-Wiki pattern: distill knowledge once into interconnected notes).
+
+- **One-command bootstrap**: run the `setup-second-brain` skill (agent-harness plugin). It detects what's present, previews every change, then installs obsidian-wiki, runs setup against the vault, and optionally installs/configures QMD. The steps below are what it automates.
+- **Install** (never pip; it's a global CLI, not a repo dependency, so do NOT add it to `pyproject.toml`/`uv sync`):
+
+  ```bash
+  uv tool install "obsidian-wiki[graph,ast]"   # graph = export/analysis, ast = code parsing
+  uv tool upgrade obsidian-wiki                  # later upgrades
+  ```
+
+- **Setup** (one-time, machine-level): `obsidian-wiki setup --vault ~/Documents/obsidian/personal.vault` writes `~/.obsidian-wiki/config` and symlinks its skills into `~/.claude/skills/` (and other agents' skill dirs). Verify with `obsidian-wiki info` / `obsidian-wiki list`.
+- **Vault path**: default `~/Documents/obsidian/personal.vault` (documented in `.env.sample` as `OBSIDIAN_VAULT_PATH`). The authoritative path lives in `~/.obsidian-wiki/config`, not the env var.
+- **Skills** (invoked automatically once installed): ingest sources (`wiki-ingest`, `wiki-update`, `wiki-research`), query (`wiki-query`, `wiki-status`), maintain (`wiki-lint`, `cross-linker`, `wiki-dedup`, `tag-taxonomy`), capture (`wiki-capture`), export (`wiki-export`, `graph-colorize`), and mine agent history (`claude-history-ingest`, `codex-history-ingest`, etc.). Manage multiple vaults with `wiki-switch`.
+- **QMD semantic search** (optional): [`@tobilu/qmd`](https://github.com/tobi/qmd) upgrades `wiki-query`/`wiki-ingest` from Grep to on-device semantic search. Requires **Node ≥ 22**; install with `npm install -g @tobilu/qmd`. Configure via `QMD_TRANSPORT` (`cli` or `mcp`), `QMD_WIKI_COLLECTION`, `QMD_PAPERS_COLLECTION`, `QMD_CLI_SEARCH_MODE` (see `plugins/boss-dev/agent-harness/docs/getting-started.md`); the wiki skills read these from `~/.obsidian-wiki/config` and silently fall back to Grep when unset. Index with `qmd collection add <vault> --name wiki && qmd embed`.
+
 ## Testing
 
 - Place tests in `tests/` directory as `test_*.py`

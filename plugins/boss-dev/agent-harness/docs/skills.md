@@ -1,6 +1,6 @@
 # Skills Reference
 
-Twelve skills under `skills/<skill-name>/SKILL.md`, auto-discovered on `/plugin install`. Skills are
+Thirteen skills under `skills/<skill-name>/SKILL.md`, auto-discovered on `/plugin install`. Skills are
 **model-invoked** capabilities — Claude activates them automatically when a task matches — except
 where a skill sets `disable-model-invocation: true`, in which case you trigger it explicitly (ask
 for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
@@ -24,6 +24,8 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 - [Content & supply-chain hygiene](#content--supply-chain-hygiene)
   - [`stop-slop`](#stop-slop)
   - [`unicode-hygiene`](#unicode-hygiene)
+- [Machine setup](#machine-setup)
+  - [`setup-second-brain`](#setup-second-brain)
 - [Dependencies](#dependencies)
 
 ## At a glance
@@ -42,6 +44,7 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 | [`release-notes-generator`](#release-notes-generator) | model-invoked | Draft changelog/PR/Slack notes | `git`, `gh` |
 | [`stop-slop`](#stop-slop) | model-invoked | Strip AI writing patterns from prose | — |
 | [`unicode-hygiene`](#unicode-hygiene) | model-invoked | Scan files for invisible / spoofed Unicode | `uv` |
+| [`setup-second-brain`](#setup-second-brain) | explicit | Install/configure obsidian-wiki + optional QMD semantic search | `uv`, `node`≥22 for QMD |
 
 > **Adapted from:** the PR-review skills are adapted from
 > [mlflow](https://github.com/mlflow/mlflow) (Apache-2.0); the worktree and release-notes skills are
@@ -275,12 +278,91 @@ Walkthrough in [workflows.md](./workflows.md#worktree-lifecycle).
 
 ---
 
+## Machine setup
+
+### `setup-second-brain`
+
+> Install and configure the "second brain": the obsidian-wiki uv tool plus optional
+> [QMD](https://github.com/tobi/qmd) semantic search, with a backup before any config write.
+
+- **Invocation:** explicit (`disable-model-invocation: true`). Arguments:
+  `[--apply | --dry-run]` — ask for it by name or `/agent-harness:setup-second-brain`.
+- **When to use:** Bootstrapping a machine's second brain — installing
+  `obsidian-wiki[graph,ast]` as a uv tool, running `obsidian-wiki setup` against a vault,
+  and (optionally) enabling QMD semantic search so `wiki-query`/`wiki-ingest` use on-device
+  semantic matching instead of Grep.
+- **What it does:** Owns all user interaction (install choices, vault path, QMD yes/no,
+  transport, indexing) and drives a stdlib-only PEP 723 script
+  (`scripts/setup_second_brain.py`) for the deterministic config work:
+  1. `detect` — read-only JSON report: config + vault state, which `QMD_*` keys are set,
+     whether a `qmd` MCP server is present, and env readiness (`uv`, `node` ≥ 22, `npm`,
+     `obsidian-wiki`, `qmd`).
+  2. `apply --dry-run` — returns a git-style unified `diff` per touched file
+     (`~/.obsidian-wiki/config`, and `settings.json` for `mcp` transport) **without writing**.
+  3. `apply` — backs up each file, writes the `QMD_*` variables (and, for `mcp` transport,
+     merges an additive `qmd` MCP server), then re-parses `settings.json` to confirm validity.
+  The installs and vault indexing themselves are run by the skill via Bash after confirmation.
+- **Example:**
+
+  ```text
+  /agent-harness:setup-second-brain --dry-run
+  ```
+
+  ```bash
+  # preview the QMD config write without touching anything
+  uv run "${CLAUDE_SKILL_DIR}/scripts/setup_second_brain.py" apply --qmd-config --transport cli --search-mode quality --dry-run
+  ```
+
+- **Source:** [`skills/setup-second-brain/SKILL.md`](../skills/setup-second-brain/SKILL.md) ·
+  script [`scripts/setup_second_brain.py`](../skills/setup-second-brain/scripts/setup_second_brain.py)
+- **Tutorial:** [Set up your second brain](../../../../docs/tutorials/agent-harness/second-brain.md)
+
+#### Script CLI reference
+
+The stdlib script has two subcommands. `detect` is read-only; `apply` does the
+backup → edit → validate work. Paths default to `~/.obsidian-wiki/config` and
+`~/.claude/settings.json`.
+
+| Subcommand / flag | Applies to | Description |
+| --- | --- | --- |
+| `detect` | — | Print the current state as JSON (read-only). |
+| `apply` | — | Backup, then write the requested changes. |
+| `--config-path PATH` | both | Override the obsidian-wiki config path. |
+| `--settings-path PATH` | both | Override the Claude settings.json path. |
+| `--qmd-config` | apply | Write the `QMD_*` variables into the config. |
+| `--transport {cli,mcp}` | apply | QMD transport; `mcp` also merges the `qmd` MCP server into settings.json (default `cli`). |
+| `--wiki-collection NAME` | apply | `QMD_WIKI_COLLECTION` value (default `wiki`). |
+| `--papers-collection NAME` | apply | `QMD_PAPERS_COLLECTION` value (default `papers`). |
+| `--search-mode {quality,balanced,fast}` | apply | `QMD_CLI_SEARCH_MODE` value, cli transport only (default `quality`). |
+| `--dry-run` | apply | Report intended changes as a unified diff without writing. |
+
+#### `~/.obsidian-wiki/config` schema
+
+One `KEY="value"` per line. `obsidian-wiki setup` writes `OBSIDIAN_VAULT_PATH`; this
+skill writes only the `QMD_*` keys (idempotently, in place):
+
+```text
+OBSIDIAN_VAULT_PATH="~/Documents/obsidian/personal.vault"
+QMD_TRANSPORT="cli"
+QMD_WIKI_COLLECTION="wiki"
+QMD_PAPERS_COLLECTION="papers"
+QMD_CLI_SEARCH_MODE="quality"
+```
+
+See [Second brain (obsidian-wiki) environment](./getting-started.md#second-brain-obsidian-wiki-environment)
+for the full `OBSIDIAN_*`/`QMD_*` variable tables.
+
+---
+
 ## Dependencies
 
 - **`uv`** — runs the PEP 723 scripts behind `fetch-diff`, `fetch-unresolved-comments`,
-  `pr-review`, `worktree-doctor`, and the `unicode-hygiene` scanner. Their dependencies (`aiohttp`,
-  `pydantic`, `jsonschema`) resolve on demand, so the skills work right after `/plugin install` with
-  no setup step. (The unicode scanner is stdlib-only — no dependencies to resolve.)
+  `pr-review`, `worktree-doctor`, the `unicode-hygiene` scanner, and `setup-second-brain`. Their
+  dependencies (`aiohttp`, `pydantic`, `jsonschema`) resolve on demand, so the skills work right after
+  `/plugin install` with no setup step. (The unicode scanner and `setup-second-brain` are stdlib-only
+  — no dependencies to resolve.)
+- **`node` ≥ 22 + `npm`** — only for the optional QMD step of `setup-second-brain`
+  (`npm install -g @tobilu/qmd`). Everything else works without Node; QMD degrades to Grep.
 - **`gh`** (authenticated) or **`GH_TOKEN`** — for all GitHub-touching skills.
 - **`git` 2.5.0+** — for the worktree suite.
 
