@@ -189,6 +189,21 @@ verify-structure-strict: ## Verify marketplace structure in strict mode (warning
 	@echo "🚀 Verifying marketplace structure in strict mode"
 	@uv run scripts/verify-structure.py --strict
 
+.PHONY: symlink-plugins
+symlink-plugins: ## Back up .claude/ originals and symlink plugin components in
+	@echo "🚀 Symlinking plugin components into .claude/"
+	@uv run scripts/symlink_plugins.py
+
+.PHONY: symlink-plugins-check
+symlink-plugins-check: ## Dry-run + verify plugin symlinks (no changes); used by CI/pre-commit
+	@echo "🚀 Checking plugin symlink mirror (dry run)"
+	@uv run scripts/symlink_plugins.py --check
+
+.PHONY: unlink-plugins
+unlink-plugins: ## Restore .claude/ from the latest symlink-plugins backup
+	@echo "🚀 Restoring .claude/ from latest symlink-plugins backup"
+	@uv run scripts/symlink_plugins.py --restore
+
 .PHONY: eval
 eval: ## Score all skills with plugin-eval (static depth, report only, never fails)
 	@echo "🚀 Scoring skills with plugin-eval (quick depth)"
