@@ -257,6 +257,8 @@ extras/
 
 # Claude Code data
 .claude/data/
+# nested (hook-generated) .claude/data anywhere in the tree
+**/.claude/data/
 
 # Database files
 *.db
