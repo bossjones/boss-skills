@@ -2,24 +2,38 @@
 
 Pick the rule files to read based on what the target actually contains. Reading every rule for
 every review is wasteful and dilutes focus — map the languages and concerns present in the
-in-scope code to the specific `.cursor/rules/security-*.mdc` files below.
+in-scope code to the specific `security-*.mdc` files below.
 
-`security-global-base.mdc` **always applies** (it is the repo's always-on baseline: defense in
-depth, least privilege, fail securely, secure by default, plus 9 critical rules and the mandate
-that every violation cite the rule it triggered).
+## Rule source resolution
+
+The tables below name rule files by **filename**. Resolve each filename to a directory in this
+order (first that exists wins), then read it from there:
+
+1. **Target repo (live):** `<repo>/.cursor/rules/security-global/<file>.mdc` and
+   `<repo>/.cursor/rules/security-lang/<file>.mdc`. The repo's own standard wins when present.
+2. **Bundled (portable):** `${CLAUDE_SKILL_DIR}/references/security-rules/<file>.mdc` — verbatim
+   copies shipped with this skill (all 18 in one flat directory), so reviews work in any repo.
+3. **OWASP fallback:** if neither exists, use the built-in checklist at the bottom of this file
+   and cite OWASP/CWE instead of a rule id.
+
+Record which source was used in the report's Notes.
+
+`security-global-base.mdc` **always applies** (the always-on baseline: defense in depth, least
+privilege, fail securely, secure by default, plus 9 critical rules and the mandate that every
+violation cite the rule it triggered).
 
 ## By language
 
 | Target contains | Read |
 | --------------- | ---- |
-| Python (`**/*.py`, `**/*.ipynb`, `**/*.pyw`) | `security-lang/security-lang-python.mdc` (16 numbered Python rules: input validation, no user input in paths, parameterized queries, no `eval`/`exec`, `hmac.compare_digest`, safe subprocess/no `shell=True`, output escaping, no hardcoded secrets, restricted dynamic imports, no `pickle` on untrusted data, `yaml.safe_load`, keep framework defaults, dep hygiene) |
+| Python (`**/*.py`, `**/*.ipynb`, `**/*.pyw`) | `security-lang-python.mdc` (16 numbered Python rules: input validation, no user input in paths, parameterized queries, no `eval`/`exec`, `hmac.compare_digest`, safe subprocess/no `shell=True`, output escaping, no hardcoded secrets, restricted dynamic imports, no `pickle` on untrusted data, `yaml.safe_load`, keep framework defaults, dep hygiene) |
 | Other languages (JS/TS, PHP, Go, …) | No language-specific file exists yet; apply the global rules below. Many global files include JavaScript/PHP unsafe-vs-safe examples. |
 
 ## By concern
 
 Match the security-relevant surfaces you find during recon to these global rules:
 
-| Concern seen in code | Read (`security-global/…`) |
+| Concern seen in code | Read (filename) |
 | -------------------- | -------------------------- |
 | Untrusted input reaching a dangerous sink (shell, FS, DB, template, eval, network) | `security-global-dangerous-flows.mdc` (taint-tracing playbook), `security-global-input-validation.mdc` |
 | SQL / query construction | `security-global-sql-usage.mdc`, `security-global-injection-prevention.mdc` |
@@ -42,6 +56,7 @@ Read only what matches. A small Python diff that touches a subprocess call needs
 ## Citing a rule in a finding
 
 The rule files use two conventions you can cite precisely:
+
 - The numbered-rule files (`base`, `sql-usage`, `python`, `ssrf`, `xxe`, `path-traversal`,
   `dangerous-flows`) use `## N. Rule Title` with a bold `**Rule:**`. Cite as
   `security-lang-python.mdc rule 7 (Safe Subprocess Usage)`.

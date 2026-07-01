@@ -1,0 +1,23 @@
+{
+  "skill_name": "boss-security-review",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "run a security review on my changes before I merge this branch",
+      "expected_output": "A report written to specs/security-review.md scoped to the changed code (git diff main...HEAD + uncommitted working tree). Findings cite the triggered security rule (from the target repo's .cursor/rules/ if present, else the bundled rubric), are graded by severity, and include remediation. A clean diff yields a zero-finding report rather than invented issues.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "audit plugins/boss-dev/agent-harness for security issues and write it to specs/agent-harness-security.md",
+      "expected_output": "A directory-scoped review of plugins/boss-dev/agent-harness written to the requested path specs/agent-harness-security.md (honoring the path override). Larger target should trigger adaptive fan-out; findings deduped and severity-triaged in the report structure.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "is scripts/validate-unicode-hygiene.py secure? do a security review",
+      "expected_output": "A single-file, single-context review of scripts/validate-unicode-hygiene.py written to specs/security-review.md (default path). Applies the Python rule file (security-lang-python.mdc) plus relevant global rules, resolved from the live .cursor/rules/ or the bundled copies; reports findings with cited rules, or a clean zero-finding report if the file is safe.",
+      "files": []
+    }
+  ]
+}

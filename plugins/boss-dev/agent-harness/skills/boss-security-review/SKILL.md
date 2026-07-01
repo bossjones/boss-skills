@@ -1,18 +1,17 @@
 ---
-name: security-review
+name: boss-security-review
 description: >
   Performs a security review / security audit / vulnerability review of code and writes a
   structured, severity-graded findings report (default path specs/security-review.md, overridable
   from the request). Reviews changed code by default; the request can override the target to a
-  named path (e.g. "review src/auth/") or the whole repo. Applies this repo's security rules under
-  .cursor/rules/ and cites the specific rule each finding triggered. Use whenever the user asks to
-  "run a security review", "do a security audit", "audit this for vulnerabilities", "check for
-  security issues", "review my changes for security", "is this code secure", "find security bugs",
-  or "look for injection / SSRF / path traversal / hardcoded secrets" — including a pre-merge pass
-  on a branch, PR, file, or directory. Prefer this over an ad-hoc review so findings are graded,
-  cite the triggered rule, and land in a re-checkable report.
-metadata:
-  version: 0.1.0
+  named path (e.g. "review src/auth/") or the whole repo. Reviews against a bundled security
+  rubric (and the target repo's .cursor/rules/security-* rules when present) and cites the
+  specific rule each finding triggered. Use whenever the user asks to "run a security review",
+  "do a security audit", "audit this for vulnerabilities", "check for security issues", "review
+  my changes for security", "is this code secure", "find security bugs", or "look for injection /
+  SSRF / path traversal / hardcoded secrets" — including a pre-merge pass on a branch, PR, file,
+  or directory. Prefer this over an ad-hoc review so findings are graded, cite the triggered rule,
+  and land in a re-checkable report.
 ---
 
 # Security Review
@@ -36,8 +35,14 @@ code unless the request explicitly asks for fixes in the same turn.
   the full tree).
 - **REPORT_OUTPUT_PATH** — where the report is written. Default: `specs/security-review.md`.
   If the request names a different path (e.g. "write it to specs/auth-security.md"), use that.
-- **RULES_DIR** — the rubric location: `.cursor/rules/` (holds `security-global/` and
-  `security-lang/`).
+- **RULES_SOURCE** — where the rubric is read from, resolved in this order (first that exists
+  wins), per `references/rubric-map.md`:
+  1. The **target repo's** `.cursor/rules/security-global/` + `.cursor/rules/security-lang/` — the
+     repo's own live standard takes precedence when present.
+  2. The **bundled** copy at `${CLAUDE_SKILL_DIR}/references/security-rules/` — verbatim rule
+     files shipped with this skill, so it works in any repo.
+  3. The built-in **OWASP/CWE fallback** checklist at the bottom of `references/rubric-map.md`.
+  Note in the report's Notes which source was used.
 
 ## Instructions
 
@@ -45,9 +50,9 @@ code unless the request explicitly asks for fixes in the same turn.
   reviewing anything. If the request is ambiguous about scope, state the chosen interpretation
   in the report's Scope section rather than stalling.
 - **Load only the relevant rubric.** Do not read all 18 rule files every time. Use
-  `references/rubric-map.md` to map the languages and concerns present in the target to the
-  specific `.cursor/rules/security-*.mdc` files worth reading. `security-global-base.mdc` always
-  applies.
+  `references/rubric-map.md` to resolve the rubric source (target repo's `.cursor/rules/` if
+  present, else the bundled copies) and to map the languages and concerns present in the target
+  to the specific `security-*.mdc` files worth reading. `security-global-base.mdc` always applies.
 - **Cite the triggered rule for every finding.** State which rule fired and *why* it applies to
   this code. This is not optional decoration — the base rule mandates it: "All violations must
   include a clear explanation of which rule was triggered and why." A finding without a cited
@@ -62,9 +67,10 @@ code unless the request explicitly asks for fixes in the same turn.
 - **Scale the effort to the target.** For a small target, review directly in this context. For a
   large diff or a whole-repo audit, fan out parallel review subagents and merge their findings —
   see `references/fanout.md`.
-- **Graceful fallback.** If `.cursor/rules/` is absent (this skill may run in a repo without it),
-  fall back to the built-in OWASP-style checklist at the bottom of `references/rubric-map.md`,
-  and note in the report's Notes section that the repo rubric was unavailable.
+- **Graceful fallback.** If neither the target repo's `.cursor/rules/` nor the bundled
+  `references/security-rules/` copies are available, fall back to the built-in OWASP-style
+  checklist at the bottom of `references/rubric-map.md`, and note in the report's Notes section
+  that the structured rubric was unavailable.
 
 ## Workflow
 
@@ -96,7 +102,7 @@ findings (keep the Summary table with zero counts and state "No findings" under 
 ## Scope
 - Target: <what was reviewed — diff range, path(s), or "whole repo">
 - Ref: <branch / commit reviewed>
-- Rubric: .cursor/rules/security-global + security-lang  (<rule files actually applied>)
+- Rubric source: <live .cursor/rules/ | bundled security-rules | OWASP fallback>  (<rule files actually applied>)
 - Date: <YYYY-MM-DD>
 
 ## Summary
@@ -134,8 +140,8 @@ Top risks:
 <measurable definition of "all resolved" for this review>
 
 ## Notes
-<assumptions made, areas explicitly out of scope, and — if applicable — that the .cursor rubric
-was unavailable and the fallback checklist was used>
+<assumptions made, areas explicitly out of scope, and — if applicable — that the structured
+rubric was unavailable and the OWASP fallback checklist was used>
 ```
 
 ## Report
@@ -154,9 +160,11 @@ Top risks:
 
 ## Reference Files
 
-- `references/rubric-map.md` — Consult in Workflow step 2 to choose which `.cursor/rules/security-*.mdc`
-  files to read for the target's languages and concerns. Also holds the OWASP-style fallback
-  checklist for when `.cursor/rules/` is missing.
+- `references/rubric-map.md` — Consult in Workflow step 2 to resolve the rubric source (live vs.
+  bundled) and choose which `security-*.mdc` files to read for the target's languages and
+  concerns. Also holds the OWASP-style fallback checklist for when no structured rubric is found.
+- `references/security-rules/` — The bundled verbatim rubric (18 `.mdc` files). Read the specific
+  files `rubric-map.md` points to; used when the target repo has no `.cursor/rules/`.
 - `references/severity-model.md` — Consult in Workflow step 5 to assign severity consistently and
   to order the Immediate Remediation list.
 - `references/fanout.md` — Consult in Workflow step 4 to decide single-context vs. parallel

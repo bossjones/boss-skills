@@ -8,6 +8,7 @@ and missed files. Choose per the heuristic below.
 
 Review directly in the current context (no subagents) when the target is small enough to hold and
 reason about carefully — roughly:
+
 - a diff touching up to ~two dozen files, or
 - a single file or a small directory, or
 - any target where one pass can genuinely cover every in-scope line.
@@ -33,10 +34,11 @@ apply the concern rules relevant to its languages.
 ## Subagent contract
 
 Give each review subagent:
+
 - **Its file subset** — the exact paths (or diff hunks) it owns. Subsets should not overlap under
   by-area; under by-concern they cover the same files but each reports only its concern.
-- **The rule files it must apply** — the relevant `.cursor/rules/security-*.mdc` paths from
-  `rubric-map.md` (always including `security-global-base.mdc`).
+- **The rule files it must apply** — the relevant `security-*.mdc` files, resolved to their live
+  or bundled location per `rubric-map.md` (always including `security-global-base.mdc`).
 - **The output shape** — findings in the per-finding block from the SKILL.md Report Format
   (severity, category, rule triggered + why, location `file:line`, description, impact,
   remediation, references). Instruct it to return raw findings only — no prose preamble — and to
@@ -47,6 +49,7 @@ Keep subagents **read-only**: they analyze and report; they do not edit code or 
 ## Merging in the main context
 
 After subagents return:
+
 1. **Collect** all findings into one list.
 2. **Dedupe** by `file:line` + triggered rule — the same issue can surface from two subagents
    (e.g. a by-area and a by-concern pass overlapping). Keep the clearer write-up; merge evidence.
