@@ -25,9 +25,9 @@ Workflow for reviewing GitHub pull requests using `gh api` to create pending rev
 
 ## When to Use
 
-- Reviewing pull requests
-- Adding code suggestions to PRs
-- Posting review comments with the gh CLI
+- User asks to review this PR, or to review PR #N
+- User provides a PR number and asks to approve, request changes, or submit feedback
+- User asks to add inline code suggestions to a specific PR via the gh CLI
 
 ## Prerequisites
 
