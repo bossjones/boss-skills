@@ -1,19 +1,26 @@
 # PluginEval Report
+
 **Path:** `/Users/bossjones/dev/bossjones/boss-skills/plugins/boss-dev/agent-harness/skills/fetch-unresolved-comments`
 **Timestamp:** 2026-06-20T16:02:02.713685+00:00
 **Depth:** standard
+
 ## Overall Score
+
 | Metric | Value |
 |--------|-------|
 | Score | **80.7/100** |
 | Confidence | Assessed |
 | Badge | Gold |
+
 ## Layer Breakdown
+
 | Layer | Score | Anti-Patterns |
 |-------|-------|---------------|
 | static | 0.736 | 0 |
 | judge | 0.865 | 0 |
+
 ## Dimension Scores
+
 | Dimension | Weight | Score | Grade |
 |-----------|--------|-------|-------|
 | Triggering Accuracy | 25% | 0.835 | B |
@@ -26,9 +33,13 @@
 | Structural Completeness | 3% | 0.700 | C- |
 | Code Template Quality | 2% | 0.000 | — |
 | Ecosystem Coherence | 2% | 0.750 | C |
+
 ## Anti-Patterns Detected
+
 _No anti-patterns detected._
+
 ## Model Usage
+
 | Model | Tokens |
 |-------|--------|
 | claude-sonnet-4-6 | 4,722 |

@@ -1,24 +1,52 @@
-# rumdl configuration - INCLUSION-BASED approach
-# Only lint user-facing documentation
+# rumdl configuration — token-lean, agent-safe, well-formed markdown
+#
+# Philosophy: whitespace is tokens to an LLM. Enable the rules that STRIP
+# whitespace and the structural rules that keep markdown parseable; never enable
+# rules that PAD with whitespace or are purely cosmetic. SKILL.md files are read
+# by agents on every invocation, so they are linted here too — not just READMEs.
+#
+# Rule policy is documented in .claude/rules/documentation.md.
 
 [global]
-respect_gitignore = true
+respect-gitignore = true
 
-# ONLY lint these paths (everything else ignored)
+# Files excluded from linting: they contain intentional NESTED code-fence demos
+# (a ``` block inside a ``` / ~~~ block) that rumdl's fence parser cannot model —
+# `fmt` corrupts them (e.g. rewrites a closing ~~~ as ~~~text). Hand-maintained.
+exclude = [
+    "plugins/boss-dev/agent-harness/skills/github-pr-review/SKILL.md",
+    "plugins/boss-dev/agent-harness/skills/add-review-comment/SKILL.md",
+]
+
+# Inclusion allowlist — user-facing docs AND agent-consumed skill files.
 include = [
     "./README.md",
     "plugins/*/README.md",
     "plugins/*/*/README.md",
-    "docs/architecture/*.md",
-    "docs/checklists/*.md",
+    "plugins/*/*/skills/*/SKILL.md",
+    ".claude/skills/*/SKILL.md",
     "docs/plugins/*.md",
+    "docs/agents/*.md",
+    "docs/evals/**/*.md",
+    "docs/tutorials/**/*.md",
 ]
 
-[MD013]
-line_length = 120
-code_blocks = false
-tables = false
-headings = true
+# Rules turned OFF (rumdl 0.0.207 uses `disable`, not `extend-disable`).
+# All other default-on rules — including the token-strippers (MD009, MD012,
+# MD064, MD027, MD038/39) and structural rules (MD022, MD031, MD032, MD040,
+# MD058) — stay enabled.
+disable = [
+    "MD013", # line length: wrapping is token-neutral→additive; long lines are fine for agents
+    "MD014", # `$`-prefixed command w/o output: CONFLICTS with this repo's required `$ command` SKILL.md notation (#12781)
+    "MD048", # fence style ``` vs ~~~: we intentionally use ~~~ for nested-suggestion demos
+    "MD041", # first line must be H1: SKILL.md leads with YAML frontmatter + intro prose
+    "MD036", # emphasis-as-heading: intentional **Why:** / **How to apply:** label patterns
+    "MD033", # inline HTML: skills use arbitrary <semantic-tags> as prompt structure; linting them is hostile and `fmt` could corrupt them
+    "MD040", # fence language: adds ` text` tokens for no agent benefit, and `fmt` corrupts nested code-fence demos (writes ~~~text over a closing ~~~)
+    "MD046", # code-block style: emits false "opened but never closed" on the nested ```/~~~ demos that skills legitimately document
+]
 
-[MD033]
-allowed_elements = ["span", "div", "Tip", "example", "commentary"]
+# Deliberately NOT enabled (opt-in, off by default — they ADD whitespace or are
+# cosmetic, so they cost tokens for no parseability gain). Do not enable:
+#   MD060 (table cell padding), MD063 (title-case headings),
+#   MD065 (blank lines around horizontal rules), MD072/MD080/MD082.

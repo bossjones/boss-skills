@@ -58,21 +58,25 @@ uv run scripts/download.py "URL" --browser firefox
 ## Examples
 
 Download all media from a user:
+
 ```bash
 uv run scripts/download.py "https://x.com/NASA" --output ./nasa_media
 ```
 
 Download a single tweet's media:
+
 ```bash
 uv run scripts/download.py "https://x.com/user/status/1234567890"
 ```
 
 Download only videos from a user (limit 50):
+
 ```bash
 uv run scripts/download.py "https://x.com/username" --videos-only --limit 50
 ```
 
 Download bookmarks with Firefox cookies:
+
 ```bash
 uv run scripts/download.py "https://x.com/i/bookmarks" --browser firefox
 ```
@@ -86,6 +90,7 @@ uv run scripts/download.py "https://x.com/user/status/123" --json --videos-only
 ```
 
 Output format:
+
 ```json
 {
   "files": ["/path/to/downloads/twitter_user_123_1.mp4"],
@@ -102,6 +107,7 @@ This is used by the `twitter-to-reel` skill to automatically download videos bef
 ## Output Structure
 
 Files are saved with the following naming pattern:
+
 ```text
 {output_dir}/twitter_{username}_{tweet_id}_{num}.{ext}
 ```

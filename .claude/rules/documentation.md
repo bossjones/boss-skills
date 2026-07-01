@@ -14,15 +14,40 @@ paths: docs/**/*.md, ai_docs/**/*.md
 
 ## Linting
 
-Documentation is linted with `rumdl`. Configuration in `.rumdl.toml`.
+Documentation **and agent-consumed `SKILL.md` files** are linted with `rumdl`. Configuration in
+`.rumdl.toml`; entry points are `make markdown-lint` (check) and `make markdown-fix` (auto-fix).
 
 ```bash
-# Check markdown files
-rumdl docs/
-
-# Auto-fix where possible
-rumdl --fix docs/
+make markdown-lint   # rumdl check .
+make markdown-fix    # rumdl fmt .  (idempotent — safe to run repeatedly)
 ```
+
+### Token-lean rule policy
+
+Guiding principle: **whitespace is tokens to an LLM.** SKILL.md files are re-read on every
+invocation, so the ruleset enables rules that *strip* whitespace and keep markdown parseable, and
+disables rules that *pad* with whitespace or fight skill-authoring conventions.
+
+- **Enabled — token strippers:** MD009 (trailing spaces), MD012 (multiple blank lines), MD064
+  (multiple consecutive spaces), MD027 (blockquote spaces), MD038/MD039 (spaces in code/links),
+  MD047 (single trailing newline).
+- **Enabled — structural (small token add, big parseability):** MD022 (blanks around headings),
+  MD031 (blanks around fences), MD032 (blanks around lists), MD058 (blanks around tables).
+- **Disabled** (see rationale comments in `.rumdl.toml`): MD013 (line length — wrapping only adds
+  newlines), MD014 (conflicts with the required `$ command` SKILL.md notation, #12781), MD033
+  (skills use arbitrary `<semantic-tags>`), MD036 (intentional `**Why:**` labels), MD040 (` text`
+  padding for no agent gain + corrupts nested fences), MD041 (frontmatter-first), MD046 + MD048
+  (false positives / churn on nested code-fence demos).
+- **Never enable** (opt-in, off by default — they ADD whitespace/tokens): **MD060** (table cell
+  padding), MD063 (title-case headings), MD065 (blanks around horizontal rules).
+
+### Nested code-fence demos
+
+rumdl's fence parser cannot model a ```` ``` ```` block nested inside another ```` ``` ````/`~~~`
+block, and `fmt` corrupts them (e.g. rewrites a closing `~~~` as `~~~text`). Skills that *document*
+fenced suggestions (`github-pr-review`, `add-review-comment`) are therefore listed in `.rumdl.toml`
+`exclude` (and the pre-commit hook's `exclude`) and are hand-maintained. Keep that list in sync if a
+new skill teaches nested fences.
 
 ## Documentation Structure
 
