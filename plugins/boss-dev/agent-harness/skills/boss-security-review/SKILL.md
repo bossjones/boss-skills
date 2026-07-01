@@ -42,6 +42,7 @@ code unless the request explicitly asks for fixes in the same turn.
   2. The **bundled** copy at `${CLAUDE_SKILL_DIR}/references/security-rules/` — verbatim rule
      files shipped with this skill, so it works in any repo.
   3. The built-in **OWASP/CWE fallback** checklist at the bottom of `references/rubric-map.md`.
+
   Note in the report's Notes which source was used.
 
 ## Instructions
