@@ -288,6 +288,7 @@ coverage/
 .cache/
 tmp/
 temp/
+.backups/
 .claude/worktrees/
 .git/worktrees/
 
