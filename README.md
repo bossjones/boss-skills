@@ -27,7 +27,7 @@ Full per-plugin documentation — components, install commands, and usage exampl
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.12.1 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
+| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.14.0 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
 | [basedpyright-lsp](#boss-devbasedpyright-lsp) | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [↗](docs/plugins/basedpyright-lsp.md) |
 | python-dev | `boss-dev` | 0.1.1 | Debug GitHub Actions CI and ship conventional-commit PRs | [↗](docs/plugins/python-dev.md) |
 | [github-pr-review](#boss-devgithub-pr-review) | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [↗](docs/plugins/github-pr-review.md) |
@@ -49,7 +49,7 @@ subagents.
 
 | Component | Count | Active on install? |
 |-----------|-------|--------------------|
-| Skills | 13 | Yes |
+| Skills | 14 | Yes |
 | Commands | 13 | Yes |
 | Agents | 6 | Yes |
 | Output styles | 8 | Yes |
@@ -184,6 +184,26 @@ Ceph deployment), and a worked example. Ask it in natural language to provision 
 cloud-init template or to check the health of your Proxmox cluster.
 
 See the [expanded docs](docs/plugins/proxmox-infra.md) for bundled resources and usage examples.
+
+## Second Brain (obsidian-wiki)
+
+Optional: [`obsidian-wiki`](https://github.com/ar9av/obsidian-wiki) adds a "second brain" —
+an AI-maintained Obsidian knowledge base. Install it as a global uv tool (not pip) and run
+its one-time setup:
+
+```bash
+uv tool install "obsidian-wiki[graph,ast]"
+obsidian-wiki setup --vault ~/Documents/obsidian/personal.vault
+```
+
+Or run the `setup-second-brain` skill (agent-harness plugin) to do the whole thing —
+detect, preview, install, configure the vault, and optionally set up
+[QMD](https://github.com/tobi/qmd) semantic search (`npm install -g @tobilu/qmd`, Node ≥ 22).
+
+Setup symlinks the wiki skills into `~/.claude/skills/` and persists the vault path in
+`~/.obsidian-wiki/config`. See the "Second Brain (obsidian-wiki)" section in
+[`CLAUDE.md`](CLAUDE.md) and `OBSIDIAN_VAULT_PATH` / the `QMD_*` vars in
+[`plugins/boss-dev/agent-harness/docs/getting-started.md`](plugins/boss-dev/agent-harness/docs/getting-started.md).
 
 ## Quick Start Examples
 

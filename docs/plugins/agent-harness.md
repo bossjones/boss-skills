@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · v0.13.1 · [plugin source](../../plugins/boss-dev/agent-harness/)
+> `boss-dev` · v0.14.0 · [plugin source](../../plugins/boss-dev/agent-harness/)
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that
 build and operate agentic dev workflows. The plugin ships three families of skills — a
@@ -19,7 +19,7 @@ lifecycle hooks, output styles, and status lines.
 
 | Component | Count | Active on install? |
 |-----------|-------|--------------------|
-| Skills | 13 | Yes |
+| Skills | 14 | Yes |
 | Commands | 13 | Yes |
 | Agents | 6 | Yes |
 | Output styles | 8 | Yes |
@@ -28,9 +28,11 @@ lifecycle hooks, output styles, and status lines.
 
 ## Skills
 
-Nine skills live under `skills/<name>/SKILL.md`. The PR-review skills carry standalone
+Skills live under `skills/<name>/SKILL.md`. The PR-review skills carry standalone
 PEP 723 scripts run with `uv run`; `uv` resolves their dependencies on demand, so they work
-immediately after install with no extra setup.
+immediately after install with no extra setup. The families below are representative; see the
+plugin's [docs/skills.md](../../plugins/boss-dev/agent-harness/docs/skills.md) for the complete,
+current list.
 
 ### PR review workflow
 
@@ -59,6 +61,12 @@ Adapted from [claude-code-ultimate-guide](https://github.com/FlorianBruniaux/cla
 | Skill | Description |
 |-------|-------------|
 | `release-notes-generator` | Generate release notes in three formats (CHANGELOG.md, PR body, Slack announcement) from git commits. |
+
+### Machine setup
+
+| Skill | Description |
+|-------|-------------|
+| `setup-second-brain` | Install/configure the obsidian-wiki uv tool plus optional [QMD](https://github.com/tobi/qmd) semantic search (detect → preview → apply, with backups and a `--dry-run` diff). Needs `node` ≥ 22 for the optional QMD step. |
 
 ## Commands
 

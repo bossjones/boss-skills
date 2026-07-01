@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.13.1** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.14.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles three families of skills — a GitHub PR-review
@@ -19,7 +19,7 @@ status lines.
 
 | Component | Count | Auto-active on install? | Invoked as |
 | --- | --- | --- | --- |
-| [Skills](#skills) | 13 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
+| [Skills](#skills) | 14 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
 | [Commands](#commands) | 13 | ✅ Yes | `/agent-harness:<name>` |
 | [Agents](#agents) | 6 | ✅ Yes | Dispatched via the `Agent`/`Task` tool |
 | [Output styles](#output-styles) | 8 | ✅ Yes | `/output-style` |
@@ -32,7 +32,9 @@ Skills, commands, agents, and output styles are discovered and active immediatel
 
 ## Skills
 
-Nine skills under `skills/<skill-name>/SKILL.md`, grouped into three families.
+Skills under `skills/<skill-name>/SKILL.md`. The families below cover the PR-review workflow, the
+git-worktree lifecycle, release notes, and machine setup; see [docs/skills.md](./docs/skills.md) for
+the complete, current list.
 
 **PR review workflow** (adapted from the [mlflow](https://github.com/mlflow/mlflow) skills,
 Apache-2.0):
@@ -59,6 +61,12 @@ Apache-2.0):
 | Skill | Description |
 | --- | --- |
 | `release-notes-generator` | Generate release notes in three formats (CHANGELOG.md, PR body, Slack announcement) from git commits. |
+
+**Machine setup:**
+
+| Skill | Description |
+| --- | --- |
+| `setup-second-brain` | Install/configure the obsidian-wiki uv tool plus optional [QMD](https://github.com/tobi/qmd) semantic search (detect → preview → apply, with backups and a `--dry-run` diff). Needs `node` ≥ 22 for the optional QMD step. |
 
 The `fetch-diff`, `fetch-unresolved-comments`, and `pr-review` skills carry standalone PEP 723
 scripts under `scripts/`, invoked with `uv run "${CLAUDE_SKILL_DIR}/scripts/<script>.py"` — `uv`
@@ -317,7 +325,7 @@ that points at the script with `${CLAUDE_PLUGIN_ROOT}`:
 
 ## Status
 
-Plugin version **v0.13.1**. Skills, commands, agents, and output styles are auto-discovered and
+Plugin version **v0.14.0**. Skills, commands, agents, and output styles are auto-discovered and
 active on `/plugin install`. The hook scripts and status lines ship as a library and require manual
 wiring — a `hooks/hooks.json` entry for hooks, a `statusLine` setting for status lines — before they
 take effect.

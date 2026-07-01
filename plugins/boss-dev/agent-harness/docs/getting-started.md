@@ -15,6 +15,7 @@ your first command.
 - [Running autonomous commands (Plan mode + Opus)](#running-autonomous-commands-plan-mode--opus)
 - [Configuring TTS and desktop notifications](#configuring-tts-and-desktop-notifications)
 - [Dependency & prerequisite matrix](#dependency--prerequisite-matrix)
+- [Second brain (obsidian-wiki) environment](#second-brain-obsidian-wiki-environment)
 - [Troubleshooting](#troubleshooting)
 - [Where to go next](#where-to-go-next)
 
@@ -182,6 +183,7 @@ needs so you only install what you'll use.
 | Skills — `fetch-diff`, `fetch-unresolved-comments`, `pr-review`, `add-review-comment` | `uv`, `gh` (or `GH_TOKEN`) | PEP 723 deps auto-resolved |
 | Skill — `release-notes-generator` | `git`, `gh` | Reads commits + PR metadata |
 | Skills — `stop-slop`, `unicode-hygiene` | Nothing (uv for the unicode scanner) | Prose hygiene / supply-chain scan |
+| Skill — `setup-second-brain` | `uv` (stdlib-only script); `node` ≥ 22 + `npm` for the optional QMD step | Installs obsidian-wiki; QMD degrades to Grep without Node — see [Second brain environment](#second-brain-obsidian-wiki-environment) |
 | Hooks — logging / guards / auto-format | `uv`; `ruff` on `PATH` or `uvx` (format hook only) | Active on install via `hooks/hooks.json`; format hook runs only in projects with a ruff config |
 | Hooks — LLM agent naming / summaries | `ANTHROPIC_API_KEY` **or** `OPENAI_API_KEY` (or local Ollama) | Optional; degrades gracefully if unset |
 | Hooks / agents — TTS announcements | offline `pyttsx3` (no key), or `OPENAI_API_KEY`, or ElevenLabs | Optional; toggle with `ENABLE_TTS` via `/plugin` → Configure |
@@ -189,6 +191,34 @@ needs so you only install what you'll use.
 | Agent — `work-completion-summary` | ElevenLabs MCP server; `ENGINEER_NAME` plugin user-config (optional) | Configure MCP separately; set name via `/plugin` → Configure |
 | Agents — `meta-agent`, `llm-ai-agents-and-eng-research` | Firecrawl MCP server | Configure MCP separately |
 | Status lines | `uv`, `python-dotenv` (auto), `statusLine` setting | Opt-in; not auto-wired |
+
+## Second brain (obsidian-wiki) environment
+
+The [`setup-second-brain`](./skills.md#setup-second-brain) skill installs
+[`obsidian-wiki`](https://github.com/ar9av/obsidian-wiki) as a global uv tool
+(`uv tool install "obsidian-wiki[graph,ast]"`); the vault path is persisted in
+`~/.obsidian-wiki/config` when you run `obsidian-wiki setup`. See the "Second Brain
+(obsidian-wiki)" section in the repo-root [`CLAUDE.md`](../../../../CLAUDE.md) for full setup steps.
+
+| Variable | Description | Required | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `OBSIDIAN_VAULT_PATH` | Path to the Obsidian vault used as the knowledge base | Optional | `~/Documents/obsidian/personal.vault` | Documented default only; the real path lives in `~/.obsidian-wiki/config`. `~` is not auto-expanded — call `expanduser` if read in code |
+| `OBSIDIAN_RAW_DIR` | Staging directory for unprocessed captures | Optional | `_raw` | Relative to the vault root |
+
+### QMD semantic search (optional)
+
+[`@tobilu/qmd`](https://github.com/tobi/qmd) is an optional on-device search engine that upgrades
+`wiki-query`/`wiki-ingest` from Grep to semantic matching. Requires **Node ≥ 22**
+(`npm install -g @tobilu/qmd`). The wiki skills read these from `~/.obsidian-wiki/config` and fall
+back to Grep silently when they are unset. The `setup-second-brain` skill writes them.
+
+| Variable | Description | Required | Default | Accepted values |
+| --- | --- | --- | --- | --- |
+| `QMD_TRANSPORT` | How the wiki skills call QMD | Optional | `cli` | `cli`, `mcp` (`mcp` adds a `qmd` server to `~/.claude/settings.json`) |
+| `QMD_WIKI_COLLECTION` | QMD collection queried by `wiki-query` | Optional | _(unset → Grep)_ | Any collection name, e.g. `wiki` |
+| `QMD_PAPERS_COLLECTION` | QMD collection of source docs queried by `wiki-ingest` | Optional | _(unset → Grep)_ | Any collection name, e.g. `papers` |
+| `QMD_CLI_SEARCH_MODE` | CLI search quality/speed tradeoff | Optional | `quality` | `quality` (rerank), `balanced` (no rerank), `fast` (vector-only) |
+| `QMD_CLI` | Override the `qmd` binary name/path | Optional | `qmd` | Any executable |
 
 ## Troubleshooting
 
@@ -207,7 +237,7 @@ needs so you only install what you'll use.
 | --- | --- |
 | [commands.md](./commands.md) | All 13 slash commands with args, when-to-use, and examples |
 | [agents.md](./agents.md) | The 6 subagents and how the builder/validator team works |
-| [skills.md](./skills.md) | The 12 model- and explicitly-invoked skills |
+| [skills.md](./skills.md) | The 13 model- and explicitly-invoked skills |
 | [hooks.md](./hooks.md) | The 14 lifecycle hook events and how to enable/disable them |
 | [output-styles.md](./output-styles.md) | The 8 response output styles |
 | [status-lines.md](./status-lines.md) | The 10 status-line variants and how to wire one up |
