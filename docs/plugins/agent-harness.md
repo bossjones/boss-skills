@@ -68,6 +68,9 @@ Adapted from [claude-code-ultimate-guide](https://github.com/FlorianBruniaux/cla
 |-------|-------------|
 | `setup-second-brain` | Install/configure the obsidian-wiki uv tool plus optional [QMD](https://github.com/tobi/qmd) semantic search (detect → preview → apply, with backups and a `--dry-run` diff). Needs `node` ≥ 22 for the optional QMD step. |
 
+Walk through it end to end in the [Set up your second brain](../tutorials/agent-harness/second-brain.md)
+tutorial.
+
 ## Commands
 
 Twelve slash commands, namespaced `/agent-harness:<command>`.

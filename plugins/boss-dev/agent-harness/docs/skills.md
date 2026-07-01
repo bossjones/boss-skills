@@ -315,6 +315,42 @@ Walkthrough in [workflows.md](./workflows.md#worktree-lifecycle).
 
 - **Source:** [`skills/setup-second-brain/SKILL.md`](../skills/setup-second-brain/SKILL.md) ·
   script [`scripts/setup_second_brain.py`](../skills/setup-second-brain/scripts/setup_second_brain.py)
+- **Tutorial:** [Set up your second brain](../../../../docs/tutorials/agent-harness/second-brain.md)
+
+#### Script CLI reference
+
+The stdlib script has two subcommands. `detect` is read-only; `apply` does the
+backup → edit → validate work. Paths default to `~/.obsidian-wiki/config` and
+`~/.claude/settings.json`.
+
+| Subcommand / flag | Applies to | Description |
+| --- | --- | --- |
+| `detect` | — | Print the current state as JSON (read-only). |
+| `apply` | — | Backup, then write the requested changes. |
+| `--config-path PATH` | both | Override the obsidian-wiki config path. |
+| `--settings-path PATH` | both | Override the Claude settings.json path. |
+| `--qmd-config` | apply | Write the `QMD_*` variables into the config. |
+| `--transport {cli,mcp}` | apply | QMD transport; `mcp` also merges the `qmd` MCP server into settings.json (default `cli`). |
+| `--wiki-collection NAME` | apply | `QMD_WIKI_COLLECTION` value (default `wiki`). |
+| `--papers-collection NAME` | apply | `QMD_PAPERS_COLLECTION` value (default `papers`). |
+| `--search-mode {quality,balanced,fast}` | apply | `QMD_CLI_SEARCH_MODE` value, cli transport only (default `quality`). |
+| `--dry-run` | apply | Report intended changes as a unified diff without writing. |
+
+#### `~/.obsidian-wiki/config` schema
+
+One `KEY="value"` per line. `obsidian-wiki setup` writes `OBSIDIAN_VAULT_PATH`; this
+skill writes only the `QMD_*` keys (idempotently, in place):
+
+```text
+OBSIDIAN_VAULT_PATH="~/Documents/obsidian/personal.vault"
+QMD_TRANSPORT="cli"
+QMD_WIKI_COLLECTION="wiki"
+QMD_PAPERS_COLLECTION="papers"
+QMD_CLI_SEARCH_MODE="quality"
+```
+
+See [Second brain (obsidian-wiki) environment](./getting-started.md#second-brain-obsidian-wiki-environment)
+for the full `OBSIDIAN_*`/`QMD_*` variable tables.
 
 ---
 
