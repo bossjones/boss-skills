@@ -172,23 +172,19 @@ class TestValidateMarkdownFrontmatter:
 
     def test_no_frontmatter(self, tmp_path: Path) -> None:
         f = self._md(tmp_path, "no frontmatter")
-        assert any("Missing YAML frontmatter" in e for e in
-                   vs.validate_markdown_frontmatter(f, ["name"], "p"))
+        assert any("Missing YAML frontmatter" in e for e in vs.validate_markdown_frontmatter(f, ["name"], "p"))
 
     def test_missing_closing(self, tmp_path: Path) -> None:
         f = self._md(tmp_path, "---\nname: x")
-        assert any("Malformed frontmatter" in e for e in
-                   vs.validate_markdown_frontmatter(f, ["name"], "p"))
+        assert any("Malformed frontmatter" in e for e in vs.validate_markdown_frontmatter(f, ["name"], "p"))
 
     def test_bad_yaml(self, tmp_path: Path) -> None:
         f = self._md(tmp_path, "---\nx: [unclosed\n---\nb")
-        assert any("Invalid YAML" in e for e in
-                   vs.validate_markdown_frontmatter(f, ["x"], "p"))
+        assert any("Invalid YAML" in e for e in vs.validate_markdown_frontmatter(f, ["x"], "p"))
 
     def test_non_mapping(self, tmp_path: Path) -> None:
         f = self._md(tmp_path, "---\n- a\n- b\n---\nb")
-        assert any("must be a YAML mapping" in e for e in
-                   vs.validate_markdown_frontmatter(f, ["x"], "p"))
+        assert any("must be a YAML mapping" in e for e in vs.validate_markdown_frontmatter(f, ["x"], "p"))
 
 
 # --------------------------------------------------------------------------- #
@@ -216,6 +212,21 @@ class TestComponentDirectories:
         (d / "skills" / "foo").mkdir(parents=True)
         assert any("Missing required SKILL.md" in e for e in vs.check_skills_directory(d))
 
+    def test_skill_workspace_dir_excluded(self, tmp_path: Path) -> None:
+        d = _plugin(tmp_path, "p", manifest={"name": "p"})
+        (d / "skills" / "foo").mkdir(parents=True)
+        (d / "skills" / "foo" / "SKILL.md").write_text("---\nname: foo\ndescription: x\n---\nbody")
+        (d / "skills" / "foo-workspace").mkdir()
+        (d / "skills" / "foo-workspace" / "trigger-eval.json").write_text("[]")
+        assert vs.check_skills_directory(d) == []
+
+    def test_skill_logs_dir_excluded(self, tmp_path: Path) -> None:
+        d = _plugin(tmp_path, "p", manifest={"name": "p"})
+        (d / "skills" / "foo").mkdir(parents=True)
+        (d / "skills" / "foo" / "SKILL.md").write_text("---\nname: foo\ndescription: x\n---\nbody")
+        (d / "skills" / "logs").mkdir()
+        assert vs.check_skills_directory(d) == []
+
     def test_commands_empty(self, tmp_path: Path) -> None:
         d = _plugin(tmp_path, "p", manifest={"name": "p"})
         (d / "commands").mkdir()
@@ -225,8 +236,7 @@ class TestComponentDirectories:
         d = _plugin(tmp_path, "p", manifest={"name": "p"})
         (d / "commands").mkdir()
         (d / "commands" / "c.md").write_text("---\ntitle: x\n---\nbody")
-        assert any("Missing required field 'description'" in e
-                   for e in vs.check_commands_directory(d))
+        assert any("Missing required field 'description'" in e for e in vs.check_commands_directory(d))
 
     def test_agent_missing_capabilities(self, tmp_path: Path) -> None:
         d = _plugin(tmp_path, "p", manifest={"name": "p"})
@@ -270,11 +280,7 @@ class TestHooks:
     def test_command_script_missing(self, tmp_path: Path) -> None:
         d = _plugin(tmp_path, "p", manifest={"name": "p"})
         cfg = {
-            "hooks": {
-                "PreToolUse": [
-                    {"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"}]}
-                ]
-            }
+            "hooks": {"PreToolUse": [{"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"}]}]}
         }
         errs = vs.check_hooks_configuration(d, {"hooks": cfg})
         assert any("Hook command script not found" in e for e in errs)
@@ -284,11 +290,7 @@ class TestHooks:
         (d / "hooks").mkdir()
         (d / "hooks" / "x.sh").write_text("#!/bin/sh\n")
         cfg = {
-            "hooks": {
-                "PreToolUse": [
-                    {"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"}]}
-                ]
-            }
+            "hooks": {"PreToolUse": [{"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"}]}]}
         }
         assert vs.check_hooks_configuration(d, {"hooks": cfg}) == []
 
@@ -355,9 +357,7 @@ class TestManifestConflicts:
         assert w and not info
 
     def test_author_conflict_is_info_only(self) -> None:
-        w, info = vs.check_manifest_conflicts(
-            "p", {"author": {"name": "A"}}, {"author": {"name": "B"}}
-        )
+        w, info = vs.check_manifest_conflicts("p", {"author": {"name": "A"}}, {"author": {"name": "B"}})
         assert info and not w
 
     def test_keywords_order_insensitive(self) -> None:
@@ -424,9 +424,7 @@ class TestCheckPluginManifest:
 
     def test_optional_manifest_uses_marketplace_entry(self, tmp_path: Path) -> None:
         d = _plugin(tmp_path, "p", manifest=None)
-        res = vs.check_plugin_manifest(
-            d, marketplace_entry={"name": "p"}, require_manifest=False
-        )
+        res = vs.check_plugin_manifest(d, marketplace_entry={"name": "p"}, require_manifest=False)
         assert not any("Missing .claude-plugin/plugin.json" in e for e in res["manifest"])
 
     def test_missing_readme(self, tmp_path: Path) -> None:
@@ -469,17 +467,13 @@ class TestIntegration:
     def test_strict_conflict_exit_1(self, tmp_path: Path, mocker: MockerFixture) -> None:
         self._repo(tmp_path, mocker)
         _plugin(tmp_path, "p", manifest={"name": "p", "version": "2.0.0"})
-        self._marketplace(
-            tmp_path, [{"name": "p", "source": "./plugins/p", "version": "1.0.0"}]
-        )
+        self._marketplace(tmp_path, [{"name": "p", "source": "./plugins/p", "version": "1.0.0"}])
         mocker.patch.object(vs.sys, "argv", ["verify-structure.py", "--strict"])
         assert vs.main() == 1
 
     def test_conflict_non_strict_exit_0(self, tmp_path: Path, mocker: MockerFixture) -> None:
         self._repo(tmp_path, mocker)
         _plugin(tmp_path, "p", manifest={"name": "p", "version": "2.0.0"})
-        self._marketplace(
-            tmp_path, [{"name": "p", "source": "./plugins/p", "version": "1.0.0"}]
-        )
+        self._marketplace(tmp_path, [{"name": "p", "source": "./plugins/p", "version": "1.0.0"}])
         mocker.patch.object(vs.sys, "argv", ["verify-structure.py"])
         assert vs.main() == 0
