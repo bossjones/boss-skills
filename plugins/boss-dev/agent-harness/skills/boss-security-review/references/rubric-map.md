@@ -63,10 +63,12 @@ The rule files use two conventions you can cite precisely:
 - The prose/checklist files end with an "Anti-Patterns to Avoid" list. Cite the file and the
   specific anti-pattern.
 
-## Fallback checklist (when `.cursor/rules/` is absent)
+## Fallback checklist (when neither live nor bundled rules are available)
 
-If the repo has no `.cursor/rules/` directory, review against this OWASP-style checklist instead
-and cite OWASP/CWE in findings. Note the fallback in the report's Notes section.
+If the repo has no `.cursor/rules/security-global/` (having a `.cursor/rules/` directory alone
+does not count — check for the `security-global/` subdirectory specifically) and the bundled
+`references/security-rules/` copies are also unavailable, review against this OWASP-style
+checklist instead and cite OWASP/CWE in findings. Note the fallback in the report's Notes section.
 
 - **Injection** — SQL/NoSQL/command/LDAP/XPath built from untrusted input without
   parameterization or safe APIs (CWE-89, CWE-78).

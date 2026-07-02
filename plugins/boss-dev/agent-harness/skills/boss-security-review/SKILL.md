@@ -68,10 +68,13 @@ code unless the request explicitly asks for fixes in the same turn.
 - **Scale the effort to the target.** For a small target, review directly in this context. For a
   large diff or a whole-repo audit, fan out parallel review subagents and merge their findings —
   see `references/fanout.md`.
-- **Graceful fallback.** If neither the target repo's `.cursor/rules/` nor the bundled
-  `references/security-rules/` copies are available, fall back to the built-in OWASP-style
-  checklist at the bottom of `references/rubric-map.md`, and note in the report's Notes section
-  that the structured rubric was unavailable.
+- **Graceful fallback.** If neither the target repo's `.cursor/rules/security-global/` +
+  `.cursor/rules/security-lang/` (a repo can have a `.cursor/rules/` directory with no
+  security-specific rules in it — check the `security-global/` subdirectory specifically, not just
+  whether `.cursor/rules/` exists) nor the bundled `references/security-rules/` copies are
+  available, fall back to the built-in OWASP-style checklist at the bottom of
+  `references/rubric-map.md`, and note in the report's Notes section that the structured rubric
+  was unavailable.
 
 ## Workflow
 
@@ -179,3 +182,12 @@ Top risks:
 - The user wants a security pass on a branch, PR, file, or directory — especially "before I
   merge" — and wants the result written down rather than delivered as ephemeral chat.
 - The user asks "is this secure?" about specific code in this repo.
+
+## Example commands
+
+```
+run a security review on src/auth/
+audit my changes for vulnerabilities before I merge
+check this file for injection issues and write the report to specs/auth-review.md
+do a whole-repo security audit
+```
