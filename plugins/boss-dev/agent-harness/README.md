@@ -1,12 +1,12 @@
 # agent-harness
 
-> `boss-dev` · **v0.14.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.16.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
-and operate agentic dev workflows. It bundles three families of skills — a GitHub PR-review
-workflow, a git-worktree lifecycle, and a release-notes generator — alongside planning, priming,
-and shipping commands, a roster of subagents, and a library of lifecycle hooks, output styles, and
-status lines.
+and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
+workflow, a git-worktree lifecycle, a release-notes generator, and a portable security-review
+skill — alongside planning, priming, and shipping commands, a roster of subagents, and a library
+of lifecycle hooks, output styles, and status lines.
 
 ## Installation
 
@@ -19,7 +19,7 @@ status lines.
 
 | Component | Count | Auto-active on install? | Invoked as |
 | --- | --- | --- | --- |
-| [Skills](#skills) | 14 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
+| [Skills](#skills) | 15 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
 | [Commands](#commands) | 13 | ✅ Yes | `/agent-harness:<name>` |
 | [Agents](#agents) | 6 | ✅ Yes | Dispatched via the `Agent`/`Task` tool |
 | [Output styles](#output-styles) | 8 | ✅ Yes | `/output-style` |
@@ -67,6 +67,12 @@ Apache-2.0):
 | Skill | Description |
 | --- | --- |
 | `setup-second-brain` | Install/configure the obsidian-wiki uv tool plus optional [QMD](https://github.com/tobi/qmd) semantic search (detect → preview → apply, with backups and a `--dry-run` diff). Needs `node` ≥ 22 for the optional QMD step. |
+
+**Security review:**
+
+| Skill | Description |
+| --- | --- |
+| `boss-security-review` | Review changed code (or a named path / whole repo) against a bundled security rubric — and the target repo's `.cursor/rules/security-*` when present — and write a severity-graded findings report to `specs/security-review.md` (path overridable), citing the rule each finding triggered. Portable: bundles verbatim rule copies so it works in any repo. |
 
 The `fetch-diff`, `fetch-unresolved-comments`, and `pr-review` skills carry standalone PEP 723
 scripts under `scripts/`, invoked with `uv run "${CLAUDE_SKILL_DIR}/scripts/<script>.py"` — `uv`
@@ -325,7 +331,7 @@ that points at the script with `${CLAUDE_PLUGIN_ROOT}`:
 
 ## Status
 
-Plugin version **v0.14.0**. Skills, commands, agents, and output styles are auto-discovered and
+Plugin version **v0.16.0**. Skills, commands, agents, and output styles are auto-discovered and
 active on `/plugin install`. The hook scripts and status lines ship as a library and require manual
 wiring — a `hooks/hooks.json` entry for hooks, a `statusLine` setting for status lines — before they
 take effect.

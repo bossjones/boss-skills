@@ -26,6 +26,8 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
   - [`unicode-hygiene`](#unicode-hygiene)
 - [Machine setup](#machine-setup)
   - [`setup-second-brain`](#setup-second-brain)
+- [Security review](#security-review)
+  - [`boss-security-review`](#boss-security-review)
 - [Dependencies](#dependencies)
 
 ## At a glance
@@ -45,6 +47,7 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 | [`stop-slop`](#stop-slop) | model-invoked | Strip AI writing patterns from prose | — |
 | [`unicode-hygiene`](#unicode-hygiene) | model-invoked | Scan files for invisible / spoofed Unicode | `uv` |
 | [`setup-second-brain`](#setup-second-brain) | explicit | Install/configure obsidian-wiki + optional QMD semantic search | `uv`, `node`≥22 for QMD |
+| [`boss-security-review`](#boss-security-review) | model-invoked | Security-review changed code (or a path/whole repo) → severity-graded report | `git` |
 
 > **Adapted from:** the PR-review skills are adapted from
 > [mlflow](https://github.com/mlflow/mlflow) (Apache-2.0); the worktree and release-notes skills are
@@ -351,6 +354,31 @@ QMD_CLI_SEARCH_MODE="quality"
 
 See [Second brain (obsidian-wiki) environment](./getting-started.md#second-brain-obsidian-wiki-environment)
 for the full `OBSIDIAN_*`/`QMD_*` variable tables.
+
+---
+
+## Security review
+
+### `boss-security-review`
+
+- **Invocation:** model-invoked (or `/agent-harness:boss-security-review`). Triggers on requests
+  like "run a security review", "audit this for vulnerabilities", "is this code secure", or
+  "review my changes for security" before merging.
+- **What it does:** Reviews a target against a security rubric and writes a structured,
+  severity-graded findings report — each finding cites the specific rule it triggered, plus
+  location, impact, remediation, and a re-check step. Advisory only: it documents issues, it does
+  not edit code unless asked.
+- **Target:** changed code by default (`git diff` vs. the default branch + working tree); the
+  request can override to a named path or the whole repo. Large targets fan out to parallel
+  review subagents; small ones review in one pass.
+- **Rubric (portable):** prefers the target repo's `.cursor/rules/security-*` when present, else
+  the 18 verbatim rule files bundled at `references/security-rules/`, else a built-in OWASP/CWE
+  checklist. So it works in any repo, not just this one.
+- **Output:** `specs/security-review.md` by default (path overridable from the request).
+- **Source:** [`skills/boss-security-review/SKILL.md`](../skills/boss-security-review/SKILL.md) ·
+  references [`rubric-map.md`](../skills/boss-security-review/references/rubric-map.md),
+  [`severity-model.md`](../skills/boss-security-review/references/severity-model.md),
+  [`fanout.md`](../skills/boss-security-review/references/fanout.md)
 
 ---
 

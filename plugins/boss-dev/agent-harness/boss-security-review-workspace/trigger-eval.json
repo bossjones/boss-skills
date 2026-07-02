@@ -1,0 +1,22 @@
+[
+  {"query": "Can you run a security review on the changes in my current branch before I open a PR?", "should_trigger": true},
+  {"query": "hey can u check my diff for security issues before i merge, dont wanna get flagged in code review again lol", "should_trigger": true},
+  {"query": "does src/api/files.py validate the `file` query param before passing it to open(), or can someone read arbitrary files off the box?", "should_trigger": true},
+  {"query": "is this code secure? specifically the auth middleware in src/auth/session.py, I rewrote the token comparison logic yesterday", "should_trigger": true},
+  {"query": "review src/api/upload.py — I'm mainly worried about injection and path traversal, not code style", "should_trigger": true},
+  {"query": "do a full security audit of this repo, I want a report I can hand to the team before the SOC2 review next quarter", "should_trigger": true},
+  {"query": "look for SQL injection and hardcoded secrets in plugins/boss-dev, we just merged a big auth refactor", "should_trigger": true},
+  {"query": "I'm about to merge feature/payments-refactor into main, can you check it for vulnerabilities first?", "should_trigger": true},
+  {"query": "can u do a sec review of my changs, worried about ssrf on the webhook handler in src/webhooks/receiver.js", "should_trigger": true},
+  {"query": "audit scripts/ for security issues and write the findings to specs/scripts-security.md", "should_trigger": true},
+  {"query": "can you review my PR for code quality and readability before I merge it? mostly care about naming and whether the tests are structured well", "should_trigger": false},
+  {"query": "run npm audit on this project and tell me which packages need updating, our snyk dashboard is showing a bunch of red", "should_trigger": false},
+  {"query": "can you check if our AWS IAM roles follow least privilege — I think some of the policies in terraform/iam.tf are too permissive", "should_trigger": false},
+  {"query": "can you run a pentest against https://staging.myapp.com and see if you can break in before we go live", "should_trigger": false},
+  {"query": "do a license audit on our dependencies, legal needs to know if we're using anything with a GPL license before the acquisition", "should_trigger": false},
+  {"query": "can you audit this page for accessibility issues, I think some of the buttons in the checkout flow are missing aria-labels", "should_trigger": false},
+  {"query": "what documentation do we need to prepare for our SOC2 Type II audit next month, is there a checklist somewhere", "should_trigger": false},
+  {"query": "what's the best way to secure my home office wifi network, I've got a bunch of IoT devices on it", "should_trigger": false},
+  {"query": "can you find bugs in scripts/report_gen.py, it's crashing intermittently when the input CSV has more than 10k rows", "should_trigger": false},
+  {"query": "refactor process_batch() in worker.py to be thread-safe, I'm seeing race conditions under load in prod", "should_trigger": false}
+]

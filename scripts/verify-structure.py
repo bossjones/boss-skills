@@ -603,15 +603,22 @@ def check_skills_directory(plugin_dir: Path, plugin_data: dict[str, Any] | None 
         return []  # Optional component
 
     # Hook-log output (gitignored, see .gitignore) can appear under skills/ but is not
-    # a skill — exclude it so it isn't flagged as missing a SKILL.md.
+    # a skill — exclude it so it isn't flagged as missing a SKILL.md. Skill-creator's
+    # description-optimization loop also generates a sibling "<skill-name>-workspace/"
+    # directory (eval fixtures, trigger-eval.json, benchmark results) per its own
+    # documented convention; that's scratch output too, not a skill, wherever it ends
+    # up living relative to skills/.
     non_skill_dirs = {"logs"}
+
+    def _is_non_skill_dir(name: str) -> bool:
+        return name in non_skill_dirs or name.endswith("-workspace")
 
     for skills_dir, label in skill_locations:
         if not skills_dir.is_dir():
             errors.append(f"{plugin_name}: {label} exists but is not a directory")
             continue
 
-        skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir() and d.name not in non_skill_dirs]
+        skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir() and not _is_non_skill_dir(d.name)]
 
         if not skill_dirs:
             errors.append(f"{plugin_name}/{label}/: Directory exists but contains no skill subdirectories")

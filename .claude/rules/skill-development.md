@@ -27,6 +27,16 @@ skills/<skill-name>/
 └── workflows/            # Multi-step procedures
 ```
 
+## Workspace Directories
+
+`skill-creator`'s Description Optimization loop (and similar eval tooling) generates scratch
+output in a sibling `<skill-name>-workspace/` directory (eval fixtures, `trigger-eval.json`,
+benchmark results — see `docs/evals/README.md` for the parallel convention for eval *reports*).
+`scripts/verify-structure.py`'s skills-directory check recognizes any directory whose name ends
+in `-workspace` (like the existing `logs` exclusion for gitignored hook output) as a non-skill
+directory, so it's fine to place it either alongside the skill under `skills/` or at the plugin
+root — both pass `make verify-structure`.
+
 ## Trigger Patterns
 
 Triggers should be **concrete and actionable**, not vague:

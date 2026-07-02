@@ -109,6 +109,14 @@ to `SKILL.md` + `references/` + `scripts/`. The [`/skill-evals`](.claude/skills/
 skill / `make eval-skill` writes there; see [`docs/evals/README.md`](docs/evals/README.md) for the
 index. These files are regenerated output — overwrite freely.
 
+### Skill workspace directories
+
+`skill-creator`'s Description Optimization loop (and similar tooling) writes scratch output —
+eval fixtures, `trigger-eval.json`, benchmark results — to a sibling `<skill-name>-workspace/`
+directory. `scripts/verify-structure.py` treats any `*-workspace` directory name as non-skill
+scratch (like the existing `logs` exclusion), so it's valid either under `skills/` next to the
+skill it belongs to, or at the plugin root.
+
 ## Second Brain (obsidian-wiki)
 
 [`obsidian-wiki`](https://github.com/ar9av/obsidian-wiki) is a globally-installed uv tool that maintains an Obsidian markdown "digital brain" (Karpathy's LLM-Wiki pattern: distill knowledge once into interconnected notes).
