@@ -10,7 +10,7 @@ These rules apply to Secure API design and implementation and it is critical for
 - Version endpoints using semantic versioning (`/v1/`, `/v2/`,`/v3/`,`/v4/`)
 - Grant only the minimum permissions needed for each endpoint
 - Document required authentication method and specific permission scopes in OpenAPI/Swagger
-- Re-use security patterns across endpoints for consistency
+- Reuse security patterns across endpoints for consistency
 - Return consistent HTTP status codes and error messages following RFC 7807
 
 
