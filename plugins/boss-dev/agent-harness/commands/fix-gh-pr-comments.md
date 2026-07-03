@@ -20,6 +20,7 @@ Argument: optional PR number (`/agent-harness:fix-gh-pr-comments 42`). If omitte
 - **Reply on each thread**, not as a top-level PR comment. The endpoint is `POST /repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies`.
 - **No performative agreement** in replies. Acknowledge what was fixed (or push back) with the commit SHA. Never write "Thanks", "Great catch", or similar — actions speak via the diff.
 - **Filter out comments authored by the current GitHub user** when polling, to avoid self-reply loops.
+- **Auto-sync PR title/description on push.** After pushing to an existing PR, check whether the title/body still reflect the PR's actual scope. If this cycle's fixes changed that (new category of fix, e.g. security/bug fix not mentioned in a docs-only title; new files/areas not covered by the body's Summary), update both immediately with `gh pr edit` — do not ask the user first. If the existing title/body still accurately describe the PR, leave them untouched.
 
 ## Phase 0: Resolve PR + Repo
 
@@ -141,6 +142,34 @@ echo "PUSH_SHA=$PUSH_SHA"
 
 Use the **current model name** from the system prompt in the `Co-Authored-By` line.
 
+### Sync PR title/description
+
+Check whether the PR's title/body still reflect its actual scope after this cycle's fixes:
+
+```bash
+CURRENT_TITLE=$(gh pr view "$PR_NUMBER" --json title --jq .title)
+CURRENT_BODY=$(gh pr view "$PR_NUMBER" --json body --jq .body)
+```
+
+Compare `CURRENT_TITLE` / `CURRENT_BODY` against the comments actually fixed this cycle (from Phase 1-2):
+
+- **Scope unchanged** — the title/body already cover this class of fix and these files. Leave as-is, no `gh pr edit` call.
+- **Scope changed** — e.g. the highest-priority fix this cycle (security > bug > docs > style) is more severe than what the title implies, or new files/areas aren't mentioned in the body's Summary. Update immediately, without asking the user first:
+
+```bash
+gh pr edit "$PR_NUMBER" \
+  --title "<title reflecting the PR's full current scope>" \
+  --body "$(cat <<'EOF'
+<original Summary / Test plan sections, amended for the broadened scope>
+
+## Review feedback addressed (cycle <n>)
+- <one bullet per comment fixed this cycle>
+EOF
+)"
+```
+
+Preserve the original body's structure (Summary/Test plan) — amend in place and append a per-cycle "Review feedback addressed" section rather than replacing the whole body, so the description accumulates history across cycles.
+
 ## Phase 6: Reply to Each Thread
 
 For every comment you addressed (or pushed back on), POST a reply on its thread. **Do not** post a top-level PR comment.
@@ -211,6 +240,7 @@ All 9 comments accepted — fixes apply cleanly.
 ### Phase 5: Push
 Committed: fix: address gemini-code-assist review feedback on PR #2
 Pushed: abc1234
+PR scope unchanged — title/description left as-is.
 
 ### Phase 6: Reply
 Posted 9 thread replies.
