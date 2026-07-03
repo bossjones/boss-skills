@@ -55,3 +55,12 @@ repos:
         language: system
         pass_filenames: true
         files: ^(plugins/.+/(SKILL\.md|agents/.+\.md|commands/.+\.md)|plugins/.+/\.claude-plugin/plugin\.json|\.claude-plugin/marketplace\.json|\.claude/skills/.+/SKILL\.md|\.claude/commands/.+\.md)$
+      - id: snyk-agent-scan
+        name: Snyk agent-scan (advisory)
+        # Scoped to SKILL.md only: snyk-agent-scan inspects SKILL.md-shaped skill
+        # folders (and real MCP configs); passing it an agents/commands markdown
+        # file makes it try to parse that file as an MCP JSON5 config and fail.
+        entry: uv run scripts/snyk-agent-scan.py
+        language: system
+        pass_filenames: true
+        files: ^(plugins/.+/skills/.+/SKILL\.md|\.claude/skills/.+/SKILL\.md)$
