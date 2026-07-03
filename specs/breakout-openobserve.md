@@ -29,25 +29,34 @@ installed CLI resolves its server URL/credentials in this precedence: explicit f
 
 ## Solution Approach
 
+**Test-driven port.** After scaffolding, the tests are ported/written and run **first** (red),
+then each module is implemented to turn them green, then refactored — see
+[Testing Strategy](#testing-strategy). The ported hermetic suite is the executable spec for the
+port; `config.py` is genuinely new code, so it is written test-first.
+
 1. Create the remote repo public + `--add-readme` via `gh`; clone to `~/dev/bossjones/openobservectl`,
    branch `feature/port-openobservectl`.
 2. Scaffold a `src/openobservectl/` uv package (hatchling + uv-dynamic-versioning, like `ooctl`):
-   `pyproject.toml`, `.python-version`, `justfile`.
-3. Port `openobserve_cli.py` → `src/openobservectl/cli.py` (rewrite the two couplings: the
-   `_obs_common` import and `DASHBOARDS_DIR`).
-4. Vendor + **decouple** `_obs_common.py` → `src/openobservectl/common.py` (drop the
-   `CLUSTERS_ROOT`/`parents[2]` assumption; make the tofu chdir explicit).
-5. **Add** `src/openobservectl/config.py` — the `~/.openobservectl/config.yaml` profile layer
-   (modeled on `tools/ooctl/src/ooctl/config.py`), and wire `--profile`/`--config` into the
-   CLI's `resolve()`.
-6. Vendor the dashboard JSON → `src/openobservectl/dashboards/**` as package data; resolve the
-   default via `importlib.resources`.
-7. Port + rewrite the hermetic tests as a package suite; add `tests/test_config.py`.
+   `pyproject.toml`, `.python-version`, `justfile`, empty `cli.py`/`common.py`/`config.py`
+   stubs, and the vendored dashboard JSON as package data (`src/openobservectl/dashboards/**`,
+   which the dashboards tests glob).
+3. **RED —** port + rewrite the hermetic tests as a package suite and write the new
+   `tests/test_config.py` first; run `uv run pytest` and confirm it fails against the empty stubs.
+4. **GREEN —** vendor + **decouple** `_obs_common.py` → `src/openobservectl/common.py` (drop the
+   `CLUSTERS_ROOT`/`parents[2]` assumption; make the tofu chdir explicit) until `test_common.py` passes.
+5. **GREEN —** write `src/openobservectl/config.py` (the `~/.openobservectl/config.yaml` profile
+   layer, modeled on `tools/ooctl/src/ooctl/config.py`) until `test_config.py` passes.
+6. **GREEN —** port `openobserve_cli.py` → `src/openobservectl/cli.py` (rewrite the `_obs_common`
+   import + `DASHBOARDS_DIR` via `importlib.resources`, wire `--profile`/`--config` into
+   `resolve()`) until `test_cli.py` and `test_dashboards.py` pass.
+7. **REFACTOR —** full suite green; run `ruff`/`ty`/`codespell` and tidy without changing behavior.
 8. Author fresh CI, README, LICENSE, `.gitignore`, and copy the design doc if present.
 9. Validate locally (`uv sync`, `just check`, `--help`), commit, push, open PR.
 
 Extraction is a **fresh copy** (no git history port). This is a **refactor-during-extraction**,
-not a file copy — the source is one 666-line script, not a package.
+not a file copy — the source is one 666-line script, not a package. The port follows
+**test-driven development**: write/port the failing tests first, make them pass one module at a
+time, then refactor.
 
 ## Relevant Files
 
@@ -112,7 +121,7 @@ IMPORTANT: Execute every step in order, top to bottom. `<source>` =
 - `git clone git@github.com:bossjones/openobservectl.git <new>`
 - `cd <new> && git switch -c feature/port-openobservectl`
 
-### 3. Scaffold the uv package skeleton
+### 3. Scaffold the uv package skeleton (stubs + vendored dashboards)
 - Create `pyproject.toml` modeled on `<source>/tools/ooctl/pyproject.toml`:
   - `[project]` name `openobservectl`, `requires-python = ">=3.11"`, `dynamic = ["version"]`,
     `license = { text = "MIT" }`, `readme = "README.md"`.
@@ -137,29 +146,42 @@ IMPORTANT: Execute every step in order, top to bottom. `<source>` =
 - Create `src/openobservectl/__init__.py` (empty or version passthrough) and
   `src/openobservectl/__main__.py` (`from openobservectl.cli import app; app()` under a
   `__main__` guard) so `python -m openobservectl` works.
+- Create **empty stubs** `src/openobservectl/{cli,common,config}.py` (docstring only). They must
+  exist so the Step 4 suite collects and fails on missing symbols (red), not on a missing module.
+- **Vendor the dashboards now** (the Step 4 dashboards tests glob them): copy
+  `<source>/clusters/centralized_monitoring/openobserve/dashboards/` (the `Correlation/`,
+  `Infrastructure/`, `LogAnalysis/` folders + JSON) into `<new>/src/openobservectl/dashboards/`,
+  preserving the folder-per-OpenObserve-folder layout (`dashboards import` uses the parent dir
+  name as the OpenObserve folder). Confirm the 12 files land: `Correlation/cause-effect.json`;
+  `Infrastructure/{container-metrics,host-metrics,prometheus-health,traces-by-service,
+  traces-overview,uptime}.json`; `LogAnalysis/{container-logs,error-triage,k0s-pods,log-overview,
+  per-host}.json`.
+- `uv sync` so the dev group + editable install are in place for the red bar.
 
-### 4. Port the CLI → `src/openobservectl/cli.py`
-- Copy `<source>/.../scripts/openobserve_cli.py` to `<new>/src/openobservectl/cli.py`.
-- **Drop the PEP 723 header + shebang** (lines 1-9) — deps now live in `pyproject.toml`.
-- Change the helper import (line 28): `import _obs_common as oc` → `from openobservectl import common as oc`.
-- Change `DASHBOARDS_DIR` (line 39) from the `__file__/../../openobserve/dashboards` walk to
-  package-data resolution:
-  ```python
-  from importlib.resources import files
-  DASHBOARDS_DIR = Path(str(files("openobservectl") / "dashboards"))
-  ```
-- Extend the Typer callback `_main()` (lines 78-95) with two new global options and thread them
-  into `Options`:
-  - `profile: str = typer.Option(None, "--profile", "-p", help="~/.openobservectl/config.yaml profile")`
-  - `config: str = typer.Option(None, "--config", help="config file path ($OPENOBSERVECTL_CONFIG)")`
-  - Also add `lab_root: str = typer.Option(None, "--lab-root", help="multipass-lab checkout for tofu fallback ($MULTIPASS_LAB_ROOT)")`.
-- Everything below (`health`, `streams`, `search`, `query`, `orgs`, the `dashboards`
-  sub-typer, `check`, `_render_check`) is ported **unchanged** except the `resolve()` rewrite
-  in Step 6. Keep the `if __name__ == "__main__": app()` guard so both `python -m` and the
-  console script work.
+### 4. RED — port + write the tests first
+Write the whole test suite **before** any implementation, then run `uv run pytest` and **confirm
+it fails** against the empty stubs. This red bar is the executable spec the next three steps turn
+green. Keep it hermetic — CliRunner + pytest-httpserver, no live OpenObserve, no real `tofu`.
+- `tests/test_common.py` ← `<source>/.../tests/obs_common/test_obs_common.py`: change
+  `import _obs_common` → `from openobservectl import common`; update the tofu test to pass an
+  explicit `chdir`/`lab_root` through the reworked `default_chdir`/`resolve_target` (inject a fake
+  `runner`, no real tofu).
+- `tests/test_config.py` ← adapt `<source>/tools/ooctl/tests/test_config.py` (**new** behavior —
+  genuine test-first): temp `config.yaml` load, `resolve_profile` happy path, `OPENOBSERVE_*` env
+  overrides win, unknown-profile `ConfigError`, `default_config_path()` → `~/.openobservectl/config.yaml`.
+- `tests/test_cli.py` ← `<source>/.../tests/openobserve/test_openobserve_cli.py`: change
+  `import openobserve_cli as oo` → `from openobservectl import cli as oo`; the CliRunner +
+  pytest-httpserver + `--server-url` cases port unchanged. Add the URL-precedence tests that lock
+  the new `resolve()`: `--server-url` beats `$OPENOBSERVE_URL` beats `--profile` endpoint; and the
+  no-source path exits nonzero with the guidance message.
+- `tests/test_dashboards.py` ← `.../test_openobserve_dashboards_cli.py`: fix the import; point the
+  "shipped JSON validity sweep" at the vendored package dir
+  (`Path(str(files("openobservectl") / "dashboards"))`).
+- `tests/conftest.py` — shared fixtures (temp config file, pytest-httpserver base URL).
+- Run `uv run pytest` → **expect red** (stubs have no symbols). Record the failure as the baseline.
 
-### 5. Vendor + decouple the helper → `src/openobservectl/common.py`
-- Copy `<source>/.../scripts/_obs_common.py` to `<new>/src/openobservectl/common.py`
+### 5. GREEN — implement `common.py`
+- Copy `<source>/.../scripts/_obs_common.py` over the stub at `<new>/src/openobservectl/common.py`
   (it is stdlib-only — no new deps).
 - **Remove** `CLUSTERS_ROOT = Path(__file__).resolve().parents[2]` (line 32) — there is no
   `clusters/` parent in the standalone repo.
@@ -170,15 +192,14 @@ IMPORTANT: Execute every step in order, top to bottom. `<source>` =
       return str(Path(lab_root).expanduser() / "clusters" / cluster)
   ```
 - `resolve_target()` keeps its precedence (`server_url` > `$url_env` > tofu) but the tofu branch
-  now requires a caller-supplied `chdir` (the CLI passes `default_chdir(cluster, lab_root)`);
-  if no URL source resolves and no `lab_root` is available, the CLI raises a clear error
-  (Step 6) rather than blindly shelling tofu. Keep `resolve_credentials`, `http_get_json`,
-  `poll`, `CheckReport`, `print_json`, `Target`, `HttpError` verbatim.
-- Update the module docstring (drop the "imported by grafana/prometheus/openobserve" +
-  `pythonpath` prose; it's now a package module).
+  now requires a caller-supplied `chdir` (the CLI passes `default_chdir(cluster, lab_root)`).
+  Keep `resolve_credentials`, `http_get_json`, `poll`, `CheckReport`, `print_json`, `Target`,
+  `HttpError` verbatim. Update the module docstring (drop the grafana/prometheus + `pythonpath` prose).
+- Run `uv run pytest tests/test_common.py` → **green**.
 
-### 6. Add the profile layer → `src/openobservectl/config.py` + wire `resolve()`
-- Create `src/openobservectl/config.py` by adapting `<source>/tools/ooctl/src/ooctl/config.py`:
+### 6. GREEN — implement `config.py`
+- Write `src/openobservectl/config.py` (over the stub) by adapting
+  `<source>/tools/ooctl/src/ooctl/config.py`:
   - `Profile(BaseModel)`: `endpoint`, `organization="default"`, `username`, `password`,
     `timeout=10.0`, `verify=True`; keep the `endpoint` trailing-slash-strip validator.
   - `Config(BaseModel)`: `profiles: dict[str, Profile]`.
@@ -187,7 +208,24 @@ IMPORTANT: Execute every step in order, top to bottom. `<source>` =
     override map to `OPENOBSERVE_URL→endpoint`, `OPENOBSERVE_ORG→organization`,
     `OPENOBSERVE_USER→username`, `OPENOBSERVE_PASSWORD→password` so it reuses the CLI's existing
     env-var names.
-- Rewrite `cli.resolve(opts)` to layer the profile in. Precedence:
+- Run `uv run pytest tests/test_config.py` → **green**.
+
+### 7. GREEN — port the CLI → `cli.py` (with the layered `resolve()`)
+- Copy `<source>/.../scripts/openobserve_cli.py` over the stub at `<new>/src/openobservectl/cli.py`.
+- **Drop the PEP 723 header + shebang** (lines 1-9) — deps now live in `pyproject.toml`.
+- Change the helper import (line 28): `import _obs_common as oc` → `from openobservectl import common as oc`.
+- Change `DASHBOARDS_DIR` (line 39) from the `__file__/../../openobserve/dashboards` walk to
+  package-data resolution:
+  ```python
+  from importlib.resources import files
+  DASHBOARDS_DIR = Path(str(files("openobservectl") / "dashboards"))
+  ```
+- Extend the Typer callback `_main()` (lines 78-95) with new global options threaded into `Options`:
+  - `profile: str = typer.Option(None, "--profile", "-p", help="~/.openobservectl/config.yaml profile")`
+  - `config: str = typer.Option(None, "--config", help="config file path ($OPENOBSERVECTL_CONFIG)")`
+  - `lab_root: str = typer.Option(None, "--lab-root", help="multipass-lab checkout for tofu fallback ($MULTIPASS_LAB_ROOT)")`.
+- Rewrite `cli.resolve(opts)` to layer the profile in (this is what the `test_cli.py`
+  URL-precedence tests pin). Precedence:
   ```python
   def resolve(opts: Options) -> Ctx:
       profile = None
@@ -222,35 +260,19 @@ IMPORTANT: Execute every step in order, top to bottom. `<source>` =
       return Ctx(base_url=base_url, user=user, password=password, org=org,
                  as_json=opts.as_json, timeout=opts.timeout, insecure=opts.insecure)
   ```
-  (Pseudocode — implementer refines. The invariant: explicit flags/env always beat the profile;
-  the profile beats built-in defaults; tofu is the last resort and only when a lab root is given.)
-- Optionally add a `config` sub-typer with `list` (print profile names from the config file)
-  and `path` (print `default_config_path()`), modeled on ooctl's `configure` command. Writing
-  profiles can stay manual (edit the YAML). Mark `config add` an optional follow-up.
+  (Pseudocode — implementer refines against the tests. Invariant: explicit flags/env beat the
+  profile; the profile beats built-in defaults; tofu is the last resort, only with a lab root.)
+- Everything else (`health`, `streams`, `search`, `query`, `orgs`, the `dashboards` sub-typer,
+  `check`, `_render_check`) ports **unchanged**. Keep the `if __name__ == "__main__": app()` guard.
+- Optionally add a `config` sub-typer with `list` (profile names) and `path`
+  (`default_config_path()`), modeled on ooctl's `configure`. `config add` is an optional follow-up.
+- Run `uv run pytest tests/test_cli.py tests/test_dashboards.py` → **green**.
 
-### 7. Vendor the dashboards
-- Copy `<source>/clusters/centralized_monitoring/openobserve/dashboards/` (the `Correlation/`,
-  `Infrastructure/`, `LogAnalysis/` folders and their JSON) into
-  `<new>/src/openobservectl/dashboards/`, preserving the folder-per-OpenObserve-folder layout
-  (`dashboards import` uses the parent dir name as the OpenObserve folder).
-- Confirm the 12 files land: `Correlation/cause-effect.json`; `Infrastructure/{container-metrics,
-  host-metrics,prometheus-health,traces-by-service,traces-overview,uptime}.json`;
-  `LogAnalysis/{container-logs,error-triage,k0s-pods,log-overview,per-host}.json`.
-
-### 8. Port + rewrite the tests
-- `tests/test_cli.py` ← `<source>/.../tests/openobserve/test_openobserve_cli.py`: change
-  `import openobserve_cli as oo` → `from openobservectl import cli as oo`; the CliRunner +
-  pytest-httpserver + `--server-url` cases port unchanged.
-- `tests/test_dashboards.py` ← `.../test_openobserve_dashboards_cli.py`: fix the import; point
-  the "shipped JSON validity sweep" at the vendored package dir
-  (`Path(files("openobservectl") / "dashboards")`).
-- `tests/test_common.py` ← `.../tests/obs_common/test_obs_common.py`: change `import _obs_common`
-  → `from openobservectl import common`; update the tofu test to pass an explicit `chdir`/`lab_root`
-  through the reworked `default_chdir`/`resolve_target` (inject a fake `runner`, no real tofu).
-- **New** `tests/test_config.py` ← adapt `<source>/tools/ooctl/tests/test_config.py`: load a temp
-  `config.yaml`, `resolve_profile` happy path, `OPENOBSERVE_*` env overrides win, unknown-profile
-  `ConfigError`. Add one CLI-level test: `--profile` sets the base URL (via pytest-httpserver).
-- Add `tests/conftest.py` if fixtures (temp config, httpserver base) are shared.
+### 8. REFACTOR — full suite green + lint
+- `uv run pytest` — the whole suite is green (this is the extraction's strongest correctness signal).
+- `uv run ruff format . && uv run ruff check --fix . && uv run ty check && uv run codespell src tests`.
+- Tidy naming/imports/docstrings **without changing behavior**; re-run `uv run pytest` to confirm
+  still green.
 
 ### 9. Author CI, README, LICENSE, .gitignore, design doc
 - `.github/workflows/ci.yml` — author fresh (there is no workflow to re-home). Model on the
@@ -291,8 +313,12 @@ IMPORTANT: Execute every step in order, top to bottom. `<source>` =
 
 ## Testing Strategy
 
-The port is a refactor, so tests are the primary correctness signal — the ported hermetic suite
-plus the new config tests must pass in the new package layout:
+**Test-driven (red → green → refactor).** Because the port is a refactor, tests are the primary
+correctness signal *and* the driver: Step 4 writes/ports the whole hermetic suite first and runs
+it **red** against empty stubs; Steps 5–7 implement `common` → `config` → `cli` in dependency
+order, each turning its module's tests **green**; Step 8 refactors under a fully green suite. The
+ported hermetic tests are the executable spec for the port, and `config.py` (genuinely new code) is
+written strictly test-first. What each gate proves:
 - **`uv sync`** proves the new `pyproject.toml` resolves standalone and the src layout is importable.
 - **`ruff` / `ty` / `codespell`** prove no module was corrupted in the port and the rewritten
   imports type-check.
@@ -323,6 +349,10 @@ plus the new config tests must pass in the new package layout:
   data (present in a built wheel / resolvable via `importlib.resources`).
 - Test suite (`test_cli.py`, `test_dashboards.py`, `test_common.py`, new `test_config.py`) passes
   with no `pythonpath` hack.
+- **TDD followed:** the suite was written/ported and run red against empty stubs (Step 4) before
+  the modules were implemented (Steps 5–7); `test_config.py` predates `config.py`. The suite
+  includes URL-precedence tests pinning `resolve()` (flags > env > profile > tofu) and the
+  no-source guidance error.
 - `.github/workflows/ci.yml`, `justfile`, `README.md` (no required-tofu/`clusters/` prose),
   `LICENSE` (MIT, Malcolm Jones, 2026), `.gitignore` present.
 - `uv sync`, `just check`, `uv run openobservectl --help`, `uv run python -m openobservectl --help`
