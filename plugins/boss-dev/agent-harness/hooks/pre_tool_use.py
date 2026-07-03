@@ -12,48 +12,63 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
+# Matches `rm` only where it is the command actually being executed: at the
+# start of the command line or of a chained sub-command (after a shell separator
+# `\n ; & | ` "`" ` (`), optionally via `sudo`/`command` or a leading `\` used to
+# bypass an alias. This deliberately ignores `rm` when it is a flag (`--rm`, the
+# `-` prevents a match) or another program's subcommand argument (`docker rm`,
+# `git rm`), which are not the destructive `/bin/rm`.
+_RM_INVOCATION = re.compile(r"(?:^|[\n;&|`(])\s*(?:sudo\s+)?(?:command\s+)?\\?rm\b")
+
+# Recursive+force flag combinations, in any order.
+_RM_FORCE_RECURSIVE = [
+    r"-[a-z]*r[a-z]*f",  # -rf, -Rf, -rvf, ...
+    r"-[a-z]*f[a-z]*r",  # -fr variations
+    r"--recursive\b.*--force\b",  # --recursive --force
+    r"--force\b.*--recursive\b",  # --force --recursive
+    r"-r\b.*-f\b",  # -r ... -f
+    r"-f\b.*-r\b",  # -f ... -r
+]
+
+# Dangerous targets for a recursive rm. Each matches the target as a whole
+# argument so ordinary relative paths (e.g. "rm -r ./build/output") are safe.
+_RM_DANGEROUS_PATHS = [
+    r"\s/\s*$",  # rm -rf /            (root)
+    r"\s/\s+",  # rm -rf / home/user  (root as a separate argument)
+    r"\s/\*",  # rm -rf /*            (everything under root)
+    r"\s~\s*$",  # rm -rf ~            (home directory)
+    r"\s~/",  # rm -rf ~/...         (home subtree)
+    r"\$home\b",  # rm -rf $HOME         (home env var; segment is lowercased)
+    r"\.\.",  # parent-directory references (.. , ../..)
+    r"\s\*\s*$",  # rm -rf *             (bare wildcard)
+    r"\s\./?\s*$",  # rm -rf . or ./       (current directory)
+]
+
 
 def is_dangerous_rm_command(command):
     """
     Comprehensive detection of dangerous rm commands.
-    Matches various forms of rm -rf and similar destructive patterns.
+
+    Only flags ``rm`` when it is the command actually being invoked (command
+    position), then inspects that invocation's arguments for destructive
+    recursive/force patterns or dangerous targets. ``rm`` appearing as a flag
+    (``--rm``) or another tool's subcommand (``docker rm``, ``git rm``) is not
+    treated as the destructive ``/bin/rm``.
     """
-    # Normalize command by removing extra spaces and converting to lowercase
-    normalized = " ".join(command.lower().split())
+    # Lowercase and collapse intra-line whitespace, but KEEP newlines: each line
+    # is its own command, so a bare `rm` on its own line must stay detectable.
+    normalized = "\n".join(" ".join(line.split()) for line in command.lower().splitlines())
 
-    # Pattern 1: Standard rm -rf variations
-    patterns = [
-        r"\brm\s+.*-[a-z]*r[a-z]*f",  # rm -rf, rm -fr, rm -Rf, etc.
-        r"\brm\s+.*-[a-z]*f[a-z]*r",  # rm -fr variations
-        r"\brm\s+--recursive\s+--force",  # rm --recursive --force
-        r"\brm\s+--force\s+--recursive",  # rm --force --recursive
-        r"\brm\s+-r\s+.*-f",  # rm -r ... -f
-        r"\brm\s+-f\s+.*-r",  # rm -f ... -r
-    ]
+    for match in _RM_INVOCATION.finditer(normalized):
+        # Arguments to this rm invocation, up to the next shell separator.
+        rest = normalized[match.end() :]
+        segment = re.split(r"[\n;&|`)]", rest, maxsplit=1)[0]
 
-    # Check for dangerous patterns
-    for pattern in patterns:
-        if re.search(pattern, normalized):
+        if any(re.search(pattern, segment) for pattern in _RM_FORCE_RECURSIVE):
             return True
 
-    # Pattern 2: Check for rm with recursive flag targeting dangerous paths.
-    # Each pattern matches the dangerous target as a whole argument so that
-    # ordinary relative paths (e.g. "rm -r ./build/output") are not flagged.
-    dangerous_paths = [
-        r"\s/\s*$",  # rm -rf /            (root)
-        r"\s/\s+",  # rm -rf / home/user  (root as a separate argument)
-        r"\s/\*",  # rm -rf /*            (everything under root)
-        r"\s~\s*$",  # rm -rf ~            (home directory)
-        r"\s~/",  # rm -rf ~/...         (home subtree)
-        r"\$home\b",  # rm -rf $HOME         (home env var; `normalized` is lowercased)
-        r"\.\.",  # parent-directory references (.. , ../..)
-        r"\s\*\s*$",  # rm -rf *             (bare wildcard)
-        r"\s\./?\s*$",  # rm -rf . or ./       (current directory)
-    ]
-
-    if re.search(r"\brm\s+.*-[a-z]*r", normalized):  # If rm has recursive flag
-        for path in dangerous_paths:
-            if re.search(path, normalized):
+        if re.search(r"-[a-z]*r", segment):  # recursive flag present
+            if any(re.search(path, segment) for path in _RM_DANGEROUS_PATHS):
                 return True
 
     return False
@@ -75,14 +90,20 @@ def is_env_file_access(tool_name, tool_input):
         # Check bash commands for .env file access
         elif tool_name == "Bash":
             command = tool_input.get("command", "")
-            # Detect any reference to a .env file (e.g. "source .env", "less .env",
-            # "cat ./.env"), but allow the secret-free templates (.env.sample /
-            # .env.example). A plain `\b` before the dot fails when the dot follows
-            # whitespace, so anchor on a lookbehind for a non-word/path boundary
-            # instead. This single pattern subsumes the per-command checks
-            # (cat/echo/touch/cp/mv/source/...).
+            # Passing the file to a subprocess via `--env-file <path>` /
+            # `--env-file=<path>` does not surface its contents to the model, so
+            # strip those usages before scanning.
+            command = re.sub(r"--env-file(?:=|\s+)\S+", " ", command)
+
+            # Block any reference to a real secret env file (e.g. "source .env",
+            # "cat .envrc", "less .env.local") while allowing the secret-free
+            # committed templates (.env.sample / .env.example) and unrelated
+            # files like `config.env`. The leading `(?<![\w.])` lookbehind keeps
+            # `config.env` (preceded by a word char) from matching.
             env_patterns = [
-                r"(?<![\w.])\.env(?![\w])(?!\.sample)(?!\.example)",
+                r"(?<![\w.])\.envrc\b",  # direnv secrets
+                r"(?<![\w.])\.env(?![\w.])",  # bare .env
+                r"(?<![\w.])\.env\.(?!sample\b)(?!example\b)[\w.-]+",  # .env.local etc.
             ]
 
             for pattern in env_patterns:
