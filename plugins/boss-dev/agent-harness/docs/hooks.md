@@ -1,6 +1,6 @@
 # Hooks Reference
 
-The `hooks/` directory ships **14** lifecycle hook scripts (PEP 723, run via `uv`) **wired live**
+The `hooks/` directory ships **15** lifecycle hook scripts (PEP 723, run via `uv`) **wired live**
 through [`hooks/hooks.json`](../hooks/hooks.json). On `/plugin install` they are **active** — Claude
 Code registers every event declared in that file (14 lifecycle events in total). This page lists each
 event, what its script does, the supporting modules, the TTS/notification config, and how to turn
@@ -12,6 +12,7 @@ hooks on or off.
 - [Lifecycle hooks](#lifecycle-hooks)
 - [The Python auto-format hook](#the-python-auto-format-hook)
 - [TTS and desktop notifications](#tts-and-desktop-notifications)
+- [Snyk agent-scan](#snyk-agent-scan)
 - [Supporting modules](#supporting-modules)
 - [Enabling & disabling hooks](#enabling--disabling-hooks)
 - [Logs](#logs)
@@ -40,6 +41,7 @@ credentials are present, so they're safe to leave on.
 | `UserPromptSubmit` | [`user_prompt_submit.py`](../hooks/user_prompt_submit.py) | — | Log prompts (`--log-only`), store last prompt (`--store-last-prompt`), name the agent via an LLM (`--name-agent`). |
 | `PreCompact` | [`pre_compact.py`](../hooks/pre_compact.py) | all | Log compaction; optionally back up the transcript. |
 | `SessionStart` | [`session_start.py`](../hooks/session_start.py) | all | Log start; optionally inject git/project context or announce via TTS. |
+| `SessionStart` | [`snyk_agent_scan.py`](../hooks/snyk_agent_scan.py) | all | Opt-in advisory Snyk agent-scan of this project's SKILL.md artifacts. |
 | `SessionEnd` | [`session_end.py`](../hooks/session_end.py) | all | Log session end; optionally clean up stale temp files. |
 | `PermissionRequest` | [`permission_request.py`](../hooks/permission_request.py) | all | Log permission requests (`--log-only`); auto-allow read-only operations. |
 | `PostToolUseFailure` | [`post_tool_use_failure.py`](../hooks/post_tool_use_failure.py) | all | Log tool failures with error detail. |
@@ -91,12 +93,50 @@ user-config options:
 
 Set any of these via `/plugin` → **Configure** or as bare environment variables.
 
+## Snyk agent-scan
+
+[`snyk_agent_scan.py`](../hooks/snyk_agent_scan.py) runs [Snyk `agent-scan`](https://github.com/snyk/agent-scan)
+against this project's `SKILL.md` artifacts at `SessionStart`, and a repo-local pre-commit hook
+(`scripts/snyk-agent-scan.py`, outside this plugin) runs it over staged `SKILL.md` files. It's an
+AI-agent supply-chain scanner: prompt injection, tool poisoning, and hidden-Unicode obfuscation —
+not a generic SAST/secrets scanner.
+
+**Off by default**, opt in via two `userConfig` options:
+
+| Option | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `ENABLE_SNYK_AGENT_SCAN` | boolean | `false` | Master toggle. Off → both hooks are a silent no-op. |
+| `SNYK_TOKEN` | string | _(empty)_ | Snyk API token. Falls back to a bare `SNYK_TOKEN` env var / `.env`. |
+
+These resolve through the same shared helper [`hooks/utils/config.py`](../hooks/utils/config.py) as
+`ENABLE_TTS`/`ENGINEER_NAME` above (`CLAUDE_PLUGIN_OPTION_<KEY>` first, bare env var fallback).
+
+**Fail-open.** No token, disabled, no `SKILL.md` targets found, or a scanner error/timeout — the
+`SessionStart` hook silently emits no `additionalContext` and exits 0; the pre-commit hook silently
+exits 0. Neither ever blocks a session or a commit by default.
+
+**Scope.** Only `SKILL.md` files are scanned. Empirically, `snyk-agent-scan` treats any other
+markdown path (`agents/*.md`, `commands/*.md`) as an MCP JSON config and fails to parse it, so
+those paths are excluded from both hooks' target resolution. Neither hook ever passes `--ci` or
+`--dangerously-run-mcp-servers`, so a scan can never launch an MCP stdio server.
+
+**Gating.** `SessionStart` is always advisory — it injects a one-line severity summary as
+`additionalContext` only when findings are present, and throttles re-scans of the same project to
+once every 6 hours. The pre-commit hook is advisory by default (prints findings, exits 0) unless
+`SNYK_AGENT_SCAN_ENFORCE=1`, in which case it exits 1 when Critical/High findings are staged.
+Gating always parses `--json` severities directly and never trusts the scanner's own exit code
+(empirically 0 even with High-risk findings present).
+
 ## Supporting modules
 
 These are libraries the hook scripts import — not wired as events themselves.
 
 - **`hooks/utils/config.py`** — the shared config resolver described above
-  (`CLAUDE_PLUGIN_OPTION_<KEY>` with bare-env fallback; `tts_enabled()` and `engineer_name()`).
+  (`CLAUDE_PLUGIN_OPTION_<KEY>` with bare-env fallback; `tts_enabled()`, `engineer_name()`,
+  `snyk_enabled()`, `snyk_token()`).
+- **`hooks/utils/snyk.py`** — shared Snyk agent-scan helper (target resolution, scan invocation,
+  defensive `--json` parsing, severity summarization) used by both `snyk_agent_scan.py` and the
+  repo's pre-commit hook.
 - **`hooks/validators/`** — `ruff_validator.py` and `ty_validator.py` lint and type-check Python
   after writes; `validate_new_file.py` and `validate_file_contains.py` assert a file was created or
   contains expected content. The latter two back the

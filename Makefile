@@ -20,7 +20,7 @@ DEPTH ?= standard
 CONCURRENCY ?= 4
 AUTH ?= max
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict test-twitter-downloader test-twitter-reel test-agent-harness ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill eval-certify eval-llm-judge eval-monte-carlo changelog changelog-preview
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict snyk-scan snyk-scan-script test-twitter-downloader test-twitter-reel test-agent-harness ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill eval-certify eval-llm-judge eval-monte-carlo changelog changelog-preview
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -188,6 +188,16 @@ verify-structure: ## Verify Claude Code marketplace structure and validate plugi
 verify-structure-strict: ## Verify marketplace structure in strict mode (warnings treated as errors)
 	@echo "🚀 Verifying marketplace structure in strict mode"
 	@uv run scripts/verify-structure.py --strict
+
+.PHONY: snyk-scan
+snyk-scan: ## Advisory Snyk agent-scan over .claude/skills (no-op without SNYK_TOKEN; note: `make install` does not run `pre-commit install`)
+	@echo "🚀 Running Snyk agent-scan (advisory)"
+	@uvx snyk-agent-scan@latest --json .claude/skills || true
+
+.PHONY: snyk-scan-script
+snyk-scan-script: ## Run scripts/snyk-agent-scan.py (the pre-commit entrypoint) over all repo SKILL.md files (no-op without SNYK_TOKEN)
+	@echo "🚀 Running scripts/snyk-agent-scan.py (advisory)"
+	@uv run scripts/snyk-agent-scan.py $$(find plugins -path '*/skills/*/SKILL.md' -type f 2>/dev/null) $$(find .claude/skills -name 'SKILL.md' -type f 2>/dev/null)
 
 .PHONY: symlink-plugins
 symlink-plugins: ## Back up .claude/ originals and symlink plugin components in

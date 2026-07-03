@@ -32,3 +32,16 @@ def tts_enabled() -> bool:
 def engineer_name() -> str:
     """Return the configured engineer name, or an empty string."""
     return (_option("ENGINEER_NAME") or "").strip()
+
+
+def snyk_enabled() -> bool:
+    """Return True only if ENABLE_SNYK_AGENT_SCAN resolves truthy. Default off."""
+    val = _option("ENABLE_SNYK_AGENT_SCAN")
+    if val is None:
+        return False
+    return val.strip().lower() not in _FALSE_VALUES
+
+
+def snyk_token() -> str:
+    """Return the configured Snyk token, or an empty string."""
+    return (_option("SNYK_TOKEN") or "").strip()

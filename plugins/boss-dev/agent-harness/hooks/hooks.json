@@ -124,6 +124,15 @@
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/session_start.py"
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/snyk_agent_scan.py"
+          }
+        ]
       }
     ],
     "SessionEnd": [

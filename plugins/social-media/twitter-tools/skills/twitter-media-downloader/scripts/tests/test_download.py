@@ -64,9 +64,9 @@ class TestExtractTweetId:
 
     def test_extracts_from_status_url(self) -> None:
         """Should extract tweet ID from /status/ URL."""
-        url = "https://x.com/user/status/1234567890123456789"
+        url = "https://x.com/user/status/1000000000000000000"
         result = extract_tweet_id(url)
-        assert result == "1234567890123456789"
+        assert result == "1000000000000000000"
 
     def test_extracts_from_twitter_url(self) -> None:
         """Should work with twitter.com URLs too."""

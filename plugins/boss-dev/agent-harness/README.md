@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.16.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.17.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
@@ -189,6 +189,7 @@ inline `hooks` key in `plugin.json`). See [Manual wiring](#manual-wiring) to ena
 | Script | Event | Purpose |
 | --- | --- | --- |
 | `session_start.py` | SessionStart | Log start; optionally inject git/project context or announce via TTS. |
+| `snyk_agent_scan.py` | SessionStart | Opt-in advisory Snyk agent-scan of this project's SKILL.md artifacts (see below). |
 | `setup.py` | Setup | Check dependencies, detect project type, install packages for CI/`--init` runs. |
 | `user_prompt_submit.py` | UserPromptSubmit | Log prompts, manage session metadata, optionally name the agent via an LLM. |
 | `pre_tool_use.py` | PreToolUse | Block dangerous `rm -rf` and `.env` access; log tool calls. |
@@ -213,6 +214,8 @@ Supporting modules:
 - `hooks/utils/tts/` — text-to-speech backends (`pyttsx3_tts.py`, `openai_tts.py`,
   `elevenlabs_tts.py`) and `tts_queue.py`, a file-lock queue that serializes overlapping
   announcements.
+- `hooks/utils/snyk.py` — shared Snyk agent-scan helper (target resolution, scan invocation,
+  severity parsing) used by both `snyk_agent_scan.py` and the repo's pre-commit hook.
 
 Hook runs write structured JSON to `logs/` for auditing and debugging.
 
@@ -260,6 +263,39 @@ just without the click-to-jump action; if `terminal-notifier` is missing it fall
 **Limitations:** Linux click-to-jump is not supported (`notify-send` action buttons need a running
 listener) — the tmux target is shown in the notification body instead. There is no bats/pytest
 harness for this script in this release.
+
+### Snyk agent-scan (opt-in, advisory)
+
+[Snyk `agent-scan`](https://github.com/snyk/agent-scan) is an AI-agent supply-chain scanner for
+skill/agent artifacts — it flags prompt injection, tool poisoning, and hidden-Unicode obfuscation
+in `SKILL.md` files. `snyk_agent_scan.py` runs it at `SessionStart` against the current project's
+skill artifacts and, separately, a repo-local pre-commit hook (`scripts/snyk-agent-scan.py`) runs
+it over staged `SKILL.md` files.
+
+**Default off**, and fail-open throughout — disabled, no token, no targets, or a scanner
+error/timeout all silently no-op; neither hook ever blocks a session or a commit by default.
+
+| Config key | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| `ENABLE_SNYK_AGENT_SCAN` | boolean | `false` | Master toggle. Off → both hooks are a silent no-op. |
+| `SNYK_TOKEN` | string | _(empty)_ | Snyk API token. Falls back to a bare `SNYK_TOKEN` env var / `.env` if unset here. |
+
+Both resolve through the same `CLAUDE_PLUGIN_OPTION_<KEY>` → bare-env-var resolution order as
+`ENABLE_TTS`/`ENGINEER_NAME` above.
+
+**Scope.** Only `SKILL.md` files are scanned — the scanner treats any other markdown path (an
+`agents/*.md` or `commands/*.md` file) as an MCP JSON config and fails to parse it, so those paths
+are never worth passing to it. Neither hook ever passes `--ci` or `--dangerously-run-mcp-servers`,
+so scanning never launches an MCP stdio server.
+
+**SessionStart** is always advisory: it injects a one-line findings summary as
+`additionalContext` when Critical/High/Medium/Low findings are present, stays silent on a clean
+scan, and throttles re-scans of the same project to once every 6 hours.
+
+**Pre-commit** is advisory by default (prints findings, exits `0`) unless
+`SNYK_AGENT_SCAN_ENFORCE=1`, in which case it exits `1` when Critical/High findings are staged.
+Exit codes from the scanner itself are never trusted for gating — empirically it exits `0` even
+with High-risk findings present — so both hooks parse `--json` severities directly.
 
 ## Output styles
 
