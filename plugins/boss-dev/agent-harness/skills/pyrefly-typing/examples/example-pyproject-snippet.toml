@@ -1,0 +1,23 @@
+# Example [tool.pyrefly] block + justfile targets, worked for a project with a
+# src/tests layout, Python 3.12 floor, and an existing basedpyright config that
+# stays untouched.
+
+[tool.basedpyright]
+# unchanged — pyrefly_setup.py never edits this table
+typeCheckingMode = "standard"
+pythonVersion = "3.12"
+
+[tool.pyrefly]
+project-includes = ["src", "tests"]
+python-version = "3.12"
+
+# --- justfile (appended, standalone — not wired into `just check` or `just lint`) ---
+#
+# check-pyrefly:
+#     uv run pyrefly check --baseline pyrefly-baseline.json --summarize-errors
+#
+# pyrefly-baseline:
+#     uv run pyrefly check --baseline pyrefly-baseline.json --update-baseline
+#
+# pyrefly-coverage:
+#     uv run pyrefly coverage report src tests

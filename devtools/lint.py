@@ -23,6 +23,7 @@ TYPE_CHECK_PATHS = [
     f"{_AGENT_HARNESS_SKILLS}/git-worktree-clean/scripts/git_worktree_clean.py",
     f"{_AGENT_HARNESS_SKILLS}/git-worktree-remove/scripts/git_worktree_remove.py",
     f"{_AGENT_HARNESS_SKILLS}/worktree-doctor/scripts/worktree_doctor.py",
+    f"{_AGENT_HARNESS_SKILLS}/pyrefly-typing/scripts/pyrefly_setup.py",
 ]
 
 

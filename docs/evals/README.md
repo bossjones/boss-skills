@@ -31,6 +31,7 @@ skill folder keeps the skill tree limited to `SKILL.md` + `references/` + `scrip
 
 ### Other
 
+- [pyrefly-typing](agent-harness/pyrefly-typing.md)
 - [release-notes-generator](agent-harness/release-notes-generator.md)
 - [stop-slop](agent-harness/stop-slop.md)
 - [unicode-hygiene](agent-harness/unicode-hygiene.md)

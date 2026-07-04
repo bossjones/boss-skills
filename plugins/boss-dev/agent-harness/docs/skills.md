@@ -1,6 +1,6 @@
 # Skills Reference
 
-Thirteen skills under `skills/<skill-name>/SKILL.md`, auto-discovered on `/plugin install`. Skills are
+Skills live under `skills/<skill-name>/SKILL.md`, auto-discovered on `/plugin install`. Skills are
 **model-invoked** capabilities — Claude activates them automatically when a task matches — except
 where a skill sets `disable-model-invocation: true`, in which case you trigger it explicitly (ask
 for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
@@ -26,6 +26,8 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
   - [`unicode-hygiene`](#unicode-hygiene)
 - [Machine setup](#machine-setup)
   - [`setup-second-brain`](#setup-second-brain)
+- [Type checking](#type-checking)
+  - [`pyrefly-typing`](#pyrefly-typing)
 - [Security review](#security-review)
   - [`boss-security-review`](#boss-security-review)
 - [Dependencies](#dependencies)
@@ -47,6 +49,7 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 | [`stop-slop`](#stop-slop) | model-invoked | Strip AI writing patterns from prose | — |
 | [`unicode-hygiene`](#unicode-hygiene) | model-invoked | Scan files for invisible / spoofed Unicode | `uv` |
 | [`setup-second-brain`](#setup-second-brain) | explicit | Install/configure obsidian-wiki + optional QMD semantic search | `uv`, `node`≥22 for QMD |
+| [`pyrefly-typing`](#pyrefly-typing) | explicit | Adopt Pyrefly into a *target* repo as a non-blocking typing feedback loop | `uv` |
 | [`boss-security-review`](#boss-security-review) | model-invoked | Security-review changed code (or a path/whole repo) → severity-graded report | `git` |
 
 > **Adapted from:** the PR-review skills are adapted from
@@ -357,6 +360,43 @@ for the full `OBSIDIAN_*`/`QMD_*` variable tables.
 
 ---
 
+## Type checking
+
+### `pyrefly-typing`
+
+> Adopt [Pyrefly](https://pyrefly.org/) into a *target* `uv` Python project as a non-blocking,
+> agent-driven typing feedback loop — alongside whatever type checker it already uses, never
+> replacing it.
+
+- **Invocation:** explicit (`disable-model-invocation: true`). Arguments:
+  `<target-repo-path> [--with-stop-hook] [--dry-run]` — ask for it by name or
+  `/agent-harness:pyrefly-typing`.
+- **When to use:** Adopting Pyrefly in a repo for the first time, adding the Stop-hook feedback
+  loop from Pyrefly's own agentic-loop post, or burning down a batch of baseline type errors.
+  **This skill configures the target repo it's pointed at — never `boss-skills` itself.**
+- **What it does:** Drives a stdlib-only PEP 723 script (`scripts/pyrefly_setup.py`) with
+  `detect`/`apply` subcommands:
+  1. `detect` — read-only JSON report: Python version floor, real `src`/`tests` layout, every
+     existing type-checker table already configured (`ty`, `basedpyright`, `mypy`, `pyright` — all
+     left untouched), a migratable legacy config, and the detected task runner
+     (`just`/`make`/`npm`).
+  2. `apply --dry-run` — a unified `diff` per changed file (or the exact command for `uv add` /
+     `pyrefly init` / baseline generation), without writing.
+  3. `apply` — backs up each touched file, then runs `uv add --dev pyrefly`, writes or migrates
+     `[tool.pyrefly]`, adds standalone `check-pyrefly`/`pyrefly-baseline`/`pyrefly-coverage`
+     targets to the detected task runner, optionally merges a `Stop` hook into the target's own
+     `.claude/settings.json`, and generates the initial committed baseline.
+- **Example:**
+
+  ```text
+  /agent-harness:pyrefly-typing ~/dev/example-project --dry-run
+  ```
+
+- **Source:** [`skills/pyrefly-typing/SKILL.md`](../skills/pyrefly-typing/SKILL.md) · script
+  [`scripts/pyrefly_setup.py`](../skills/pyrefly-typing/scripts/pyrefly_setup.py)
+
+---
+
 ## Security review
 
 ### `boss-security-review`
@@ -385,7 +425,8 @@ for the full `OBSIDIAN_*`/`QMD_*` variable tables.
 ## Dependencies
 
 - **`uv`** — runs the PEP 723 scripts behind `fetch-diff`, `fetch-unresolved-comments`,
-  `pr-review`, `worktree-doctor`, the `unicode-hygiene` scanner, and `setup-second-brain`. Their
+  `pr-review`, `worktree-doctor`, the `unicode-hygiene` scanner, `setup-second-brain`, and
+  `pyrefly-typing` (also invokes `uv add`/`uv run pyrefly` in the target repo). Their
   dependencies (`aiohttp`, `pydantic`, `jsonschema`) resolve on demand, so the skills work right after
   `/plugin install` with no setup step. (The unicode scanner and `setup-second-brain` are stdlib-only
   — no dependencies to resolve.)
