@@ -7,6 +7,8 @@ allowed-tools:
   - Bash(uv run:*)
   - Bash(uv add:*)
   - Bash(git rev-parse:*)
+  - Bash(git -C:*)
+  - Bash(command -v:*)
 effort: medium
 ---
 
@@ -42,15 +44,22 @@ doesn't need one — never run `apply` with `--repo-root` pointing at this repo.
 See [examples/example-agent-transcript.md](examples/example-agent-transcript.md) for a worked
 end-to-end run of the steps below.
 
-### 0. Confirm the target is a git repo
+### 0. Confirm the target is a git repo, and that `uv` is available
 
 ```text
 $ git -C <TARGET_REPO> rev-parse --is-inside-work-tree
+$ command -v uv
 ```
 
 `apply` backs up every file it touches, but a git-tracked target makes every change trivially
-reviewable (`git diff`) and revertible. If this fails, tell the user `TARGET_REPO` isn't a git
-repository before writing anything.
+reviewable (`git diff`) and revertible. If the first command fails, tell the user `TARGET_REPO`
+isn't a git repository before writing anything.
+
+Every step below shells out to `uv` — to run this skill's own PEP 723 script, and, inside
+`apply`, to run `uv add --dev pyrefly` in `TARGET_REPO`. If `command -v uv` prints nothing, stop
+here and tell the user to install `uv` (<https://docs.astral.sh/uv/>) before continuing. Step 1's
+`detect` JSON echoes the same check under `env.uv.ok`/`env.uv.hint` as a second confirmation once
+`uv` is reachable.
 
 ### 1. Detect current state (read-only)
 
@@ -98,8 +107,10 @@ $ uv run "${CLAUDE_SKILL_DIR}/scripts/pyrefly_setup.py" apply --repo-root <TARGE
 This runs `uv add --dev pyrefly` (skipped if already a dependency), writes or migrates
 `[tool.pyrefly]`, adds standalone `check-pyrefly` / `pyrefly-baseline` / `pyrefly-coverage` targets to
 the detected task runner (never wired into existing `lint`/`check`/CI targets), optionally merges the
-Stop hook, and generates the initial committed baseline. Every modified file is backed up to
-`<file>.backup.<timestamp>` first.
+Stop hook, and generates the initial committed baseline. Hand-written config, task-runner target, and
+Stop-hook changes are each backed up to `<file>.backup.<timestamp>` before writing; the `uv add` and
+`pyrefly init --migrate-from` paths mutate `pyproject.toml` directly without their own backup step, so
+step 0's git-repo check is the safety net for those two — review `git diff` before committing.
 
 ### 5. Burn down baseline errors
 
@@ -127,7 +138,7 @@ uses one; never touch Cursor's own settings.
 | [references/pyproject-config.md](references/pyproject-config.md) | `[tool.pyrefly]` kebab-case key reference and the migrate-vs-hand-write decision. |
 | [references/feedback-loop.md](references/feedback-loop.md) | The 5-step regressions→fix→burn-down→coverage→automate loop. |
 | [references/hook-setup.md](references/hook-setup.md) | Target-repo Stop-hook snippet, merge-not-clobber rule, how to disable, pre-commit alternative. |
-| [references/subagent-fix-loop.md](references/subagent-fix-loop.md) | Fan-out thresholds for fixing a batch of baseline errors. |
+| [references/subagent-fix-loop.md](references/subagent-fix-loop.md) | Fan-out thresholds for fixing a batch of baseline errors. See also `skills/boss-security-review`, whose fan-out size heuristic this mirrors. |
 | [references/error-suppressions.md](references/error-suppressions.md) | Inline/file-level suppression syntax. |
 | [references/ide-setup.md](references/ide-setup.md) | Cursor/OpenVSX + generic LSP editor setup. |
 | [references/links.md](references/links.md) | Full URL index (docs, blog posts, source repos). |
@@ -142,6 +153,16 @@ uses one; never touch Cursor's own settings.
   `langgenius/dify`'s CI) is **not** built by this pass — it's deferred to a follow-up
   (`references/ci-comments.md` does not exist yet).
 
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `detect`'s `env.uv.ok` is `false`, or `command -v uv` in step 0 prints nothing | `uv` isn't on `PATH`. Install it (<https://docs.astral.sh/uv/>) and stop — do not run `apply` until it is. |
+| Step 0's `git rev-parse --is-inside-work-tree` fails | `TARGET_REPO` isn't a git repo. Stop and tell the user before writing anything. |
+| `apply`'s summary shows `"config": {"changed": false, "already_present": true}` but `[tool.pyrefly]` looks wrong or incomplete | `apply` never edits an existing `[tool.pyrefly]` table, even a broken one — it only skips writing. Fix or delete the fragment by hand, then re-run. |
+| `apply --with-stop-hook` fails with a message like `<path> contains invalid JSON ...; refusing to overwrite` | The target's `.claude/settings.json` is malformed; the script refuses to touch it. Fix or remove that file, then re-run. |
+| Summary JSON's `baseline.returncode` is non-zero even though `apply` itself exited 0 | Baseline generation failed independently (check `baseline.stdout`/`baseline.stderr`). Fix the underlying issue, then re-run with `--skip-baseline`, or generate it by hand: `uv run pyrefly check --baseline pyrefly-baseline.json --update-baseline`. |
+
 ## Usage
 
 ```
@@ -149,5 +170,9 @@ uses one; never touch Cursor's own settings.
 /pyrefly-typing ~/dev/example-project --with-stop-hook
 /pyrefly-typing ~/dev/example-project --dry-run
 ```
+
+`apply` also accepts `--project-includes`, `--python-version`, `--task-runner`, `--migrate-from`,
+and `--skip-baseline` (all optional, auto-detected by default) — see Workflow step 2 and
+[references/pyproject-config.md](references/pyproject-config.md).
 
 Flags: $ARGUMENTS

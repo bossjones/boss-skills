@@ -574,7 +574,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_apply.add_argument("--with-stop-hook", action="store_true", help="merge a Stop hook into .claude/settings.json")
     p_apply.add_argument(
-        "--skip-baseline", action="store_true", help="skip `uv add --dev pyrefly` and baseline generation"
+        "--skip-baseline", action="store_true", help="skip baseline generation only (dependency install still runs)"
     )
     p_apply.add_argument("--dry-run", action="store_true", help="report intended changes without writing or running uv")
     return parser
