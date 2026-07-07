@@ -436,7 +436,7 @@ exposes a CLI + Unix socket so every window/workspace/pane/surface is a scriptab
 natural language, and spawn/orchestrate a team of terminal agents on top of it. Ported and generalized
 from [learning-cmux-with-agents](https://github.com/disler/learning-cmux-with-agents) (see
 [`specs/cmux.md`](../../../../specs/cmux.md)). Both skills trigger anywhere but only function on macOS
-with cmux installed.
+with cmux installed. New to cmux? Start with the hands-on [cmux tutorial](./cmux-tutorial.md).
 
 ### `cmux`
 

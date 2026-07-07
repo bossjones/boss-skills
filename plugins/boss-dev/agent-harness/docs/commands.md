@@ -1,6 +1,6 @@
 # Commands Reference
 
-Sixteen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
+Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
 `/agent-harness:<name>`. Commands are **user-invoked** — you type them; Claude runs the workflow.
 
 > [!IMPORTANT]
@@ -37,6 +37,8 @@ Sixteen slash commands under `commands/*.md`, auto-discovered on `/plugin instal
 - [Status line & demos](#status-line--demos)
   - [`update_status_line`](#update_status_line)
   - [`sentient`](#sentient)
+- [Documentation](#documentation)
+  - [`docs-tutorial`](#docs-tutorial)
 - [cmux orchestration](#cmux-orchestration)
   - [`cmux-fresh`](#cmux-fresh)
   - [`cmux-spawn-team`](#cmux-spawn-team)
@@ -59,6 +61,7 @@ Sixteen slash commands under `commands/*.md`, auto-discovered on `/plugin instal
 | [`validate-unicode-hygiene`](#validate-unicode-hygiene) | `[paths...] [--strict] [--warn-only]` | Scan files for invisible / spoofed Unicode | `uv` |
 | [`update_status_line`](#update_status_line) | `<session_id> <key> <value>` | Write custom data into a session status line | — |
 | [`sentient`](#sentient) | — | Demo the `rm -rf` hook guard | — |
+| [`docs-tutorial`](#docs-tutorial) | `[what to document]` | Generate a tutorial/doc via the right tutorial-engineer subagent | — |
 | [`cmux-fresh`](#cmux-fresh) | — | Clear cmux's saved session so it boots blank | cmux (macOS) |
 | [`cmux-spawn-team`](#cmux-spawn-team) | `[team-name] [feature...] [--config PATH]` | Boot a multi-agent team as a cmux workspace | `uv`, cmux (macOS) |
 | [`cmux-did-spawn`](#cmux-did-spawn) | `<spawn-file path>` | Orient onto a just-spawned team and drive its lead | cmux (macOS) |
@@ -352,11 +355,38 @@ fails.
 
 ---
 
+## Documentation
+
+### `docs-tutorial`
+
+> Generate a tutorial (or other doc) by delegating to `/documentation-generation:doc-generate`,
+> routing to the correct fully-qualified tutorial-engineer subagent.
+
+- **Arguments:** `[what to document]` — optional. With no prompt, defaults to a tutorial about the
+  features introduced on the current git branch.
+- **When to use:** You want a tutorial/guide written and keep forgetting the exact subagent name.
+  This command pins the two correct names and picks between them.
+- **What it does:** Resolves the topic (or the current-branch default), classifies the request as
+  documentation-related (→ `documentation-generation:documentation-generation-tutorial-engineer`) or
+  code-related (→ `code-documentation:code-documentation-tutorial-engineer`), asks clarifying
+  questions (existing material, new-vs-update, scope) before writing, then hands the work to
+  `/documentation-generation:doc-generate` naming the chosen subagent.
+- **Example:**
+
+  ```text
+  /agent-harness:docs-tutorial a tutorial on the cmux and cmux-team skills
+  ```
+
+- **Source:** [`commands/docs-tutorial.md`](../commands/docs-tutorial.md)
+
+---
+
 ## cmux orchestration
 
 Drive [cmux](https://cmux.com) and orchestrate a team of terminal agents on top of it. macOS-only
 (Homebrew cask `manaflow-ai/cmux`). See the [`cmux`](./skills.md#cmux) and
-[`cmux-team`](./skills.md#cmux-team) skills for the underlying model.
+[`cmux-team`](./skills.md#cmux-team) skills for the underlying model. For a hands-on, step-by-step
+walkthrough, see the [cmux tutorial](./cmux-tutorial.md).
 
 ### `cmux-fresh`
 
