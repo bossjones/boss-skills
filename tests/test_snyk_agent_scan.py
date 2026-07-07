@@ -33,11 +33,31 @@ FIXTURES = REPO_ROOT / "tests" / "fixtures" / "snyk-agent-scan"
 
 
 def _load(path: Path) -> ModuleType:
+    """Load a script by path, isolating any top-level ``utils`` it pulls in.
+
+    ``scripts/snyk-agent-scan.py`` inserts ``hooks/`` onto ``sys.path`` and imports
+    ``utils.config`` / ``utils.snyk``, which caches a top-level ``utils`` namespace
+    package (``hooks/utils`` has no ``__init__.py``) in ``sys.modules`` for the rest
+    of the pytest session. Left in place, that cached ``utils`` shadows other test
+    suites with their own top-level ``utils`` module (e.g. twitter-to-reel) — see
+    ``plugins/boss-dev/agent-harness/hooks/tests/hook_loader.py`` for the same fix
+    applied to hook-module loading.
+    """
     spec = importlib.util.spec_from_file_location(path.stem.replace("-", "_"), path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+
+    saved_path = list(sys.path)
+    pre_existing = set(sys.modules)
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path[:] = saved_path
+        for mod_name in set(sys.modules) - pre_existing:
+            if mod_name == "utils" or mod_name.startswith("utils."):
+                del sys.modules[mod_name]
+
     return module
 
 
