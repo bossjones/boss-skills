@@ -34,6 +34,22 @@ Two distinct things live in the source repo:
 - **Skip `context_bar.py`.** agent-harness already ships `status_line.py … v10`, and v10 renders
   a richer context-window bar + cost. The generic cmux bar is redundant.
 
+**Completeness audit (re-verified against source before implementing):**
+- The 4 vendored references are **self-contained** — no dangling links to scripts/assets we'd
+  omit. Safe to copy verbatim.
+- `ai_docs/cmux-skills/cmux/agents/openai.yaml` is **intentionally not vendored** — it's a
+  Codex/OpenAI harness *interface manifest* (display_name/short_description/default_prompt),
+  irrelevant to Claude Code, which reads SKILL.md frontmatter.
+- **The two `cmux` SKILL.md files are complementary, not duplicates.** We port the *orchestration*
+  one (`.claude/skills/cmux/SKILL.md`). The vendor *topology* one (`ai_docs/cmux-skills/cmux/SKILL.md`,
+  "cmux Core Control") carries two things the ported skill otherwise **lacks**, grafted into the
+  ported SKILL.md rather than left out: (1) **settings/reload discipline** — `cmux docs settings`,
+  back up `cmux.json` before editing, `cmux reload-config` (reloads both cmux.json + Ghostty
+  config), and the cmux.json-vs-Ghostty split; load-bearing because our Prerequisites already
+  instruct editing `cmux.json` for `socketControlMode`. (2) **topology-routing verbs** —
+  `move-surface`, `reorder-surface`, `split-off`, `surface-health`, `--id-format` — already
+  covered by the 4 references, surfaced via a Deep-Dive References table.
+
 **Outcome:** agent-harness gains an `agent-harness:cmux` skill (drive cmux from natural language)
 and an `agent-harness:cmux-team` skill + slash commands (`/cmux-spawn-team`, `/cmux-did-spawn`,
 `/cmux-fresh`) that boot and orient a configurable multi-agent terminal team — with no flotion

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add cmux driver skill + generalized cmux-team orchestration skill and /cmux-fresh, /cmux-spawn-team, /cmux-did-spawn commands to agent-harness (v0.21.0) by @bossjones
 - Add 18 Matt Pocock skills and reference docs by @bossjones
 - Backport fixes + cosmetic/structural alignment (v0.4.1) by @bossjones
 - Add /autobuild command (v0.3.0) by @bossjones

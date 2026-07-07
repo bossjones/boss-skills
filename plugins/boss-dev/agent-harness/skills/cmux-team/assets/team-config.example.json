@@ -1,0 +1,52 @@
+{
+  "_comment": "Team config for the cmux-team skill. spawn_team.py resolves a config in this order: --config PATH, then ./.cmux/team.json, then this bundled example. Copy it to ./.cmux/team.json and fill in real model IDs to customize. Placeholders (<...>) and __TOKENS__ are substituted at spawn time: __FEATURE__ = the feature slug, __APP_PATH__ = app_path below, __STACK__ = stack below, __SENTINEL__ = completion_sentinel below. The FIRST role is the lead (left half of the window); the rest fill a balanced grid on the right.",
+  "cwd": null,
+  "env_file": ".env",
+  "completion_sentinel": "TASK-DONE",
+  "app_path": "<path/to/your/app>",
+  "stack": "<describe your stack, e.g. FastAPI backend + Vue 3 frontend>",
+  "workspace_color": "Purple",
+  "status": { "color": "#8E44AD", "icon": "person.3.fill" },
+  "orchestrator": {
+    "cc": { "model": "opus[1m]" },
+    "pi": { "model": "<your-orchestrator-model>" }
+  },
+  "roles": [
+    {
+      "name": "lead",
+      "role": "lead",
+      "launcher": "pi",
+      "model": "<your-lead-model>",
+      "prompt": "roles/lead.md",
+      "kickoff": "You are the LEAD of team __FEATURE__ (app: __APP_PATH__). Your workers are the sibling panes in this window: plan, build-be, build-fe, test. Find their surface refs: run cmux identify --json for your workspace, then cmux list-pane-surfaces --workspace <ws>. Drive each worker with cmux send + send-key enter, and wait on cmux notification events for '__SENTINEL__: '. Wait for the orchestrator to hand you a feature, then plan -> build -> test."
+    },
+    {
+      "name": "plan",
+      "launcher": "pi",
+      "model": "<your-planner-model>",
+      "prompt": "roles/plan.md",
+      "kickoff": "You are the plan worker on team __FEATURE__. Reply with one line: ready: plan  then wait for the lead to assign work."
+    },
+    {
+      "name": "build-be",
+      "launcher": "pi",
+      "model": "<your-builder-model>",
+      "prompt": "roles/build-be.md",
+      "kickoff": "You are the build-be worker on team __FEATURE__. Reply with one line: ready: build-be  then wait for the lead to assign work."
+    },
+    {
+      "name": "build-fe",
+      "launcher": "pi",
+      "model": "<your-builder-model>",
+      "prompt": "roles/build-fe.md",
+      "kickoff": "You are the build-fe worker on team __FEATURE__. Reply with one line: ready: build-fe  then wait for the lead to assign work."
+    },
+    {
+      "name": "test",
+      "launcher": "pi",
+      "model": "<your-builder-model>",
+      "prompt": "roles/test.md",
+      "kickoff": "You are the test worker on team __FEATURE__. Reply with one line: ready: test  then wait for the lead to assign work."
+    }
+  ]
+}

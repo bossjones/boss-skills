@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.20.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.21.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
@@ -19,8 +19,8 @@ of lifecycle hooks, output styles, and status lines.
 
 | Component | Count | Auto-active on install? | Invoked as |
 | --- | --- | --- | --- |
-| [Skills](#skills) | 15 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
-| [Commands](#commands) | 13 | ✅ Yes | `/agent-harness:<name>` |
+| [Skills](#skills) | 17 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
+| [Commands](#commands) | 16 | ✅ Yes | `/agent-harness:<name>` |
 | [Agents](#agents) | 6 | ✅ Yes | Dispatched via the `Agent`/`Task` tool |
 | [Output styles](#output-styles) | 8 | ✅ Yes | `/output-style` |
 | [Hooks](#hooks) | 13 | ⚙️ Manual wiring | Lifecycle events (see [Manual wiring](#manual-wiring)) |
@@ -81,7 +81,7 @@ setup.
 
 ## Commands
 
-Twelve slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
+Sixteen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
 `/agent-harness:<name>`.
 
 | Command | Arguments | Purpose |
@@ -367,7 +367,7 @@ that points at the script with `${CLAUDE_PLUGIN_ROOT}`:
 
 ## Status
 
-Plugin version **v0.16.0**. Skills, commands, agents, and output styles are auto-discovered and
+Plugin version **v0.21.0**. Skills, commands, agents, and output styles are auto-discovered and
 active on `/plugin install`. The hook scripts and status lines ship as a library and require manual
 wiring — a `hooks/hooks.json` entry for hooks, a `statusLine` setting for status lines — before they
 take effect.
