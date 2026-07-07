@@ -179,7 +179,7 @@ end-to-end smoke path + a CI-safe `--dry-run`.
 - CLI: `spawn_team.py <cc|pi> <feature-slug> [--config PATH] [--cwd DIR] [--orch-pi-model MODEL] [--dry-run]`.
 
 ### 4. Generalize the layout + role assets
-- `assets/team-layout.template.json`: generic version of `fs-team.layout.json` with placeholder tokens (`__CWD__`, per-role `__MODEL__`/`__PROMPT__`/`__NAME__`), OR omit if the script generates layout from config (pick one; script-generation preferred — fewer moving parts).
+- **No `team-layout.template.json` asset.** `spawn_team.py` generates the cmux `--layout` from the team-config at runtime — fewer moving parts than maintaining a static template with placeholder tokens (`__CWD__`, per-role `__MODEL__`/`__PROMPT__`/`__NAME__`). The generalized form of `fs-team.layout.json` lives only as the script's generation logic, not as a checked-in template file.
 - `assets/roles/{lead,plan,build-be,build-fe,test}.md`: copy the source role prompts, then strip flotion — parameterize app path + stack (drive from config, e.g. "app: `<APP_PATH>`", "stack: `<STACK>`"); replace `FLOTION-DONE:` with the configurable `<SENTINEL>` (default `TASK-DONE:`); reconcile lead's notification wait to match on `workspace_id` per the driver SKILL.md (not `surface_ref`). Keep the generic patterns: one-line `send` + `send-key enter`, completion contract, push-over-poll, lane discipline.
 - `assets/team-config.example.json`: a fully-documented example wiring the 5 roles with **placeholder** model IDs (e.g. `"<your-orchestrator-model>"`) and `TASK-DONE` sentinel.
 
@@ -193,7 +193,7 @@ end-to-end smoke path + a CI-safe `--dry-run`.
 - `commands/cmux-did-spawn.md`: generalized orient command — remove flotion, use `<SENTINEL>`, reference the `cmux-team` skill.
 
 ### 7. Docs + version bump
-- Bump `plugin.json` `version` **0.20.0 → 0.21.0** and the matching `marketplace.json` agent-harness entry to `0.21.0` (parity; new skills+commands ⇒ minor).
+- **Version bump — don't hand-edit.** Per `CONTRIBUTING.md`, let the `version-bump-reviewer` skill (auto-triggered by the plugin-component hook on commit) bump `plugin.json` `version` **0.20.0 → 0.21.0** and the matching `marketplace.json` agent-harness entry to `0.21.0` (parity; new skills+commands ⇒ minor). Do not set these versions by hand.
 - Add `CHANGELOG.md` `### Added` lines under `## [Unreleased]` (phrasing `… (v0.21.0) by @bossjones`): the `cmux` driver skill, the `cmux-team` skill, and the 3 commands.
 - Update the plugin's `docs/skills.md`, `docs/commands.md` (and README skill/command lists) to include the new entries, matching existing formatting.
 
@@ -211,7 +211,7 @@ end-to-end smoke path + a CI-safe `--dry-run`.
 - `commands/cmux-fresh.md`, `commands/cmux-spawn-team.md`, `commands/cmux-did-spawn.md` are discoverable as `agent-harness:*`.
 - **No `flotion`/`FLOTION-DONE`/hardcoded `glm-5.2`/`minimax` strings** anywhere in the new files (models are placeholders/config).
 - `context_bar.py` and `prime.md` are NOT added.
-- `plugin.json` and `marketplace.json` both at `0.21.0`; `CHANGELOG.md` updated; plugin docs list the new skills/commands.
+- `plugin.json` and `marketplace.json` both at `0.21.0` — produced by the `version-bump-reviewer` skill/hook on commit, not hand-edited; `CHANGELOG.md` updated; plugin docs list the new skills/commands.
 - `make lint` and `make test` pass; unicode-hygiene scan clean.
 
 ## Validation Commands
