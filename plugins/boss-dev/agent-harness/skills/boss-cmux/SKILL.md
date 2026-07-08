@@ -28,7 +28,16 @@ The skill triggers anywhere, but only functions on a Mac with cmux installed.
 - **Socket control (orchestrator outside cmux):** set `automation.socketControlMode`
   to `allowAll` (or password) in `~/.config/cmux/cmux.json` so an orchestrator running
   in a plain terminal can drive the socket. The socket lives at
-  `~/.local/state/cmux/cmux.sock` (`CMUX_SOCKET_PATH`).
+  `~/.local/state/cmux/cmux.sock` (`CMUX_SOCKET_PATH`). Enabling this is a genuine
+  security surface (any local process can then drive the app) — confirm with the
+  user before flipping it, the way you would for any other risky config change.
+  - **Reload bootstrap problem:** if the app is currently `cmuxOnly` and you edit the
+    file to `allowAll`, `cmux reload-config` (and every other socket command) still
+    fails with `Failed to write to socket (Broken pipe, errno 32)` until the running
+    app re-reads the file — but `reload-config` itself needs socket access, so the
+    CLI can't bootstrap its own permission change. There's no signal-based or
+    file-watch reload from outside; ask the user to reload manually inside the app
+    (⌘⇧, / "reload configuration") or quit and reopen cmux, then retry.
 - **Editing cmux settings safely:** `cmux docs settings` prints the schema/paths.
   Before editing `~/.config/cmux/cmux.json`, copy it to a timestamped `.bak` beside it
   so the user can revert; after editing, run `cmux reload-config` (reloads **both**
