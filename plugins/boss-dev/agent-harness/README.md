@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.22.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.23.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
@@ -368,7 +368,7 @@ that points at the script with `${CLAUDE_PLUGIN_ROOT}`:
 
 ## Status
 
-Plugin version **v0.22.0**. Skills, commands, agents, and output styles are auto-discovered and
+Plugin version **v0.23.0**. Skills, commands, agents, and output styles are auto-discovered and
 active on `/plugin install`. The hook scripts and status lines ship as a library and require manual
 wiring — a `hooks/hooks.json` entry for hooks, a `statusLine` setting for status lines — before they
 take effect.

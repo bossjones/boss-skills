@@ -1,11 +1,11 @@
 ---
-name: cmux-team
+name: boss-cmux-team
 description: Spawn, orient, and drive a multi-agent terminal team in cmux from natural language. Use when a prompt asks you to boot a team of agents (lead + workers) as a cmux workspace, stand up a "full-stack team" / "agent fleet", orchestrate several terminal agents on one feature, or attach to and drive a team that was just spawned. Roles, models, app, and completion sentinel come from a team-config JSON.
 argument-hint: "[team-name] [feature description...]"
 allowed-tools: Bash
 ---
 
-# cmux-team
+# boss-cmux-team
 
 ## Purpose
 
@@ -15,13 +15,13 @@ workspace = one feature. A **lead** agent (left half of the window) drives its *
 models, launcher, role prompts, the app path, and the completion sentinel — is data in a
 **team-config JSON**, not code, so the same machinery works for any team shape.
 
-This skill builds on the `agent-harness:cmux` driver skill (the verb-level cmux control
+This skill builds on the `agent-harness:boss-cmux` driver skill (the verb-level cmux control
 loop, credential injection, and notification-wait). Read that skill for the primitives;
 this one is the team layer on top.
 
 ## Prerequisites
 
-Same as `agent-harness:cmux` (macOS + cmux installed, `cmux hooks setup`,
+Same as `agent-harness:boss-cmux` (macOS + cmux installed, `cmux hooks setup`,
 `automation.socketControlMode: allowAll` for an orchestrator outside cmux). Agents launch
 authenticated via `--env-file .env` — assume the keys are set; never read their values.
 
@@ -49,10 +49,10 @@ orchestrator, already oriented:
 
 ```bash
 # preview the plan without touching cmux
-uv run "${CLAUDE_PLUGIN_ROOT}"/skills/cmux-team/scripts/spawn_team.py cc <feature-slug> --dry-run
+uv run "${CLAUDE_PLUGIN_ROOT}"/skills/boss-cmux-team/scripts/spawn_team.py cc <feature-slug> --dry-run
 
 # actually spawn (cc = Claude Code orchestrator; pi = pi orchestrator)
-uv run "${CLAUDE_PLUGIN_ROOT}"/skills/cmux-team/scripts/spawn_team.py cc <feature-slug> --config ./.cmux/team.json
+uv run "${CLAUDE_PLUGIN_ROOT}"/skills/boss-cmux-team/scripts/spawn_team.py cc <feature-slug> --config ./.cmux/team.json
 ```
 
 The script reuses the open cmux window (creating one only if none exists), generates the
@@ -64,7 +64,7 @@ then `exec`s the orchestrator with `/cmux-did-spawn` so it takes over already or
 If you're orchestrating in natural language without the script, use the cmux verbs directly
 (`new-window` only if none open, `workspace create --env-file .env --json`, `new-split`,
 `rename-tab`, `workspace-action`, `set-status`, `send` + `send-key enter`, `read-screen`).
-See the `agent-harness:cmux` skill for the control loop and the `/cmux-spawn-team` command
+See the `agent-harness:boss-cmux` skill for the control loop and the `/cmux-spawn-team` command
 for a step-by-step recipe.
 
 ## Orient onto an existing team (`/cmux-did-spawn`)
@@ -90,7 +90,7 @@ team booted (workers should reply `ready: <role>`), then hand it the feature.
 Every worker ends a finished task by printing one line: `<SENTINEL>: <role> | <summary>`
 (default sentinel `TASK-DONE`). The lead **waits on cmux notification events** (matching on
 `workspace_id`, since `surface_id` is often null) rather than busy-polling, then does a
-single `read-screen` to capture the summary. See `agent-harness:cmux` →
+single `read-screen` to capture the summary. See `agent-harness:boss-cmux` →
 **Wait for agents via notification events**.
 
 ## Best practices

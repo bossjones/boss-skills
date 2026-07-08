@@ -29,8 +29,8 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 - [Type checking](#type-checking)
   - [`pyrefly-typing`](#pyrefly-typing)
 - [cmux orchestration](#cmux-orchestration)
-  - [`cmux`](#cmux)
-  - [`cmux-team`](#cmux-team)
+  - [`boss-cmux`](#boss-cmux)
+  - [`boss-cmux-team`](#boss-cmux-team)
 - [Security review](#security-review)
   - [`boss-security-review`](#boss-security-review)
 - [Dependencies](#dependencies)
@@ -54,8 +54,8 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 | [`setup-second-brain`](#setup-second-brain) | explicit | Install/configure obsidian-wiki + optional QMD semantic search | `uv`, `node`≥22 for QMD |
 | [`pyrefly-typing`](#pyrefly-typing) | explicit | Adopt Pyrefly into a *target* repo as a non-blocking typing feedback loop | `uv` |
 | [`boss-security-review`](#boss-security-review) | model-invoked | Security-review changed code (or a path/whole repo) → severity-graded report | `git` |
-| [`cmux`](#cmux) | model-invoked | Drive cmux windows/workspaces/panes/surfaces from natural language | cmux (macOS) |
-| [`cmux-team`](#cmux-team) | model-invoked | Spawn/orient/drive a config-driven multi-agent team in cmux | `uv`, cmux (macOS) |
+| [`boss-cmux`](#boss-cmux) | model-invoked | Drive cmux windows/workspaces/panes/surfaces from natural language | cmux (macOS) |
+| [`boss-cmux-team`](#boss-cmux-team) | model-invoked | Spawn/orient/drive a config-driven multi-agent team in cmux | `uv`, cmux (macOS) |
 
 > **Adapted from:** the PR-review skills are adapted from
 > [mlflow](https://github.com/mlflow/mlflow) (Apache-2.0); the worktree and release-notes skills are
@@ -438,11 +438,11 @@ from [learning-cmux-with-agents](https://github.com/disler/learning-cmux-with-ag
 [`specs/cmux.md`](../../../../specs/cmux.md)). Both skills trigger anywhere but only function on macOS
 with cmux installed. New to cmux? Start with the hands-on [cmux tutorial](./cmux-tutorial.md).
 
-### `cmux`
+### `boss-cmux`
 
 > Drive cmux windows/workspaces/panes/surfaces and the agents inside them from natural language.
 
-- **Invocation:** model-invoked (or prefix a prompt with `/cmux`). Allowed tools: `Bash`.
+- **Invocation:** model-invoked (or prefix a prompt with `/boss-cmux`). Allowed tools: `Bash`.
 - **When to use:** Opening, inspecting, prompting, reading, or tearing down cmux surfaces / agent
   sessions; deterministic multi-pane placement and routing.
 - **What it does:** Documents the cmux control loop (`send` types, `send-key enter` submits,
@@ -452,12 +452,12 @@ with cmux installed. New to cmux? Start with the hands-on [cmux tutorial](./cmux
   Ships four topology references (handles, windows/workspaces, panes/surfaces, flash & health).
 - **Prerequisites:** `brew install --cask cmux` (macOS 14+), `cmux hooks setup`,
   `automation.socketControlMode: allowAll`.
-- **Source:** [`skills/cmux/SKILL.md`](../skills/cmux/SKILL.md) · references under
-  [`skills/cmux/references/`](../skills/cmux/references/)
+- **Source:** [`skills/boss-cmux/SKILL.md`](../skills/boss-cmux/SKILL.md) · references under
+  [`skills/boss-cmux/references/`](../skills/boss-cmux/references/)
 
 ---
 
-### `cmux-team`
+### `boss-cmux-team`
 
 > Spawn, orient, and drive a config-driven multi-agent team (lead + workers) as a cmux workspace.
 
@@ -472,12 +472,12 @@ with cmux installed. New to cmux? Start with the hands-on [cmux tutorial](./cmux
 - **Example:**
 
   ```bash
-  uv run "${CLAUDE_PLUGIN_ROOT}/skills/cmux-team/scripts/spawn_team.py" cc my-feature --dry-run
+  uv run "${CLAUDE_PLUGIN_ROOT}/skills/boss-cmux-team/scripts/spawn_team.py" cc my-feature --dry-run
   ```
 
-- **Source:** [`skills/cmux-team/SKILL.md`](../skills/cmux-team/SKILL.md) · config
-  [`assets/team-config.example.json`](../skills/cmux-team/assets/team-config.example.json), role
-  templates under [`assets/roles/`](../skills/cmux-team/assets/roles/)
+- **Source:** [`skills/boss-cmux-team/SKILL.md`](../skills/boss-cmux-team/SKILL.md) · config
+  [`assets/team-config.example.json`](../skills/boss-cmux-team/assets/team-config.example.json), role
+  templates under [`assets/roles/`](../skills/boss-cmux-team/assets/roles/)
 
 ---
 

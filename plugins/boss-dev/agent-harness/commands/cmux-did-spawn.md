@@ -12,7 +12,7 @@ A team was **already booted** as a workspace in a cmux window by `spawn_team.py`
 other teams** — each team is its own workspace, so locate *this* team's workspace by name,
 not by position. Your job is to take command of it: read the spawn file, find the window and
 the team's workspace, confirm the agents are up, and stand ready to drive the **lead**. You
-are the orchestrator and you run in a terminal, outside cmux. See the `agent-harness:cmux-team`
+are the orchestrator and you run in a terminal, outside cmux. See the `agent-harness:boss-cmux-team`
 skill for the team model.
 
 ## Variables

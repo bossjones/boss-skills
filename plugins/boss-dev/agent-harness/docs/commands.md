@@ -384,8 +384,8 @@ fails.
 ## cmux orchestration
 
 Drive [cmux](https://cmux.com) and orchestrate a team of terminal agents on top of it. macOS-only
-(Homebrew cask `manaflow-ai/cmux`). See the [`cmux`](./skills.md#cmux) and
-[`cmux-team`](./skills.md#cmux-team) skills for the underlying model. For a hands-on, step-by-step
+(Homebrew cask `manaflow-ai/cmux`). See the [`boss-cmux`](./skills.md#boss-cmux) and
+[`boss-cmux-team`](./skills.md#boss-cmux-team) skills for the underlying model. For a hands-on, step-by-step
 walkthrough, see the [cmux tutorial](./cmux-tutorial.md).
 
 ### `cmux-fresh`
@@ -418,7 +418,7 @@ walkthrough, see the [cmux tutorial](./cmux-tutorial.md).
   ```
 
 - **Source:** [`commands/cmux-spawn-team.md`](../commands/cmux-spawn-team.md) · uses the
-  [`cmux-team`](./skills.md#cmux-team) skill
+  [`boss-cmux-team`](./skills.md#boss-cmux-team) skill
 
 ---
 

@@ -1,4 +1,4 @@
-"""Pytest configuration for cmux-team script tests."""
+"""Pytest configuration for boss-cmux-team script tests."""
 
 from __future__ import annotations
 

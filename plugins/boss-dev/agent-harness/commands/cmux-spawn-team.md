@@ -12,7 +12,7 @@ You are an orchestrator running in a terminal (not inside cmux). Boot a fresh te
 **One team = one workspace = one feature**, and teams **share a window** — reuse the window
 that's already open and only create a new one if cmux has none. Roles, models, role prompts,
 the app, and the completion sentinel all come from the **team config** (see the
-`agent-harness:cmux-team` skill) — there is nothing app-specific hardcoded here.
+`agent-harness:boss-cmux-team` skill) — there is nothing app-specific hardcoded here.
 
 ## Variables
 
@@ -27,17 +27,17 @@ already oriented via `/cmux-did-spawn`:
 
 ```bash
 # preview without touching cmux
-uv run "${CLAUDE_PLUGIN_ROOT}"/skills/cmux-team/scripts/spawn_team.py cc "$TEAM" --dry-run
+uv run "${CLAUDE_PLUGIN_ROOT}"/skills/boss-cmux-team/scripts/spawn_team.py cc "$TEAM" --dry-run
 
 # spawn for real (cc = Claude Code orchestrator, pi = pi orchestrator)
-uv run "${CLAUDE_PLUGIN_ROOT}"/skills/cmux-team/scripts/spawn_team.py cc "$TEAM" --config ./.cmux/team.json
+uv run "${CLAUDE_PLUGIN_ROOT}"/skills/boss-cmux-team/scripts/spawn_team.py cc "$TEAM" --config ./.cmux/team.json
 ```
 
 ## Instructions (driving cmux yourself)
 
 If you prefer to orchestrate by hand instead of the script:
 
-- **Learn the verbs first.** Run `cmux --help` (and consult the `agent-harness:cmux` skill).
+- **Learn the verbs first.** Run `cmux --help` (and consult the `agent-harness:boss-cmux` skill).
   The whole boot is just these verbs: `new-window`, `workspace create`, `new-split <dir>`,
   `rename-tab`, `workspace-action`, `set-status`, `send`, `send-key`, `read-screen`,
   `workspace close`.
@@ -51,7 +51,7 @@ If you prefer to orchestrate by hand instead of the script:
   these through — never guess refs.
 - Launch each agent by typing its launch line **into its pane** (via `cmux send` +
   `send-key enter`), not from your own shell. Read each role's model and prompt from the
-  team config; read each role prompt from the `cmux-team` skill's `assets/roles/`.
+  team config; read each role prompt from the `boss-cmux-team` skill's `assets/roles/`.
 - **Reuse the open window; one team = one workspace.** Only run `new-window` when cmux has
   no window at all. Multiple teams coexist as sibling workspaces in one window.
 - The **lead** drives the workers; you drive only the lead. Keep every agent observable —

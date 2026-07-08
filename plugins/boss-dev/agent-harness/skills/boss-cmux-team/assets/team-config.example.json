@@ -1,5 +1,5 @@
 {
-  "_comment": "Team config for the cmux-team skill. spawn_team.py resolves a config in this order: --config PATH, then ./.cmux/team.json, then this bundled example. Copy it to ./.cmux/team.json and fill in real model IDs to customize. Placeholders (<...>) and __TOKENS__ are substituted at spawn time: __FEATURE__ = the feature slug, __APP_PATH__ = app_path below, __STACK__ = stack below, __SENTINEL__ = completion_sentinel below. The FIRST role is the lead (left half of the window); the rest fill a balanced grid on the right.",
+  "_comment": "Team config for the boss-cmux-team skill. spawn_team.py resolves a config in this order: --config PATH, then ./.cmux/team.json, then this bundled example. Copy it to ./.cmux/team.json and fill in real model IDs to customize. Placeholders (<...>) and __TOKENS__ are substituted at spawn time: __FEATURE__ = the feature slug, __APP_PATH__ = app_path below, __STACK__ = stack below, __SENTINEL__ = completion_sentinel below. The FIRST role is the lead (left half of the window); the rest fill a balanced grid on the right.",
   "cwd": null,
   "env_file": ".env",
   "completion_sentinel": "TASK-DONE",

@@ -1,4 +1,4 @@
-"""Tests for the cmux-team spawn_team.py generalized spawner.
+"""Tests for the boss-cmux-team spawn_team.py generalized spawner.
 
 Pure helpers are imported directly (see conftest.py sys.path shim); the CLI --dry-run
 path is exercised via subprocess since importlib loading cannot assert CLI semantics.

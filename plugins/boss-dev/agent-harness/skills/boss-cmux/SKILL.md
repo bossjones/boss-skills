@@ -1,11 +1,11 @@
 ---
-name: cmux
-description: Drive cmux — the terminal multiplexer / agent-surface control CLI — from natural language. Use this whenever a prompt asks you to open, inspect, prompt, read, or tear down cmux windows, workspaces, panes, surfaces, or agent sessions. Prefix orchestration prompts with /cmux.
+name: boss-cmux
+description: Drive cmux — the terminal multiplexer / agent-surface control CLI — from natural language. Use this whenever a prompt asks you to open, inspect, prompt, read, or tear down cmux windows, workspaces, panes, surfaces, or agent sessions. Prefix orchestration prompts with /boss-cmux.
 argument-hint: "[what to do in cmux]"
 allowed-tools: Bash
 ---
 
-# cmux
+# boss-cmux
 
 ## Purpose
 
@@ -41,7 +41,7 @@ Only the repo-local skill is required to *drive* cmux. For the deeper published 
 (browser automation, settings, diagnostics, markdown viewer, etc.) install the vendor
 skills globally: `npx skills add manaflow-ai/cmux -g -y`.
 
-> This skill installs as `agent-harness:cmux`. If you also `npx skills add` the vendor
+> This skill installs as `agent-harness:boss-cmux`. If you also `npx skills add` the vendor
 > `cmux` skill globally, the namespaces keep them distinct.
 
 ## Instructions
@@ -260,7 +260,7 @@ confirm the exact spelling with `--help` (which is authoritative over either for
 | [references/trigger-flash-and-health.md](references/trigger-flash-and-health.md) | Flash cue and surface health checks |
 
 For team orchestration (spawn/orient/drive a multi-agent team), see the
-`agent-harness:cmux-team` skill.
+`agent-harness:boss-cmux-team` skill.
 
 ## Report Format
 

@@ -1,8 +1,8 @@
 # cmux Tutorial
 
 A hands-on, progressive walkthrough of the two cmux skills in `agent-harness`:
-[`cmux`](../skills/cmux/SKILL.md) (drive one terminal surface at a time) and
-[`cmux-team`](../skills/cmux-team/SKILL.md) (spawn and orchestrate a whole fleet of
+[`boss-cmux`](../skills/boss-cmux/SKILL.md) (drive one terminal surface at a time) and
+[`boss-cmux-team`](../skills/boss-cmux-team/SKILL.md) (spawn and orchestrate a whole fleet of
 terminal agents on top of it). Read this top to bottom the first time — each section
 builds on commands from the one before it. After that, use it as a lookup.
 
@@ -27,7 +27,7 @@ terminal).
 4. [The control loop](#4-the-control-loop)
 5. [Waiting on agents the right way](#5-waiting-on-agents-the-right-way)
 6. [Launching agents in panes](#6-launching-agents-in-panes)
-7. [Scaling to a team (`cmux-team`)](#7-scaling-to-a-team-cmux-team)
+7. [Scaling to a team (`boss-cmux-team`)](#7-scaling-to-a-team-boss-cmux-team)
 8. [Spawning a team](#8-spawning-a-team)
 9. [Cleanup and next steps](#9-cleanup-and-next-steps)
 
@@ -82,7 +82,7 @@ hook entry needed for it.
 ### Socket control from outside cmux
 
 If you want to drive cmux's socket from an orchestrator running in a *plain* terminal
-(not itself inside cmux — this is exactly what `cmux-team`'s spawner does), the socket
+(not itself inside cmux — this is exactly what `boss-cmux-team`'s spawner does), the socket
 needs to allow it. Set `automation.socketControlMode` to `allowAll` (or `password`) in
 `~/.config/cmux/cmux.json`. The socket itself lives at `~/.local/state/cmux/cmux.sock`
 (override with the `CMUX_SOCKET_PATH` env var).
@@ -109,7 +109,7 @@ terminal rendering (font, cursor, theme, scrollback, `background-opacity`,
 
 ### Deeper vendor skill set (optional)
 
-The `agent-harness:cmux` skill is everything you need to *drive* cmux. For the fuller
+The `agent-harness:boss-cmux` skill is everything you need to *drive* cmux. For the fuller
 published skill set (browser automation, settings, diagnostics, a markdown viewer, and
 more), install the vendor skills globally:
 
@@ -118,7 +118,7 @@ $ npx skills add manaflow-ai/cmux -g -y
 ```
 
 Namespacing keeps them distinct — this tutorial's skill installs as
-`agent-harness:cmux`, so there's no collision even if you install the vendor `cmux`
+`agent-harness:boss-cmux`, so there's no collision even if you install the vendor `cmux`
 skill too.
 
 ---
@@ -202,7 +202,7 @@ A few things worth knowing about this command:
   `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, etc.
 - Pair it with `--layout <compact-json>` to boot a whole multi-pane team declaratively
   in one call (each pane's `command` auto-launches its agent) — this is exactly what
-  `cmux-team`'s spawner does in [section 8](#8-spawning-a-team).
+  `boss-cmux-team`'s spawner does in [section 8](#8-spawning-a-team).
 - **Don't inject over a working login.** If an agent is already authenticated (e.g.
   Claude Code), don't push a placeholder key over it via `--env-file`; scope credential
   injection to the agents that actually need it.
@@ -386,9 +386,9 @@ prompting. This is a per-launch flag — it doesn't change global Claude setting
 
 ---
 
-## 7. Scaling to a team (`cmux-team`)
+## 7. Scaling to a team (`boss-cmux-team`)
 
-Everything so far drives one surface. `cmux-team` composes that same primitive loop
+Everything so far drives one surface. `boss-cmux-team` composes that same primitive loop
 into a whole fleet: **one team = one cmux workspace = one feature.** A **lead** agent
 runs in the left half of the window; its **workers** fill a balanced grid on the right.
 You drive only the lead — it dispatches its own workers using exactly the `send` /
@@ -409,7 +409,7 @@ The same spawner works for any team shape.
 Copy the example to `./.cmux/team.json` and fill in real model IDs to customize:
 
 ```bash
-$ cp "${CLAUDE_PLUGIN_ROOT}"/skills/cmux-team/assets/team-config.example.json ./.cmux/team.json
+$ cp "${CLAUDE_PLUGIN_ROOT}"/skills/boss-cmux-team/assets/team-config.example.json ./.cmux/team.json
 ```
 
 ### What's in the config
@@ -444,7 +444,7 @@ resolved config, the generated layout, and the cmux commands it *would* run, the
 0 without touching cmux (CI-safe):
 
 ```bash
-$ uv run "${CLAUDE_PLUGIN_ROOT}"/skills/cmux-team/scripts/spawn_team.py cc <feature-slug> --dry-run
+$ uv run "${CLAUDE_PLUGIN_ROOT}"/skills/boss-cmux-team/scripts/spawn_team.py cc <feature-slug> --dry-run
 ```
 
 > **What you should see:** the resolved config path, the role list, the completion
@@ -455,7 +455,7 @@ $ uv run "${CLAUDE_PLUGIN_ROOT}"/skills/cmux-team/scripts/spawn_team.py cc <feat
 Once the plan looks right, spawn for real, pointing at your own config:
 
 ```bash
-$ uv run "${CLAUDE_PLUGIN_ROOT}"/skills/cmux-team/scripts/spawn_team.py cc <feature-slug> --config ./.cmux/team.json
+$ uv run "${CLAUDE_PLUGIN_ROOT}"/skills/boss-cmux-team/scripts/spawn_team.py cc <feature-slug> --config ./.cmux/team.json
 ```
 
 `cc` launches a Claude Code orchestrator; use `pi` instead for a `pi` orchestrator. The
@@ -542,16 +542,16 @@ a `.bak-*` file back over the original.
 
 ### Where to go next
 
-- [`../skills/cmux/SKILL.md`](../skills/cmux/SKILL.md) — the full driver skill this
+- [`../skills/boss-cmux/SKILL.md`](../skills/boss-cmux/SKILL.md) — the full driver skill this
   tutorial is based on, including the best-practices list and report format.
-- [`../skills/cmux-team/SKILL.md`](../skills/cmux-team/SKILL.md) — the full team skill,
+- [`../skills/boss-cmux-team/SKILL.md`](../skills/boss-cmux-team/SKILL.md) — the full team skill,
   including how to drive cmux by hand instead of the scripted fast path.
 - Deep-dive references for the topology-routing verbs beyond the control loop
   (`move-surface`, `reorder-surface`, `split-off`, `surface-health`, and more):
-  [`../skills/cmux/references/handles-and-identify.md`](../skills/cmux/references/handles-and-identify.md),
-  [`../skills/cmux/references/windows-workspaces.md`](../skills/cmux/references/windows-workspaces.md),
-  [`../skills/cmux/references/panes-surfaces.md`](../skills/cmux/references/panes-surfaces.md),
-  [`../skills/cmux/references/trigger-flash-and-health.md`](../skills/cmux/references/trigger-flash-and-health.md).
+  [`../skills/boss-cmux/references/handles-and-identify.md`](../skills/boss-cmux/references/handles-and-identify.md),
+  [`../skills/boss-cmux/references/windows-workspaces.md`](../skills/boss-cmux/references/windows-workspaces.md),
+  [`../skills/boss-cmux/references/panes-surfaces.md`](../skills/boss-cmux/references/panes-surfaces.md),
+  [`../skills/boss-cmux/references/trigger-flash-and-health.md`](../skills/boss-cmux/references/trigger-flash-and-health.md).
 - [`./skills.md#cmux-orchestration`](./skills.md#cmux-orchestration) and
   [`./commands.md#cmux-orchestration`](./commands.md#cmux-orchestration) — the
   reference-style entries for both skills and all three commands, if you want the

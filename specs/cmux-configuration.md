@@ -338,7 +338,7 @@ Execute these to validate the task is complete:
 - **Other agents (out of scope but noted):** `cmux hooks setup` (or `cmux hooks <agent> install`)
   wires the same notification bridge for codex/gemini/cursor/opencode/etc.; Claude Code needs none
   of this (auto-injected).
-- **Security:** `automation.socketControlMode` stays `"cmuxOnly"`. The `cmux` control skill and
+- **Security:** `automation.socketControlMode` stays `"cmuxOnly"`. The `boss-cmux` control skill and
   CLI automation may want a broader mode, but that widens the socket attack surface — treat it as
   a separate, deliberate change gated by the `cmux-socket-policy` skill.
 - **No new libraries.** JetBrainsMono Nerd Font is already installed; if the user later prefers
