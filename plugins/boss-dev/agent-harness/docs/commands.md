@@ -1,6 +1,6 @@
 # Commands Reference
 
-Thirteen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
+Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
 `/agent-harness:<name>`. Commands are **user-invoked** — you type them; Claude runs the workflow.
 
 > [!IMPORTANT]
@@ -37,6 +37,12 @@ Thirteen slash commands under `commands/*.md`, auto-discovered on `/plugin insta
 - [Status line & demos](#status-line--demos)
   - [`update_status_line`](#update_status_line)
   - [`sentient`](#sentient)
+- [Documentation](#documentation)
+  - [`docs-tutorial`](#docs-tutorial)
+- [cmux orchestration](#cmux-orchestration)
+  - [`cmux-fresh`](#cmux-fresh)
+  - [`cmux-spawn-team`](#cmux-spawn-team)
+  - [`cmux-did-spawn`](#cmux-did-spawn)
 
 ## At a glance
 
@@ -55,6 +61,10 @@ Thirteen slash commands under `commands/*.md`, auto-discovered on `/plugin insta
 | [`validate-unicode-hygiene`](#validate-unicode-hygiene) | `[paths...] [--strict] [--warn-only]` | Scan files for invisible / spoofed Unicode | `uv` |
 | [`update_status_line`](#update_status_line) | `<session_id> <key> <value>` | Write custom data into a session status line | — |
 | [`sentient`](#sentient) | — | Demo the `rm -rf` hook guard | — |
+| [`docs-tutorial`](#docs-tutorial) | `[what to document]` | Generate a tutorial/doc via the right tutorial-engineer subagent | — |
+| [`cmux-fresh`](#cmux-fresh) | — | Clear cmux's saved session so it boots blank | cmux (macOS) |
+| [`cmux-spawn-team`](#cmux-spawn-team) | `[team-name] [feature...] [--config PATH]` | Boot a multi-agent team as a cmux workspace | `uv`, cmux (macOS) |
+| [`cmux-did-spawn`](#cmux-did-spawn) | `<spawn-file path>` | Orient onto a just-spawned team and drive its lead | cmux (macOS) |
 
 ---
 
@@ -342,4 +352,84 @@ fails.
   ```
 
 - **Source:** [`commands/sentient.md`](../commands/sentient.md) · see [hooks.md](./hooks.md)
+
+---
+
+## Documentation
+
+### `docs-tutorial`
+
+> Generate a tutorial (or other doc) by delegating to `/documentation-generation:doc-generate`,
+> routing to the correct fully-qualified tutorial-engineer subagent.
+
+- **Arguments:** `[what to document]` — optional. With no prompt, defaults to a tutorial about the
+  features introduced on the current git branch.
+- **When to use:** You want a tutorial/guide written and keep forgetting the exact subagent name.
+  This command pins the two correct names and picks between them.
+- **What it does:** Resolves the topic (or the current-branch default), classifies the request as
+  documentation-related (→ `documentation-generation:documentation-generation-tutorial-engineer`) or
+  code-related (→ `code-documentation:code-documentation-tutorial-engineer`), asks clarifying
+  questions (existing material, new-vs-update, scope) before writing, then hands the work to
+  `/documentation-generation:doc-generate` naming the chosen subagent.
+- **Example:**
+
+  ```text
+  /agent-harness:docs-tutorial a tutorial on the cmux and cmux-team skills
+  ```
+
+- **Source:** [`commands/docs-tutorial.md`](../commands/docs-tutorial.md)
+
+---
+
+## cmux orchestration
+
+Drive [cmux](https://cmux.com) and orchestrate a team of terminal agents on top of it. macOS-only
+(Homebrew cask `manaflow-ai/cmux`). See the [`boss-cmux`](./skills.md#boss-cmux) and
+[`boss-cmux-team`](./skills.md#boss-cmux-team) skills for the underlying model. For a hands-on, step-by-step
+walkthrough, see the [cmux tutorial](./cmux-tutorial.md).
+
+### `cmux-fresh`
+
+> Clear cmux's persisted session so the next launch opens with fresh/blank windows.
+
+- **Arguments:** none. Allowed tools: `Bash`.
+- **When to use:** cmux restores a stale window/pane layout on launch and you want a clean slate.
+- **What it does:** Quits cmux (so the clear sticks), backs up each session file to a `.bak-<epoch>`,
+  then empties the top-level `windows` array in `session-com.cmuxterm.app.json` and its `-previous`
+  sibling. Only touches those two files.
+- **Source:** [`commands/cmux-fresh.md`](../commands/cmux-fresh.md)
+
+---
+
+### `cmux-spawn-team`
+
+> Boot a multi-agent team (lead + workers) as a new workspace in the cmux window.
+
+- **Arguments:** `[team-name] [feature description...] [--config PATH]`.
+- **When to use:** Standing up a team of terminal agents on one feature. Reuses the open window; one
+  team = one workspace = one feature.
+- **What it does:** Runs the generalized `spawn_team.py` fast path (or drives cmux by hand) to boot
+  every role's pane from a team-config JSON, label/color the workspace, and hand command to an
+  orchestrator oriented via `/cmux-did-spawn`. No app/models hardcoded — all from config.
+- **Example:**
+
+  ```text
+  /agent-harness:cmux-spawn-team api-team "add a health endpoint"
+  ```
+
+- **Source:** [`commands/cmux-spawn-team.md`](../commands/cmux-spawn-team.md) · uses the
+  [`boss-cmux-team`](./skills.md#boss-cmux-team) skill
+
+---
+
+### `cmux-did-spawn`
+
+> Orient onto a just-spawned team and stand ready to drive its lead.
+
+- **Arguments:** `<spawn-file path>` (`.team/<feature>.spawn.json`).
+- **When to use:** Right after `spawn_team.py` execs an orchestrator — take command of the team.
+- **What it does:** Reads the spawn file, locates the team's workspace by the stable window UUID +
+  workspace name, rediscovers current surface refs, confirms the workers reported ready, and drives
+  only the lead.
+- **Source:** [`commands/cmux-did-spawn.md`](../commands/cmux-did-spawn.md)
 </content>

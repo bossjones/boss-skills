@@ -28,6 +28,9 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
   - [`setup-second-brain`](#setup-second-brain)
 - [Type checking](#type-checking)
   - [`pyrefly-typing`](#pyrefly-typing)
+- [cmux orchestration](#cmux-orchestration)
+  - [`boss-cmux`](#boss-cmux)
+  - [`boss-cmux-team`](#boss-cmux-team)
 - [Security review](#security-review)
   - [`boss-security-review`](#boss-security-review)
 - [Dependencies](#dependencies)
@@ -51,6 +54,8 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 | [`setup-second-brain`](#setup-second-brain) | explicit | Install/configure obsidian-wiki + optional QMD semantic search | `uv`, `node`≥22 for QMD |
 | [`pyrefly-typing`](#pyrefly-typing) | explicit | Adopt Pyrefly into a *target* repo as a non-blocking typing feedback loop | `uv` |
 | [`boss-security-review`](#boss-security-review) | model-invoked | Security-review changed code (or a path/whole repo) → severity-graded report | `git` |
+| [`boss-cmux`](#boss-cmux) | model-invoked | Drive cmux windows/workspaces/panes/surfaces from natural language | cmux (macOS) |
+| [`boss-cmux-team`](#boss-cmux-team) | model-invoked | Spawn/orient/drive a config-driven multi-agent team in cmux | `uv`, cmux (macOS) |
 
 > **Adapted from:** the PR-review skills are adapted from
 > [mlflow](https://github.com/mlflow/mlflow) (Apache-2.0); the worktree and release-notes skills are
@@ -307,7 +312,9 @@ Walkthrough in [workflows.md](./workflows.md#worktree-lifecycle).
      (`~/.obsidian-wiki/config`, and `settings.json` for `mcp` transport) **without writing**.
   3. `apply` — backs up each file, writes the `QMD_*` variables (and, for `mcp` transport,
      merges an additive `qmd` MCP server), then re-parses `settings.json` to confirm validity.
+
   The installs and vault indexing themselves are run by the skill via Bash after confirmation.
+
 - **Example:**
 
   ```text
@@ -419,6 +426,58 @@ for the full `OBSIDIAN_*`/`QMD_*` variable tables.
   references [`rubric-map.md`](../skills/boss-security-review/references/rubric-map.md),
   [`severity-model.md`](../skills/boss-security-review/references/severity-model.md),
   [`fanout.md`](../skills/boss-security-review/references/fanout.md)
+
+---
+
+## cmux orchestration
+
+Drive [cmux](https://cmux.com) — a native macOS terminal (Homebrew cask `manaflow-ai/cmux`) that
+exposes a CLI + Unix socket so every window/workspace/pane/surface is a scriptable object — from
+natural language, and spawn/orchestrate a team of terminal agents on top of it. Ported and generalized
+from [learning-cmux-with-agents](https://github.com/disler/learning-cmux-with-agents) (see
+[`specs/cmux.md`](../../../../specs/cmux.md)). Both skills trigger anywhere but only function on macOS
+with cmux installed. New to cmux? Start with the hands-on [cmux tutorial](./cmux-tutorial.md).
+
+### `boss-cmux`
+
+> Drive cmux windows/workspaces/panes/surfaces and the agents inside them from natural language.
+
+- **Invocation:** model-invoked (or prefix a prompt with `/boss-cmux`). Allowed tools: `Bash`.
+- **When to use:** Opening, inspecting, prompting, reading, or tearing down cmux surfaces / agent
+  sessions; deterministic multi-pane placement and routing.
+- **What it does:** Documents the cmux control loop (`send` types, `send-key enter` submits,
+  `read-screen` observes, `close-surface` tears down), credential injection via `--env-file`, the
+  push-notification wait channel (`cmux events`, matched on `workspace_id`), launching pi/Codex/Claude
+  Code in bypass modes, and the settings/reload discipline (`cmux reload-config`, back up `cmux.json`).
+  Ships four topology references (handles, windows/workspaces, panes/surfaces, flash & health).
+- **Prerequisites:** `brew install --cask cmux` (macOS 14+), `cmux hooks setup`,
+  `automation.socketControlMode: allowAll`.
+- **Source:** [`skills/boss-cmux/SKILL.md`](../skills/boss-cmux/SKILL.md) · references under
+  [`skills/boss-cmux/references/`](../skills/boss-cmux/references/)
+
+---
+
+### `boss-cmux-team`
+
+> Spawn, orient, and drive a config-driven multi-agent team (lead + workers) as a cmux workspace.
+
+- **Invocation:** model-invoked. Allowed tools: `Bash`. Arguments: `[team-name] [feature description...]`.
+- **When to use:** Booting a team of terminal agents on one feature, standing up a "full-stack team" /
+  "agent fleet", or attaching to and driving a team that was just spawned.
+- **What it does:** A generalized spawner (`scripts/spawn_team.py`, PEP 723) boots every role's pane in
+  one `cmux workspace create --layout` call (lead left-half, workers in a balanced grid), from a
+  **team-config JSON** — roles, models, launcher, role prompts, app path, and completion sentinel are
+  all data (no hardcoded app/models). Supports `--dry-run` (CI-safe). Pairs with the `/cmux-spawn-team`
+  and `/cmux-did-spawn` commands.
+- **Example:**
+
+  ```bash
+  uv run "${CLAUDE_PLUGIN_ROOT}/skills/boss-cmux-team/scripts/spawn_team.py" cc my-feature --dry-run
+  ```
+
+- **Source:** [`skills/boss-cmux-team/SKILL.md`](../skills/boss-cmux-team/SKILL.md) · config
+  [`assets/team-config.example.json`](../skills/boss-cmux-team/assets/team-config.example.json), role
+  templates under [`assets/roles/`](../skills/boss-cmux-team/assets/roles/)
 
 ---
 
