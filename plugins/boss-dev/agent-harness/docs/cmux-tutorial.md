@@ -66,18 +66,29 @@ Later sections rely on cmux pushing a "turn finished" notification for each agen
 that up once:
 
 ```bash
-$ cmux hooks setup            # wires pi, codex, opencode, gemini, … to emit on turn-stop
+$ cmux hooks setup                    # installs for every supported agent found on PATH
+$ cmux hooks setup <agent>            # or: cmux hooks setup --agent <agent>
 ```
 
-or install one agent at a time:
+or install/reinstall one agent directly:
 
 ```bash
-$ cmux hooks pi install
-$ cmux hooks codex install
+$ cmux hooks pi install --yes
+$ cmux hooks codex install --yes
 ```
 
-Claude Code has no such hook — `cmux hooks setup` doesn't cover it. cmux instead
-bridges Claude's own model-initiated `PushNotification` tool call, which only fires if
+Supported agent names: `codex`, `grok`, `opencode`, `pi`, `omp`, `amp`, `cursor`,
+`gemini`, `kimi`, `kiro`, `rovodev` (or `rovo`), `copilot`, `codebuddy`, `factory`,
+`qoder`. `cmux hooks setup` silently **skips** any agent whose binary isn't on `PATH`
+— if an agent stays silent, don't assume setup already covered it; run
+`cmux hooks <agent> install --yes` to (re)install that one agent directly. Full
+per-agent integration matrix (installed files, session-restore command, Feed bridge):
+https://github.com/manaflow-ai/cmux/blob/main/docs/agent-hooks.md
+
+Claude Code is **not** in that agent list and isn't covered by `cmux hooks setup` at
+all — it's "handled by the cmux Claude wrapper when Claude Code integration is enabled
+in Settings" (upstream's own wording). cmux bridges Claude's own model-initiated
+`PushNotification` tool call, which only fires if that Settings toggle is on **and**
 the model decides to call it during that turn — see
 [section 5](#5-waiting-on-agents-the-right-way) for why you should default to a
 printed completion marker for Claude Code instead of waiting on this event.

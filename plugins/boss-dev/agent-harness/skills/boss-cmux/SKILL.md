@@ -150,14 +150,24 @@ it does **not** know when an agent finishes. The agent-completion signal is the
 **Prerequisite — install the notification hooks once:**
 
 ```bash
-cmux hooks setup            # wires pi, codex, opencode, gemini, … to emit on turn-stop
-# or per agent:  cmux hooks pi install   /   cmux hooks codex install
+cmux hooks setup                    # installs for every supported agent found on PATH
+cmux hooks setup <agent>            # or: cmux hooks setup --agent <agent>
+cmux hooks <agent> install --yes    # (re)install one agent's integration directly
+cmux hooks <agent> uninstall --yes  # remove one agent's integration
 ```
 
-These agents get a hook that fires deterministically on every turn-stop. Without it,
-an agent stays silent and you're back to polling — so install hooks before relying on
-the wait. **Claude Code is different — see the next section**, it has no turn-stop
-hook and is not covered by `cmux hooks setup`.
+Supported agent names: `codex`, `grok`, `opencode`, `pi`, `omp`, `amp`, `cursor`,
+`gemini`, `kimi`, `kiro`, `rovodev` (or `rovo`), `copilot`, `codebuddy`, `factory`,
+`qoder`. These agents get a hook that fires deterministically on every turn-stop.
+`cmux hooks setup` silently **skips** any agent whose binary isn't on `PATH` — if an
+agent you expect to notify stays silent, don't assume setup already covered it; run
+`cmux hooks <agent> install --yes` to (re)install that one agent directly (this is also
+the fix if a hook install goes stale — uninstall first if you're about to hand-edit its
+generated config file). Without a working hook, an agent stays silent and you're back
+to polling. **Claude Code is not in this list and is not covered by `cmux hooks
+setup`** — see the next section. Full per-agent integration matrix (installed files,
+session-restore command, Feed bridge):
+https://github.com/manaflow-ai/cmux/blob/main/docs/agent-hooks.md
 
 **What an agent emits when its turn ends** — one event per completed turn:
 
