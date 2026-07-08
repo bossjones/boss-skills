@@ -76,8 +76,11 @@ $ cmux hooks pi install
 $ cmux hooks codex install
 ```
 
-Claude Code emits these notifications out of the box when launched inside cmux — no
-hook entry needed for it.
+Claude Code has no such hook — `cmux hooks setup` doesn't cover it. cmux instead
+bridges Claude's own model-initiated `PushNotification` tool call, which only fires if
+the model decides to call it during that turn — see
+[section 5](#5-waiting-on-agents-the-right-way) for why you should default to a
+printed completion marker for Claude Code instead of waiting on this event.
 
 ### Socket control from outside cmux
 
@@ -217,6 +220,18 @@ A few things worth knowing about this command:
 
   That shows a var is present without revealing it; `[ -n "$VAR" ]` confirms it's
   non-empty. Report the masked/presence result, never the secret itself.
+- **Subscribe to events immediately, before sending any prompt.** The `--json` output
+  gives you the workspace's `workspace_id` right away — start the `cmux events`
+  listener for it in the background *now*, not when you're about to wait on an agent:
+
+  ```bash
+  WS=<workspace_id from --json>
+  $ cmux events --name notification.requested --no-heartbeat --no-ack > /tmp/cmux-$WS.ev &
+  ```
+
+  Late subscription is how you miss a turn-done signal. See
+  [section 5](#5-waiting-on-agents-the-right-way) for the full pattern — including why
+  Claude Code needs a different completion signal than pi/codex/gemini.
 
 ### The loop itself
 
@@ -263,7 +278,10 @@ passed.
 ## 5. Waiting on agents the right way
 
 Once you've sent an agent a task, you need to know when it's done — without burning
-tool calls in a `read-screen` + `sleep` loop. cmux has a push channel for exactly this.
+tool calls in a `read-screen` + `sleep` loop. cmux has a push channel for exactly this
+— but it's only a **deterministic** signal for pi/Codex/gemini. For Claude Code, read
+[the subsection below](#claude-code-use-a-completion-marker-not-the-notification-event)
+before relying on it.
 
 **`cmux events` is the wait channel — not `cmux wait-for`.** `cmux wait-for <name>` is
 an unrelated *named-token rendezvous* — a manual semaphore you signal yourself. It has
@@ -274,7 +292,8 @@ Without them, an agent stays silent and you're back to polling.
 
 ### What fires
 
-One event per completed turn, verified working for pi, Codex, and Claude Code:
+One event per completed turn for pi and Codex, which get a hook that fires
+deterministically on every turn-stop:
 
 ```json
 { "name": "notification.requested", "category": "notification",
@@ -296,8 +315,10 @@ Capture the target workspace's UUID first:
 $ cmux list-workspaces --json --id-format both
 ```
 
-Then, start the listener **before** you send the prompt (so you can't miss the event),
-and stream to a file rather than piping directly:
+You should already have the listener running from
+[section 4](#4-the-control-loop) (started at workspace-creation time, before the first
+prompt). If not, start it now, **before** you send the prompt (so you can't miss the
+event), streaming to a file rather than piping directly:
 
 ```bash
 WS=<agent-workspace-uuid>
@@ -319,6 +340,44 @@ your listener), use:
 ```bash
 $ cmux events --cursor-file <path> --reconnect
 ```
+
+### Claude Code: use a completion marker, not the notification event
+
+Claude Code has **no deterministic turn-stop hook** like pi/Codex/gemini —
+`cmux hooks setup` doesn't cover it. cmux instead bridges Claude's own
+model-initiated `PushNotification` tool call through a `PostToolUse` hook into a cmux
+notification (see [cmux's `agent-hooks.md`](https://github.com/manaflow-ai/cmux/blob/main/docs/agent-hooks.md)).
+That only fires if "Claude Code integration" is enabled in cmux's app Settings **and**
+the model itself decides to call `PushNotification` that turn. A scripted,
+task-oriented sub-agent that's never told to proactively "notify the user" typically
+never calls it, so `cmux events` shows heartbeats only, with no
+`notification.requested` ever arriving. That's expected — don't spend time debugging
+hooks setup for it.
+
+Default to a printed completion marker for Claude Code instead — the same contract
+`boss-cmux-team` already uses for its workers:
+
+1. Tell the agent, in its prompt, to end with one distinctive line when truly done,
+   e.g. `TASK-DONE: <summary>`.
+2. Poll `read-screen` for that marker on a bounded loop (fine to race it against the
+   notification listener as a free early exit, but the loop's exit condition must not
+   depend on the notification alone):
+
+   ```bash
+   for i in $(seq 1 60); do
+     cmux read-screen --surface <ref> --lines 5 | grep -q "TASK-DONE:" && break
+     sleep 5
+   done
+   $ cmux read-screen --surface <ref> --scrollback --lines 40
+   ```
+
+3. If the marker never appears within the bound, treat it as "possibly slow, or the
+   model never got to it," not "cmux is broken" — `read-screen` to see what's
+   actually on screen before deciding.
+
+Separately: a Claude Code notification, when it does fire, still doesn't mean the task
+succeeded — it fires even when Claude declined the work. Always `read-screen` (or
+check the artifacts), don't trust the event alone.
 
 ---
 
