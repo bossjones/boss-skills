@@ -39,7 +39,7 @@ def _load(path: Path) -> ModuleType:
     ``utils.config`` / ``utils.snyk``, which caches a top-level ``utils`` namespace
     package (``hooks/utils`` has no ``__init__.py``) in ``sys.modules`` for the rest
     of the pytest session. Left in place, that cached ``utils`` shadows other test
-    suites with their own top-level ``utils`` module (e.g. twitter-to-reel) -- see
+    suites with their own top-level ``utils`` module (e.g. twitter-to-reel) — see
     ``plugins/boss-dev/agent-harness/hooks/tests/hook_loader.py`` for the same fix
     applied to hook-module loading.
     """

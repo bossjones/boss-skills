@@ -1,0 +1,10 @@
+"""Pytest configuration for boss-cmux-team script tests."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# Make the sibling spawn_team.py importable without packaging the skill.
+SCRIPTS_DIR = Path(__file__).parent.parent
+sys.path.insert(0, str(SCRIPTS_DIR))
