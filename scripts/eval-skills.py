@@ -164,8 +164,13 @@ class SkillResult:
 
 
 def discover_skills() -> list[Path]:
-    """Return sorted skill directories (parents of a SKILL.md) under plugins/."""
-    return sorted({p.parent for p in PLUGINS_DIR.rglob("SKILL.md")})
+    """Return sorted skill directories (parents of a SKILL.md) under plugins/.
+
+    Excludes SKILL.md files under a `test-fixtures` directory — synthetic
+    fixtures used by a skill's own eval (e.g. claude-config-validation's
+    eval/test-fixtures/), not production skills to quality-gate.
+    """
+    return sorted({p.parent for p in PLUGINS_DIR.rglob("SKILL.md") if "test-fixtures" not in p.parts})
 
 
 def score_skill(skill_dir: Path, source: str, depth: str, extra: list[str]) -> SkillResult:
