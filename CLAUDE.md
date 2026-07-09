@@ -105,9 +105,21 @@ The skill parser executes backtick patterns inside fenced code blocks. Never use
 PluginEval reports live under `docs/evals/<plugin>/<skill>.md` (repo-internal skills:
 `docs/evals/<skill>.md`) — **not** inside the skill directory. An eval report is generated
 process/meta output, not content an agent needs to do the job, so a skill folder stays limited
-to `SKILL.md` + `references/` + `scripts/`. The [`/skill-evals`](.claude/skills/skill-evals/SKILL.md)
+to `SKILL.md` + `references/` + `scripts/` + `eval/`. The [`/skill-evals`](.claude/skills/skill-evals/SKILL.md)
 skill / `make eval-skill` writes there; see [`docs/evals/README.md`](docs/evals/README.md) for the
 index. These files are regenerated output — overwrite freely.
+
+### Skill eval suites (`eval/`)
+
+A checked-in `eval/` directory **is** valid skill content, distinct from both the generated
+reports above and the scratch workspaces below. It holds versioned test infrastructure —
+`eval.yaml`, `run_eval.sh`, `README.md`, `graders/`, `test-fixtures/` — that the
+[`scaffold-skill-eval`](plugins/boss-experimental/boss-experimental/skills/scaffold-skill-eval/SKILL.md)
+skill generates and [`run-skill-eval`](plugins/boss-experimental/boss-experimental/skills/run-skill-eval/SKILL.md)
+executes. Both address it as `{skill_path}/eval/`, and `claude-config-validation`'s Check #22
+("Skill eval present") asserts the directory exists at that path. Do not relocate it to a
+`-workspace/` sibling: workspaces are gitignored scratch, whereas an eval suite is committed,
+reviewed, and run in CI.
 
 ### Skill workspace directories
 

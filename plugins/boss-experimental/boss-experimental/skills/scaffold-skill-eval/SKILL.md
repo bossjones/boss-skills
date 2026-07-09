@@ -102,7 +102,7 @@ Read the schema reference at `plugins/boss-experimental/boss-experimental/refere
 Create `{skill_path}/eval/eval.yaml` with one task per fixture. Follow this structure:
 
 - `version: "1"`
-- `defaults`: set `agent: claude`, `provider: local`, `trials: 5`, `timeout: 300`, `threshold: 0.8`.
+- `defaults`: set `agent: claude`, `provider: local`, `trials: 5`, `timeout: 300`, `threshold: 0.8`. `threshold` is the single pass mark — skillgrade enforces it in CI and `/run-skill-eval` reads it for local runs, so the two agree.
 - `tasks`: one entry per fixture. Each task has:
   - `name`: matches the fixture directory name.
   - `instruction`: tells the agent to read the SKILL.md, run it against the fixture, and write output to `output.md`. Be explicit — name the skill, provide the fixture path, specify the output filename.
@@ -155,6 +155,15 @@ Eval scaffolded for: {skill-name}
 
   Run: cd {skill_path}/eval && ./run_eval.sh --smoke
   Or:  /run-skill-eval {skill_path}
+```
+
+## Example commands
+
+Scaffold an eval suite for a skill, prompting for the path or naming it directly:
+
+```
+$ /scaffold-skill-eval
+$ /scaffold-skill-eval plugins/boss-experimental/boss-experimental/skills/my-skill
 ```
 
 ## Reference

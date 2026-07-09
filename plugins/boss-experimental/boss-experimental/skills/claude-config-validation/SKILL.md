@@ -49,7 +49,7 @@ If no `.claude/` directory exists, report that the project has no Claude Code co
 Read checks 1–3 from the check definitions doc. For each:
 
 - **Check 1**: Verify `.claude/` exists
-- **Check 2 (Canonical agents)**: List agents in `.claude/agents/`. The canonical roles (default: `architect`, `coder`, `learner`, `pr-submission`, `reviewer`, `test-writer`, `tester` — see Configuration) are root-owned. If validating the **repo root**, verify each declared canonical role is present, with role-appropriate frontmatter (read-only roles must not request write tools). If validating a **project**, it must NOT redefine any canonical role — a same-named project agent is shadowed by the root agent and never runs, so FAIL such collisions and renamed canonical roles (e.g. `implementer`→`coder`) and canonical platform-variants (`coder-mobile.md`). A project-prefixed custom agent (e.g. `myapp-coder`) is allowed (WARN, confirm intentional) only when the project declares a pipeline that invokes it. Pipeline declaration is an **optional, documented extension point**: if the project has a pipeline-declaration file (default convention: `.claude/pipelines.json` listing pipelines and the agents they invoke), read it and confirm the custom agent is referenced; a project-prefixed agent that no pipeline declares is a stray fork (FAIL). If the repo uses no pipeline mechanism at all, treat any project-prefixed custom agent as WARN (confirm intentional). Projects specialize via substrate (skills/rules with `paths`), not by forking agents.
+- **Check 2 (Canonical agents)**: List agents in `.claude/agents/`, then apply the check's PASS/WARN/FAIL columns as written in the reference. Whether you are validating the repo root or a config home determines which column applies; the canonical role set is config-driven (see Configuration).
 - **Check 3**: Parse YAML frontmatter of each agent file. Validate required fields and permission/tool consistency.
 
 ### 3. Run Knowledge Placement Checks (4–7)
@@ -78,11 +78,11 @@ Read checks 8–9, 15–18, and 23 from the check definitions doc. For each:
 
 - **Check 8**: Scan agents for skill references, verify referenced skills exist.
 - **Check 9**: If CLAUDE.md has a routing table, verify all file paths resolve.
-- **Check 15**: For each skill and command found, verify it appears in the nearest CLAUDE.md. Do NOT flag a domain doc as missing from the routing table if a path-scoped rule (a rule with `paths` frontmatter) already references it — the rule is the loading mechanism and loads the doc on demand. Only agent/skill references require routing entries.
-- **Check 23**: Inspect the CLAUDE.md routing table for context discipline. Flag (WARN) any routing row that lists multiple docs (joined by "and" or commas) instead of a single entry doc, and any doc that appears both in a path-scoped rule and in the routing table — the latter is redundant context tax; recommend keeping the rule and removing the routing-table entry.
+- **Check 15**: For each domain doc referenced by an agent or skill, verify it appears in the nearest CLAUDE.md routing table, applying the reference's exemptions.
+- **Check 23**: Inspect the CLAUDE.md routing table for context discipline per the reference. Where a doc is duplicated between a path-scoped rule and the routing table, recommend keeping the rule.
 - **Check 16**: Scan skills and commands for references to other skills/commands. Verify targets exist. Flag `/`-prefixed references where only a skill (not a command) exists. Exclude built-in Claude Code commands (`/plan`, `/init`, etc.) — these are runtime features, not project-defined.
 - **Check 17**: If CLAUDE.md has a routing table, verify no entries point to other CLAUDE.md files. Entries may target any concrete destination — a domain doc, a package doc (`README.md`, `docs/DESIGN.md`), or a skill. The only FAIL is an entry pointing to another CLAUDE.md (a map pointing to a map).
-- **Check 18**: For each task-recipe domain doc reachable from the routing table, scan for (a) essential steps delegated to secondary references (e.g., "for the required boilerplate, see X") and (b) conditional behavior (gating, eligibility, feature-flag predicates) described only in prose without an explicit, testable predicate. Warn if required steps are behind a second hop, or if decision logic is left to re-derive instead of stated as `enable when A AND B AND C` with terms and default defined. Do not apply to package architecture docs (`DESIGN.md`) — their bounded-context navigation/cross-linking is intentional.
+- **Check 18**: For each task-recipe domain doc reachable from the routing table, apply the reference's self-containment criteria. Note its scope limit: task recipes only, not package architecture docs.
 
 ### 6. Run Compliance Placement Check (19)
 
@@ -143,4 +143,13 @@ Read checks 20–21 from the check definitions doc.
 
 ## Recommendations
 - [actionable suggestion]
+```
+
+## Example commands
+
+Validate the current repository, or a specific project path:
+
+```
+$ /claude-config-validation
+$ /claude-config-validation apps/my-project
 ```
