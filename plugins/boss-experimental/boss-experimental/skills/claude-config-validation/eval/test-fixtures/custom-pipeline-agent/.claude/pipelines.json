@@ -1,0 +1,13 @@
+{
+    "pipelines": [
+        {
+            "id": "custom-pipeline",
+            "phases": [
+                {
+                    "id": "custom-code",
+                    "agent": "example-coder"
+                }
+            ]
+        }
+    ]
+}

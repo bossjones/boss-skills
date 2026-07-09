@@ -1,0 +1,182 @@
+version: "1"
+
+defaults:
+    agent: claude
+    provider: local
+    trials: 5
+    timeout: 300
+    threshold: 0.8
+
+tasks:
+    # ===== Positive control: everything correct =====
+    - name: valid-project
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/valid-project. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/valid-project
+            dest: test-fixtures/valid-project
+      graders:
+          - type: deterministic
+            run: node graders/check-no-fails.js output.md
+            weight: 0.7
+          - type: llm_rubric
+            rubric: |
+                Does the output contain a properly formatted markdown table with columns for check number, check name, status, and details? Every check should show PASS status. The output should cover project structure, knowledge placement, skill quality, and discoverability checks.
+            weight: 0.3
+
+    # ===== Project Structure =====
+
+    - name: missing-claude-dir
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/missing-claude-dir. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/missing-claude-dir
+            dest: test-fixtures/missing-claude-dir
+      graders:
+          - type: deterministic
+            run: node graders/check-fail-present.js "Config exists" output.md
+            weight: 1.0
+
+    - name: misplaced-canonical-agent
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/misplaced-canonical-agent. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/misplaced-canonical-agent
+            dest: test-fixtures/misplaced-canonical-agent
+      graders:
+          - type: deterministic
+            run: node graders/check-fail-present.js "Canonical agents" output.md
+            weight: 1.0
+
+    - name: custom-pipeline-agent
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/custom-pipeline-agent. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/custom-pipeline-agent
+            dest: test-fixtures/custom-pipeline-agent
+      graders:
+          - type: deterministic
+            run: node graders/check-no-fail-for-pattern.js "Canonical agents" output.md
+            weight: 1.0
+
+    - name: bad-agent-frontmatter
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/bad-agent-frontmatter. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/bad-agent-frontmatter
+            dest: test-fixtures/bad-agent-frontmatter
+      graders:
+          - type: deterministic
+            run: node graders/check-warn-or-fail-present.js "Agent frontmatter" output.md
+            weight: 1.0
+
+    # ===== Knowledge Placement =====
+
+    - name: convention-in-agent
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/convention-in-agent. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/convention-in-agent
+            dest: test-fixtures/convention-in-agent
+      graders:
+          - type: deterministic
+            run: node graders/check-warn-or-fail-present.js "Convention placement" output.md
+            weight: 1.0
+
+    - name: duplicated-content
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/duplicated-content. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/duplicated-content
+            dest: test-fixtures/duplicated-content
+      graders:
+          - type: deterministic
+            run: node graders/check-warn-or-fail-present.js "Duplication" output.md
+            weight: 1.0
+
+    - name: oversized-claude-md
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/oversized-claude-md. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/oversized-claude-md
+            dest: test-fixtures/oversized-claude-md
+      graders:
+          - type: deterministic
+            run: node graders/check-warn-or-fail-present.js "CLAUDE.md size" output.md
+            weight: 1.0
+
+    # ===== Skill Quality =====
+
+    - name: skill-with-code-blocks
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/skill-with-code-blocks. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/skill-with-code-blocks
+            dest: test-fixtures/skill-with-code-blocks
+      graders:
+          - type: deterministic
+            run: node graders/check-warn-or-fail-present.js "Skill content quality" output.md
+            weight: 1.0
+
+    - name: oversized-skill
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/oversized-skill. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/oversized-skill
+            dest: test-fixtures/oversized-skill
+      graders:
+          - type: deterministic
+            run: node graders/check-warn-or-fail-present.js "Skill size" output.md
+            weight: 1.0
+
+    # ===== Discoverability & References =====
+
+    - name: missing-skill-ref
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/missing-skill-ref. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/missing-skill-ref
+            dest: test-fixtures/missing-skill-ref
+      graders:
+          - type: deterministic
+            run: node graders/check-fail-present.js "Routing table" output.md
+            weight: 1.0
+
+    - name: broken-cross-ref
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/broken-cross-ref. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/broken-cross-ref
+            dest: test-fixtures/broken-cross-ref
+      graders:
+          - type: deterministic
+            run: node graders/check-warn-or-fail-present.js "Cross-file references" output.md
+            weight: 1.0
+
+    - name: rule-doc-in-routing-table
+      instruction: |
+          Run the claude-config-validation skill on the project at
+          test-fixtures/rule-doc-in-routing-table. Output the results table to output.md.
+      workspace:
+          - src: test-fixtures/rule-doc-in-routing-table
+            dest: test-fixtures/rule-doc-in-routing-table
+      graders:
+          - type: deterministic
+            run: node graders/check-warn-or-fail-present.js "context discipline" output.md
+            weight: 0.7
+          - type: llm_rubric
+            rubric: |
+                The fixture has a path-scoped rule (`component-best-practices.md`, with `paths` frontmatter) that references `docs/component-best-practices.md`, and that same doc is ALSO listed in the CLAUDE.md routing table. The output must (1) WARN on Check 23 (CLAUDE.md context discipline) for duplicating the rule's doc into the routing table and/or for the multi-doc "and" row, and (2) NOT flag Check 15 (Routing table completeness) as a problem for that doc — a doc referenced by a path-scoped rule does not need a routing entry.
+            weight: 0.3

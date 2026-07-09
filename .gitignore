@@ -185,9 +185,9 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
 #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#  and can be added to the global gitignore or merged into this file. However, if you prefer,
 #  you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 
@@ -300,3 +300,10 @@ plugins/boss-dev/agent-harness/.claude/
 
 # symlink-plugins backups (make symlink-plugins / unlink-plugins)
 .backups/
+
+
+# temp to ensure we aren't giving away any adobe specific info while building this thing out
+specs/boss-experimental/00-overview.md
+specs/boss-experimental/01-skillgrade-eval-system.md
+specs/boss-experimental/02-config-validation-and-knowledge-arch.md
+specs/boss-experimental/03-agents-and-conventions.md
