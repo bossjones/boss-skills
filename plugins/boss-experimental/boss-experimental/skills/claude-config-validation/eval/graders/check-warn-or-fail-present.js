@@ -12,7 +12,10 @@ if (!fs.existsSync(outputFile)) {
 }
 
 const content = fs.readFileSync(outputFile, "utf-8");
-const regex = new RegExp(`(WARN|FAIL).*${pattern}|${pattern}.*(WARN|FAIL)`, "i");
+// Escape regex metacharacters — check names contain `.`, `(`, `[` etc. and are
+// interpolated into the pattern; an unescaped metachar throws SyntaxError.
+const esc = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const regex = new RegExp(`(WARN|FAIL).*${esc}|${esc}.*(WARN|FAIL)`, "i");
 
 if (regex.test(content)) {
     console.log(JSON.stringify({ score: 1.0, details: `Correctly flagged issue for: ${pattern}` }));

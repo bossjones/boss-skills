@@ -66,8 +66,10 @@ Component-B validation skill as its mechanical floor).
 ## Requirements
 
 - **Node ≥ 20** — the Node graders shell out to `node`; skillgrade runs on Node.
-- **`skillgrade`** only for the CI path: `npm i -g skillgrade` or `npx skillgrade`. The local
-  `/run-skill-eval` path needs neither skillgrade nor an API key.
+- **`skillgrade`** only for the CI path — `run_eval.sh` invokes the `bossjones/skillgrade` fork
+  (which carries the model-override + `init` 404 fix this plugin relies on) via
+  `npx --yes github:bossjones/skillgrade#fix/anthropic-retired-model-404-bossjones`, or a
+  `skillgrade` on `PATH`. The local `/run-skill-eval` path needs neither skillgrade nor an API key.
 - Not a Python dependency — do **not** add `skillgrade` to `pyproject.toml`/`uv`.
 
 ## Usage examples

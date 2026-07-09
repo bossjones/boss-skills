@@ -39,8 +39,22 @@ done
 
 SKILL_NAME="$(basename "$(cd "$SCRIPT_DIR/.." && pwd)")"
 
+# --------------- Resolve a skillgrade runner ---------------
+# Prefer a skillgrade already on PATH; otherwise fall back to `npx` against the
+# bossjones/skillgrade fork branch, which carries the ANTHROPIC_MODEL/OPENAI_MODEL/
+# GEMINI_MODEL env overrides and the `skillgrade init` 404 fix (pending upstream).
+# The branch has a `prepare` build hook, so npx installs it straight from git.
+# NOTE: a public-npm `skillgrade` on PATH would shadow the fork and lacks those
+# features; if you install skillgrade globally, install this fork branch.
+SKILLGRADE=""
+if command -v skillgrade &>/dev/null; then
+  SKILLGRADE="skillgrade"
+elif command -v npx &>/dev/null; then
+  SKILLGRADE="npx --yes github:bossjones/skillgrade#fix/anthropic-retired-model-404-bossjones"
+fi
+
 # --------------- Delegate to skillgrade if available ---------------
-if command -v skillgrade &>/dev/null && [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+if [ -n "$SKILLGRADE" ] && [ -n "${ANTHROPIC_API_KEY:-}" ]; then
   echo "=== Skill Eval: $SKILL_NAME ==="
   echo "Provider: skillgrade | Preset: $PRESET"
   echo ""
@@ -48,7 +62,7 @@ if command -v skillgrade &>/dev/null && [ -n "${ANTHROPIC_API_KEY:-}" ]; then
   [ "$CI_MODE" = true ] && ARGS="$ARGS --ci --threshold=$THRESHOLD"
   [ -n "$FILTER" ] && ARGS="$ARGS --eval=$FILTER"
   # shellcheck disable=SC2086
-  exec skillgrade $ARGS
+  exec $SKILLGRADE $ARGS
 fi
 
 # --------------- No skillgrade — guide the user ---------------
@@ -56,14 +70,15 @@ echo "=== Skill Eval: $SKILL_NAME ==="
 echo ""
 echo "For local development, run evals interactively inside Claude Code:"
 echo ""
-echo "  /run-skill-eval plugins/boss-experimental/boss-experimental/skills/$SKILL_NAME"
+echo "  /run-skill-eval skills/$SKILL_NAME"
 echo ""
 echo "This runs all tasks (deterministic + llm_rubric graders) using your"
 echo "current Claude Code session — no API key or extra setup needed."
 echo ""
-echo "For CI or headless execution, install skillgrade and set ANTHROPIC_API_KEY:"
+echo "For CI or headless execution, set ANTHROPIC_API_KEY and let this script"
+echo "invoke the fork via npx, or install it globally:"
 echo ""
-echo "  npm i -g skillgrade      # or: npx skillgrade ..."
+echo "  npm i -g github:bossjones/skillgrade#fix/anthropic-retired-model-404-bossjones"
 echo "  export ANTHROPIC_API_KEY=sk-ant-..."
 echo "  ./run_eval.sh --smoke --ci"
 echo ""

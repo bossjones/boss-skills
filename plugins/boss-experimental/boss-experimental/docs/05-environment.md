@@ -5,7 +5,7 @@
 | Requirement | Needed for | Notes |
 |---|---|---|
 | **Node ≥ 20** | Every grader invocation (`node graders/*.js`), and the `skillgrade` CLI itself | The Node graders are zero-dependency (only `fs`/`path` builtins), so no `npm install` step is required beyond having a Node binary on `PATH`. |
-| **`skillgrade` (npm CLI)** | The **CI/headless** path only (`run_eval.sh` delegating to real trials) | Either `npm i -g skillgrade` (resolved via `command -v skillgrade`) or, with no global install, `npx --yes skillgrade` — `run_eval.sh` tries the former first and falls back to the latter automatically. |
+| **`skillgrade` (from the fork branch)** | The **CI/headless** path only (`run_eval.sh` delegating to real trials) | Either a `skillgrade` on `PATH` (resolved via `command -v skillgrade`) or, with no install, `npx --yes github:bossjones/skillgrade#fix/anthropic-retired-model-404-bossjones` — `run_eval.sh` tries the former first and falls back to the fork via npx automatically. The fork carries the model-override + `init` 404 fix this plugin relies on; a public-npm `skillgrade` on `PATH` would shadow it and lacks them. |
 | **`ANTHROPIC_API_KEY`** | The **CI/headless** path only | `run_eval.sh` only invokes `skillgrade` when both a resolvable `skillgrade` runner **and** `ANTHROPIC_API_KEY` are present; otherwise it prints local-dev instructions and exits without delegating. |
 | **Nothing extra** | The **local** path (`/run-skill-eval`, `/scaffold-skill-eval`, `/claude-config-validation`) | Claude Code itself is the agent. No API key, no Docker, no `skillgrade` install. |
 

@@ -31,15 +31,21 @@ compares to the repo's separate `plugin-eval` stack.
 ## Step 1: Get `skillgrade` on your machine
 
 You don't have to install anything up front — `run_eval.sh` prefers a `skillgrade` already on
-`PATH`, and falls back to `npx --yes skillgrade` automatically. Either works:
+`PATH`, and otherwise falls back to `npx` against the `bossjones/skillgrade` fork branch
+automatically. The fork carries the `ANTHROPIC_MODEL`/`OPENAI_MODEL`/`GEMINI_MODEL` env overrides
+and the `skillgrade init` 404 fix this plugin relies on (pending upstream), and has a `prepare`
+build hook so it installs straight from git. Either works:
 
 ```bash
 # Option A: install once, reuse everywhere
-npm i -g skillgrade
+npm i -g github:bossjones/skillgrade#fix/anthropic-retired-model-404-bossjones
 
 # Option B: no install — let run_eval.sh (or you, directly) invoke it via npx
-npx skillgrade --version
+npx --yes github:bossjones/skillgrade#fix/anthropic-retired-model-404-bossjones --version
 ```
+
+> A public-npm `skillgrade` on `PATH` would shadow the fork and lacks these features; if you
+> install globally, install the fork branch above.
 
 ## Step 2: Set your API key
 
@@ -83,8 +89,10 @@ For local development, run evals interactively inside Claude Code:
 This runs all tasks (deterministic + llm_rubric graders) using your
 current Claude Code session -- no API key or extra setup needed.
 
-For CI or headless execution, install skillgrade (npm i -g skillgrade,
-or let this script invoke it via npx) and set ANTHROPIC_API_KEY.
+For CI or headless execution, set ANTHROPIC_API_KEY and let this script
+invoke the fork via npx, or install it globally:
+
+  npm i -g github:bossjones/skillgrade#fix/anthropic-retired-model-404-bossjones
 ```
 
 This fallback is intentional: `run_eval.sh` is safe to run from a fresh clone with no
@@ -101,8 +109,8 @@ configuration — it degrades to a helpful pointer rather than an error.
 | `--regression` | The most trials — per `run_eval.sh`'s own usage comment, a **30-trial regression** run, for the highest-confidence signal (nightly/release gates). |
 
 Exact trial counts for `--smoke`/`--reliable` are defined by the `skillgrade` CLI itself (not by
-this plugin) — check `npx skillgrade --help` for your installed version if you need the precise
-number.
+this plugin) — check `npx --yes github:bossjones/skillgrade#fix/anthropic-retired-model-404-bossjones --help`
+for your installed version if you need the precise number.
 
 You can also target a single task instead of the whole suite:
 
@@ -172,7 +180,8 @@ defaults:
 ```
 
 Or override per-run without touching `eval.yaml` at all — handy for a one-off CI job you want
-pinned to a different model:
+pinned to a different model. Because `run_eval.sh` invokes the fork by default (Step 1), this
+override is honored out of the box:
 
 ```bash
 ANTHROPIC_MODEL=claude-opus-4-8 ./run_eval.sh --smoke --ci --threshold=0.8
@@ -181,10 +190,11 @@ ANTHROPIC_MODEL=claude-opus-4-8 ./run_eval.sh --smoke --ci --threshold=0.8
 > **skillgrade version note:** The `defaults.grader_model` / per-task `grader_model` / per-grader
 > `model:` config fields work on upstream skillgrade today. The `ANTHROPIC_MODEL` / `OPENAI_MODEL`
 > / `GEMINI_MODEL` environment-variable override — and the fix for the `skillgrade init` AI-mode
-> 404 — currently live only in the `bossjones/skillgrade` fork (branch
-> `fix/anthropic-retired-model-404`) and require that fork or a future upstream release. With
-> upstream `npx skillgrade@latest`, if `init` returns 404 use template mode or
-> `/scaffold-skill-eval`.
+> 404 — live in the `bossjones/skillgrade` fork (feature commits on branch
+> `fix/anthropic-retired-model-404`), which is exactly what `run_eval.sh` invokes by default
+> (via the git-installable `fix/anthropic-retired-model-404-bossjones` branch), so the override
+> above works without extra setup. Pending upstream; with a plain upstream `npx skillgrade@latest`,
+> if `init` returns 404 use template mode or `/scaffold-skill-eval`.
 
 ## The AI `init` 404, and why we hand-author `eval.yaml`
 

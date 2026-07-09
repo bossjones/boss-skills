@@ -8,7 +8,7 @@ boundary: **boss-experimental does not modify, replace, or depend on the existin
 
 | | **skillgrade** (this plugin, experimental) | **plugin-eval** (existing repo stack) |
 |---|---|---|
-| Origin | `skillgrade` npm CLI (mgechev), ported from the `hz` repo | wshobson `plugin-eval`, vendored at `scripts/plugin_eval/` |
+| Origin | `skillgrade` npm CLI (mgechev), ported from an internal monorepo | wshobson `plugin-eval`, vendored at `scripts/plugin_eval/` |
 | Core question | "When an agent actually runs this skill against a task, does the outcome pass?" | "How good is this SKILL.md?" (structure + LLM-judge scoring) |
 | Unit of evaluation | A **task**: an instruction + a workspace fixture the agent operates on | A **skill directory** (primarily its `SKILL.md`) |
 | How it scores | An **agent runs the skill**, produces output; **Node graders** (`{"score","details"}`) + optional `llm_rubric` grade the transcript; N trials → pass rate vs. threshold | A composite score across weighted dimensions (triggering, orchestration, output quality, progressive disclosure, …); static layer + optional LLM judge |
@@ -35,7 +35,8 @@ plugin-eval workflow, so the two can be compared side-by-side on real skills.
 - Does **not** modify `.claude/skills/skill-evals/`, `scripts/plugin_eval/`, `Makefile`,
   `make eval` / `make eval-skill`, or any `EVALS.md`.
 - Does **not** add `skillgrade` to `pyproject.toml` / `uv` — it is a Node CLI, invoked via
-  `npx skillgrade` (or a global `npm i -g skillgrade`).
+  `npx --yes github:bossjones/skillgrade#fix/anthropic-retired-model-404-bossjones` (the fork
+  branch, which `run_eval.sh` uses by default) or a `skillgrade` on `PATH`.
 - Its skills carry their own `eval/` directories; this is local to the plugin and does not
   change the repo convention that other plugins are evaluated centrally.
 

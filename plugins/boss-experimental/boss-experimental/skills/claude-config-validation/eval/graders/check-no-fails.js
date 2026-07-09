@@ -11,7 +11,19 @@ if (!fs.existsSync(outputFile)) {
 }
 
 const content = fs.readFileSync(outputFile, "utf-8");
-const failCount = (content.match(/\| FAIL/gi) || []).length;
+
+// Count FAIL only in the Status column (the 3rd data cell) of table rows.
+// A loose `| FAIL` substring match miscounts both ways: it false-FAILs on a
+// Details cell like "Failsafe: no code blocks", and it false-PASSes on an
+// unpadded or decorated status (|FAIL|, | **FAIL** |, | ❌ FAIL |). Splitting
+// the row and inspecting cells[3] classifies the status column directly.
+let failCount = 0;
+for (const line of content.split("\n")) {
+    const cells = line.split("|");
+    if (cells.length >= 5 && /\bFAIL\b/i.test(cells[3])) {
+        failCount++;
+    }
+}
 
 if (failCount === 0) {
     console.log(JSON.stringify({ score: 1.0, details: "No FAIL statuses found — valid project passed all checks" }));

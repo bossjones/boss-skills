@@ -22,18 +22,18 @@ Run the skill eval suite for the skill path given in the request. If no path is 
 
 ## Steps
 
-1. **Cleanup**: Delete any `eval/output-*.md` files from a previous run so graders see fresh results.
+1. **Cleanup**: Delete any `eval/output.md` and `eval/output-*.md` files from a previous run so graders see fresh results.
 
 2. Read the `eval/eval.yaml` inside the skill directory. Parse `defaults.threshold` (the pass mark skillgrade enforces in CI; treat a missing value as `1.0`). Then parse all tasks — each has a `name`, `instruction`, `workspace` (fixture path), and `graders`.
 
 3. For each task:
    a. Read the skill's `SKILL.md` to understand what it does.
    b. Follow the skill's steps against the fixture at the path specified in the task's `workspace`.
-   c. Write the full skill output to `eval/output-{task-name}.md`.
-   d. Run **all** graders for the task and compute a weighted score:
+   c. Write the full skill output to `eval/output-{task-name}.md`. The task's `instruction` says to write `output.md`; **override that filename** to `output-{task-name}.md` so tasks don't clobber each other in the shared `eval/` directory.
+   d. Run **all** graders for the task:
       - **`deterministic` graders**: Run the `run` command with `Bash` from the `eval/` directory. Replace `output.md` in the command with `output-{task-name}.md`.
       - **`llm_rubric` graders**: Read the `rubric` text and the output file (`eval/output-{task-name}.md`). Evaluate the output against the rubric yourself — score 1.0 if the output meets the rubric, 0.0 if not. Return a JSON object: `{"score": 1.0, "details": "reason"}`.
-   e. Compute the weighted score: `sum(score * weight) / sum(weight)` across all graders. The task passes if the weighted score is greater than or equal to the `threshold` resolved in step 2. A task may also declare its own `threshold`, which overrides the default for that task.
+   e. **Decide pass/fail using skillgrade's model, not a weighted-score cutoff.** A trial passes only if **every** grader scores 1.0; the weighted score `sum(score * weight) / sum(weight)` is reported for visibility but is *not* the gate. This runner executes one trial, so the task's pass rate is `1.0` (all graders scored 1.0) or `0.0`. The task **passes** only when that pass rate is greater than or equal to the `threshold` resolved in step 2 — i.e. only when every grader scored 1.0. (skillgrade computes the same way across `trials`; matching it here keeps local and CI verdicts aligned.)
 
 4. After all tasks complete, print a summary table:
 
