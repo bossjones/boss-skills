@@ -24,11 +24,22 @@ The skill triggers anywhere, but only functions on a Mac with cmux installed.
   `sudo ln -sf "/Applications/cmux.app/Contents/Resources/bin/cmux" /usr/local/bin/cmux`.
 - **Notification hooks:** run `cmux hooks setup` once so `pi`/`codex`/`gemini` emit a
   turn-stop event you can wait on (see **Wait for agents via notification events**).
-  Claude Code emits notifications out of the box — no hook entry needed.
+  Claude Code has no such hook — cmux instead bridges Claude's own model-initiated
+  `PushNotification` tool call, which only fires if the model decides to call it (see
+  the caveat under **Wait for agents via notification events**).
 - **Socket control (orchestrator outside cmux):** set `automation.socketControlMode`
   to `allowAll` (or password) in `~/.config/cmux/cmux.json` so an orchestrator running
   in a plain terminal can drive the socket. The socket lives at
-  `~/.local/state/cmux/cmux.sock` (`CMUX_SOCKET_PATH`).
+  `~/.local/state/cmux/cmux.sock` (`CMUX_SOCKET_PATH`). Enabling this is a genuine
+  security surface (any local process can then drive the app) — confirm with the
+  user before flipping it, the way you would for any other risky config change.
+  - **Reload bootstrap problem:** if the app is currently `cmuxOnly` and you edit the
+    file to `allowAll`, `cmux reload-config` (and every other socket command) still
+    fails with `Failed to write to socket (Broken pipe, errno 32)` until the running
+    app re-reads the file — but `reload-config` itself needs socket access, so the
+    CLI can't bootstrap its own permission change. There's no signal-based or
+    file-watch reload from outside; ask the user to reload manually inside the app
+    (⌘⇧, / "reload configuration") or quit and reopen cmux, then retry.
 - **Editing cmux settings safely:** `cmux docs settings` prints the schema/paths.
   Before editing `~/.config/cmux/cmux.json`, copy it to a timestamped `.bak` beside it
   so the user can revert; after editing, run `cmux reload-config` (reloads **both**
@@ -103,6 +114,18 @@ cmux workspace create --name <name> --cwd <dir> --env-file .env --json
   *safely*: `cmux workspace env --workspace <ref> --mask` shows that a var is
   present without revealing it, and `[ -n "$VAR" ]` confirms it is non-empty.
   Report the masked/presence result, never the secret itself.
+- **Subscribe to events immediately, before sending any prompt.** The `--json` output
+  gives you the workspace's `workspace_id` right away — start the `cmux events`
+  listener for it in the background *now*, not when you're about to wait on an agent.
+  Late subscription is how you miss a turn-done signal:
+
+  ```bash
+  WS=<workspace_id from --json>
+  cmux events --name notification.requested --no-heartbeat --no-ack > /tmp/cmux-$WS.ev &
+  ```
+
+  See **Wait for agents via notification events** below for the full pattern —
+  including why Claude Code needs a different completion signal than pi/codex/gemini.
 
 ### The control loop
 
@@ -113,11 +136,11 @@ You operate surfaces the way a person would, but over the CLI:
 - `cmux read-screen --surface <ref>` — read what's on screen (add `--scrollback` for history). This is your eyes.
 - `cmux close-surface --surface <ref>` — end a surface cleanly.
 
-### Wait for agents via notification events (don't busy-poll)
+### Wait for agents via notification events (don't busy-poll) — pi/codex/gemini only
 
 Instead of looping on `read-screen`, subscribe to cmux's push channel and block
-until an agent finishes its turn. **This is verified working for pi, codex,
-and Claude Code.**
+until an agent finishes its turn. **This is deterministic for pi and codex** — read
+the next section before relying on it for Claude Code.
 
 **`cmux events` is the wait channel — not `cmux wait-for`.** `cmux wait-for <name>`
 is an unrelated *named-token rendezvous* (a manual semaphore you signal yourself);
@@ -127,13 +150,24 @@ it does **not** know when an agent finishes. The agent-completion signal is the
 **Prerequisite — install the notification hooks once:**
 
 ```bash
-cmux hooks setup            # wires pi, codex, opencode, gemini, … to emit on turn-stop
-# or per agent:  cmux hooks pi install   /   cmux hooks codex install
+cmux hooks setup                    # installs for every supported agent found on PATH
+cmux hooks setup <agent>            # or: cmux hooks setup --agent <agent>
+cmux hooks <agent> install --yes    # (re)install one agent's integration directly
+cmux hooks <agent> uninstall --yes  # remove one agent's integration
 ```
 
-Claude Code emits notifications out of the box when launched inside cmux (no
-`cmux hooks` entry needed). Without hooks, an agent stays silent and you're back to
-polling — so install them before relying on the wait.
+Supported agent names: `codex`, `grok`, `opencode`, `pi`, `omp`, `amp`, `cursor`,
+`gemini`, `kimi`, `kiro`, `rovodev` (or `rovo`), `copilot`, `codebuddy`, `factory`,
+`qoder`. These agents get a hook that fires deterministically on every turn-stop.
+`cmux hooks setup` silently **skips** any agent whose binary isn't on `PATH` — if an
+agent you expect to notify stays silent, don't assume setup already covered it; run
+`cmux hooks <agent> install --yes` to (re)install that one agent directly (this is also
+the fix if a hook install goes stale — uninstall first if you're about to hand-edit its
+generated config file). Without a working hook, an agent stays silent and you're back
+to polling. **Claude Code is not in this list and is not covered by `cmux hooks
+setup`** — see the next section. Full per-agent integration matrix (installed files,
+session-restore command, Feed bridge):
+https://github.com/manaflow-ai/cmux/blob/main/docs/agent-hooks.md
 
 **What an agent emits when its turn ends** — one event per completed turn:
 
@@ -150,11 +184,13 @@ a sibling `notification.clear_requested` fires when a surface gains focus and is
 noise.
 
 **Block until a specific agent finishes** (capture its `workspace_id` first via
-`cmux list-workspaces --json --id-format both`):
+`cmux list-workspaces --json --id-format both`) — you should already have this
+listener running from **Create a workspace** above, started before the first prompt:
 
 ```bash
 WS=<agent-workspace-uuid>
-# Start the listener to a file BEFORE sending the prompt, then poll the file.
+# Listener already started at workspace-creation time (see above). If not, start it now,
+# BEFORE sending the prompt:
 cmux events --name notification.requested --no-heartbeat --no-ack > /tmp/cmux.ev &
 EV=$!
 cmux send --surface <ref> "<task>"; cmux send-key --surface <ref> enter
@@ -168,6 +204,44 @@ Pitfall: a `cmux events | jq … &` pipeline in a one-liner can stall on stdout
 buffering — stream to a **file** and poll the file (above), or pass
 `jq --unbuffered`. For a durable cursor across reconnects use
 `cmux events --cursor-file <path> --reconnect`.
+
+### Claude Code: use a completion marker, not the notification event
+
+Claude Code has **no deterministic turn-stop hook** like pi/codex/gemini, so
+`cmux hooks setup` doesn't cover it. Instead, cmux bridges Claude's own
+model-initiated `PushNotification` tool call through a `PostToolUse` hook into a cmux
+notification — see [cmux's `agent-hooks.md`](https://github.com/manaflow-ai/cmux/blob/main/docs/agent-hooks.md).
+That means a notification only appears if **both** are true: "Claude Code
+integration" is enabled in cmux's app Settings, **and** the model itself decides to
+call `PushNotification` during that turn. A scripted, task-oriented sub-agent that's
+never told to proactively "notify the user" typically never calls it — so
+`cmux events` shows heartbeats only, with no `notification.requested` ever arriving.
+That's expected behavior, not a broken integration — don't spend time debugging hooks
+setup for it.
+
+**Default to a printed completion marker for Claude Code** — the same contract
+`agent-harness:boss-cmux-team` already uses for its workers:
+
+1. Tell the agent, in its prompt, to end with one distinctive line when truly done,
+   e.g. `TASK-DONE: <summary>`.
+2. Poll `read-screen` for that marker on a bounded loop (still fine to race it against
+   the notification listener as a free early exit — just don't make the loop's exit
+   condition depend on the notification alone):
+
+   ```bash
+   for i in $(seq 1 60); do
+     cmux read-screen --surface <ref> --lines 5 | grep -q "TASK-DONE:" && break
+     sleep 5
+   done
+   cmux read-screen --surface <ref> --scrollback --lines 40
+   ```
+
+3. If the marker never appears within the bound, treat it as "possibly slow, or the
+   model never got to it," not "cmux is broken" — `read-screen` to see what's
+   actually on screen before deciding.
+
+Separately: a Claude Code notification, when it does fire, still doesn't mean the task
+succeeded — see the caveat under **Launching Claude Code** below.
 
 ### Launching the pi agent
 
@@ -206,12 +280,14 @@ agent, launch it the same way you yolo Codex — bypass permissions at launch:
   executes shell/edits without prompting. (`--dangerously-skip-permissions` is a
   per-launch flag; it doesn't change global Claude settings.)
 
-Caveat verified in testing: a notification still fires on turn-completion **even when
-Claude refused to do the work** — so if you only watch events, you can mistake a
-"declined, nothing happened" turn for success. Always `read-screen` (or check the
-artifacts) after the event, don't trust the event alone. Claude Code emits cmux
-notifications out of the box (no `cmux hooks` entry needed); see
-**Wait for agents via notification events** above.
+Caveat verified in testing: on the rare turn where a Claude Code notification *does*
+fire, it fires on turn-completion **even when Claude refused to do the work** — so if
+you only watch events, you can mistake a "declined, nothing happened" turn for success.
+Always `read-screen` (or check the artifacts), don't trust the event alone. More
+fundamentally, Claude Code's cmux notification is bridged from a model-initiated
+`PushNotification` tool call, not a deterministic turn-stop hook, so most turns emit no
+notification at all — default to the completion-marker pattern instead; see
+**Claude Code: use a completion marker, not the notification event** above.
 
 ### Best practices
 
@@ -223,7 +299,7 @@ notifications out of the box (no `cmux hooks` entry needed); see
 6. **Close scoped, never broad.** Close only surfaces you just created or explicitly identified. Never loop a close over the whole `tree` — you'll kill things you didn't mean to. `close`/`close-window` may no-op while a live agent occupies a pane; use `close-surface` per pane.
 7. **One window per team.** Keep a unit of work to a single window so it stays monitorable and tearable as a unit.
 8. **Never print secrets.** If a surface has credentials/keys loaded, read results back without echoing the secret values.
-9. **Prefer push over poll.** Use `cmux events --category notification` (see **Wait for agents via notification events** above) to know the instant an agent finishes instead of polling `read-screen` in a tight loop. Install hooks first (`cmux hooks setup`); match events on `workspace_id`. `cmux wait-for` is a manual named-token semaphore, **not** an agent-finished signal.
+9. **Prefer push over poll for pi/codex/gemini; use a completion marker for Claude Code.** Subscribe to `cmux events --category notification` the instant the workspace is created (before the first prompt), matched on `workspace_id`. This is a deterministic turn-stop signal for pi/codex/gemini (install hooks first: `cmux hooks setup`) — but Claude Code has no such hook, so default to the printed-marker pattern for it instead of waiting on the event (see **Claude Code: use a completion marker, not the notification event**). `cmux wait-for` is a manual named-token semaphore, **not** an agent-finished signal, for either case.
 
 ## Workflows
 

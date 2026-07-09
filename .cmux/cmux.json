@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux.schema.json",
+
+  "actions": {
+    "ai-pair": {
+      "type": "workspaceCommand",
+      "title": "AI Pair",
+      "subtitle": "Claude Code + shell, split side by side",
+      "commandName": "AI Pair",
+      "palette": true,
+      "icon": { "type": "symbol", "name": "person.2" }
+    }
+  },
+
+  "commands": [
+    {
+      "name": "AI Pair",
+      "description": "Claude Code on the left, a plain shell on the right, both rooted in this project",
+      "workspace": {
+        "name": "AI Pair",
+        "cwd": ".",
+        "layout": {
+          "direction": "horizontal",
+          "split": 0.5,
+          "children": [
+            {
+              "pane": {
+                "surfaces": [
+                  { "type": "terminal", "name": "Claude Code", "command": "claude" }
+                ]
+              }
+            },
+            {
+              "pane": {
+                "surfaces": [
+                  { "type": "terminal", "name": "Shell" }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
