@@ -72,6 +72,20 @@ skillgrade init
 > 404 — currently live only in the `bossjones/skillgrade` fork (branch
 > `fix/anthropic-retired-model-404`) and require that fork or a future upstream release. With
 > upstream `npx skillgrade@latest`, if `init` returns 404 use template mode or `/scaffold-skill-eval`.
+>
+> To use the fork's behavior before that PR lands, install straight from the branch — npm
+> resolves GitHub shorthand, so no npm publish is needed:
+>
+> ```bash
+> # global install
+> npm i -g "github:bossjones/skillgrade#fix/anthropic-retired-model-404"
+>
+> # or one-off, no install
+> npx "github:bossjones/skillgrade#fix/anthropic-retired-model-404" --version
+> ```
+>
+> Upstreaming is tracked in <https://github.com/bossjones/skillgrade/pull/1>; once it merges and
+> a release ships, plain `npm i -g skillgrade` / `npx skillgrade` will suffice.
 
 **Practical consequence: hand-author `eval.yaml`, don't rely on AI-mode `init`.** The committed,
 working suite at
