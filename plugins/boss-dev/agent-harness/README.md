@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.23.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.27.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
@@ -19,7 +19,7 @@ of lifecycle hooks, output styles, and status lines.
 
 | Component | Count | Auto-active on install? | Invoked as |
 | --- | --- | --- | --- |
-| [Skills](#skills) | 17 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
+| [Skills](#skills) | 20 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
 | [Commands](#commands) | 17 | ✅ Yes | `/agent-harness:<name>` |
 | [Agents](#agents) | 6 | ✅ Yes | Dispatched via the `Agent`/`Task` tool |
 | [Output styles](#output-styles) | 8 | ✅ Yes | `/output-style` |
@@ -73,6 +73,12 @@ Apache-2.0):
 | Skill | Description |
 | --- | --- |
 | `boss-security-review` | Review changed code (or a named path / whole repo) against a bundled security rubric — and the target repo's `.cursor/rules/security-*` when present — and write a severity-graded findings report to `specs/security-review.md` (path overridable), citing the rule each finding triggered. Portable: bundles verbatim rule copies so it works in any repo. |
+
+**Planning:**
+
+| Skill | Description |
+| --- | --- |
+| `planf3` | Write implementation plans as self-contained HTML files with synced styling, optional AI-generated diagrams, and a create/update/build lifecycle. |
 
 The `fetch-diff`, `fetch-unresolved-comments`, and `pr-review` skills carry standalone PEP 723
 scripts under `scripts/`, invoked with `uv run "${CLAUDE_SKILL_DIR}/scripts/<script>.py"` — `uv`
@@ -368,7 +374,7 @@ that points at the script with `${CLAUDE_PLUGIN_ROOT}`:
 
 ## Status
 
-Plugin version **v0.23.0**. Skills, commands, agents, and output styles are auto-discovered and
+Plugin version **v0.27.0**. Skills, commands, agents, and output styles are auto-discovered and
 active on `/plugin install`. The hook scripts and status lines ship as a library and require manual
 wiring — a `hooks/hooks.json` entry for hooks, a `statusLine` setting for status lines — before they
 take effect.

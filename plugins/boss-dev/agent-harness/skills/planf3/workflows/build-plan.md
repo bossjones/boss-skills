@@ -3,9 +3,9 @@
 Task status markers: `[]` idle · `[wip]` in progress · `[x]` complete · `[f]` failed.
 
 1. Locate the Plan - From the `USER_PROMPT`, resolve the path to the target plan `.html` file; if no path is given, infer the most likely plan from `PLAN_OUTPUT_DIRECTORY` and confirm before building
-2. Absorb Context - Read the full plan: all embedded images, the metadata header, and every back reference (depth 1) so you fully understand prior/related work before writing code
+2. Absorb Context - Read the full plan: all embedded images, the metadata header, and every back reference (depth 1) to fully understand prior/related work before writing code
 3. Execute Phases - For each phase in order, top to bottom:
-   - Announce the phase you are starting
+   - Announce the phase being started
    - Set the phase and current task marker to `[wip]` in the plan file
    - Implement the task's specific actions
    - Run that phase's Testing Strategy commands; loop on failure until they pass

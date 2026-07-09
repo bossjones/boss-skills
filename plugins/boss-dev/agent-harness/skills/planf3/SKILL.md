@@ -9,7 +9,14 @@ description: >
 argument-hint: "[user-prompt] [questionable]"
 arguments: [user_prompt, questionable]
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Grep, Glob, Bash(uv run:*), Bash(open -a:*)
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+  - Bash(uv run:*)
+  - Bash(open -a:*)
 ---
 
 # Plan F3
