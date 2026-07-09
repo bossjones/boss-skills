@@ -41,6 +41,7 @@ Exit codes: 0 success/consistent, 1 problem detected (broken link, drift, failed
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import os
 import shutil
@@ -50,6 +51,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from rich.console import Console
+
+_NUL_BYTE = b"\x00"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -178,6 +181,130 @@ def _classify(target: Path, source: Path) -> str:
         return SKIP if current == _intended_link(source, target) else REPOINT
     # A real file or directory occupying the slot.
     return BACKUP_REPLACE
+
+
+def _read_text_or_none(path: Path) -> list[str] | None:
+    """UTF-8 lines (keepends) for a readable text file; None if binary/missing/undecodable."""
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return None
+    if _NUL_BYTE in raw:
+        return None
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    return text.splitlines(keepends=True)
+
+
+def diff_files(source: Path, target: Path) -> list[str]:
+    """Unified diff lines, target's current content -> source's content.
+
+    ``[]`` if identical. Falls back to raw byte-equality when either side is
+    binary/undecodable, so identical binaries never falsely report "differ".
+    """
+    source_lines = _read_text_or_none(source)
+    target_lines = _read_text_or_none(target)
+    if source_lines is None or target_lines is None:
+        if source.read_bytes() == target.read_bytes():
+            return []
+        return [f"binary files {_display(target)} and {_display(source)} differ\n"]
+
+    diff = list(
+        difflib.unified_diff(
+            target_lines,
+            source_lines,
+            fromfile=_display(target),
+            tofile=_display(source),
+        )
+    )
+    return diff
+
+
+def _list_files(root: Path) -> dict[str, Path]:
+    """rel-POSIX-path -> abs Path for every non-ignored file under *root*."""
+    if not root.is_dir():
+        return {}
+    files: dict[str, Path] = {}
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        if any(_is_ignored(part) for part in path.relative_to(root).parts):
+            continue
+        files[path.relative_to(root).as_posix()] = path
+    return files
+
+
+DIR_ONLY_IN_SOURCE = "only-in-source"
+DIR_ONLY_IN_TARGET = "only-in-target"
+DIR_DIFFERS = "differs"
+
+
+@dataclass(frozen=True)
+class DirDiffEntry:
+    """One relative path's comparison result inside a recursive dir diff."""
+
+    rel_path: str
+    status: str  # DIR_ONLY_IN_SOURCE | DIR_ONLY_IN_TARGET | DIR_DIFFERS
+    diff: list[str] = field(default_factory=list)  # only for DIR_DIFFERS
+
+
+def diff_dirs(source: Path, target: Path) -> list[DirDiffEntry]:
+    """Recursive dir comparison. Identical common files are omitted entirely."""
+    source_files = _list_files(source)
+    target_files = _list_files(target)
+    entries: list[DirDiffEntry] = []
+
+    for rel_path in sorted(source_files.keys() | target_files.keys()):
+        in_source = rel_path in source_files
+        in_target = rel_path in target_files
+        if in_source and not in_target:
+            entries.append(DirDiffEntry(rel_path, DIR_ONLY_IN_SOURCE))
+        elif in_target and not in_source:
+            entries.append(DirDiffEntry(rel_path, DIR_ONLY_IN_TARGET))
+        else:
+            diff = diff_files(source_files[rel_path], target_files[rel_path])
+            if diff:
+                entries.append(DirDiffEntry(rel_path, DIR_DIFFERS, diff))
+    return entries
+
+
+def diff_action(action: Action) -> list[str]:
+    """Renderable diff lines for one action; ``[]`` when there's nothing to show."""
+    if action.kind not in (BACKUP_REPLACE, REPOINT):
+        return []
+    source = action.source
+    if source is None:
+        return []
+    target = action.target
+
+    if action.kind == REPOINT:
+        try:
+            target.resolve(strict=True)
+        except OSError:
+            return [f"{_display(target)} → broken symlink, cannot diff\n"]
+
+    source_is_dir = source.is_dir()
+    target_is_dir = target.is_dir()
+    if source_is_dir != target_is_dir:
+        return [
+            f"{_display(target)} → type mismatch: source is "
+            f"{'a directory' if source_is_dir else 'a file'}, target is "
+            f"{'a directory' if target_is_dir else 'a file'}\n"
+        ]
+
+    if source_is_dir:
+        lines: list[str] = []
+        for entry in diff_dirs(source, target):
+            if entry.status == DIR_DIFFERS:
+                lines.append(f"--- {entry.rel_path} ---\n")
+                lines.extend(entry.diff)
+            else:
+                lines.append(f"{entry.rel_path}: {entry.status}\n")
+        return lines
+
+    return diff_files(source, target)
 
 
 def plan_actions(
@@ -422,9 +549,11 @@ def _scan_broken_links(repo_root: Path, components: tuple[str, ...]) -> list[str
     return problems
 
 
-def check(repo_root: Path, actions: list[Action], components: tuple[str, ...]) -> int:
+def check(repo_root: Path, actions: list[Action], components: tuple[str, ...], *, show_diff: bool = False) -> int:
     """Print the plan and return non-zero on drift or broken managed links."""
     _print_plan(actions)
+    if show_diff:
+        _print_diffs(actions)
 
     problems: list[str] = _scan_broken_links(repo_root, components)
     problems += [
@@ -439,6 +568,17 @@ def check(repo_root: Path, actions: list[Action], components: tuple[str, ...]) -
 
     console.print("\n[green]No broken links or drift among existing managed symlinks.[/green]")
     return 0
+
+
+def _print_diffs(actions: list[Action]) -> None:
+    """Print content diffs for every action with a non-empty ``diff_action`` result."""
+    for action in actions:
+        lines = diff_action(action)
+        if not lines or action.source is None:
+            continue
+        console.print(f"\n[bold]{_display(action.target)}[/bold] ← {_display(action.source)}")
+        for line in lines:
+            console.print(line, end="")
 
 
 def _print_plan(actions: list[Action]) -> None:
@@ -485,6 +625,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--check", action="store_true", help="dry run: print plan, verify links, exit non-zero on drift"
     )
+    parser.add_argument(
+        "--diff",
+        action="store_true",
+        help="show content diffs for backup+replace/repoint actions (dry run; "
+        "pair with --check to also gate the exit code on drift)",
+    )
     parser.add_argument("--restore", action="store_true", help="undo the latest run from its backup manifest")
     parser.add_argument("--copy", action="store_true", help="copy files instead of symlinking (symlink-hostile FS)")
     parser.add_argument("--components", help=f"comma-separated subset (default: {','.join(ALL_COMPONENTS)})")
@@ -505,8 +651,9 @@ def main(argv: list[str] | None = None) -> int:
 
     actions = plan_actions(repo_root, plugins, components)
 
-    if args.check:
-        return check(repo_root, actions, components)
+    if args.check or args.diff:
+        exit_code = check(repo_root, actions, components, show_diff=args.diff)
+        return exit_code if args.check else 0
 
     result = execute(repo_root, actions, copy=args.copy)
     _print_run_summary(result)
