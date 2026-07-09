@@ -5,6 +5,47 @@ not hardcoded** — a repo is expected to override them rather than treat them a
 requirements. It also documents two **opt-in extension points**: Check 22 (skill eval coverage)
 and the pipeline-declaration mechanism for custom agents.
 
+The plugin's other configurable surface is the **skillgrade model** used by the eval system;
+[Selecting the skillgrade model](#selecting-the-skillgrade-model) below covers it.
+
+## Selecting the skillgrade model
+
+The LLM model used by `skillgrade` — both the `llm_rubric` grader and AI-mode `skillgrade init` —
+is configurable, so **adopting a newly released model never requires a code change or a plugin PR**.
+
+**LLM grader** (a `skillgrade` run), highest precedence first:
+
+1. A grader's own `model:`
+2. A task's `grader_model:`
+3. `defaults.grader_model:` in `eval.yaml`
+4. The provider's `*_MODEL` env var — `ANTHROPIC_MODEL`, `OPENAI_MODEL`, `GEMINI_MODEL`
+5. The provider's built-in default (`anthropic` → `claude-sonnet-5`, `openai` → `gpt-4o`,
+   `gemini` → `gemini-3-flash-preview`)
+
+**`skillgrade init`** (AI scaffold — no config file exists yet): `*_MODEL` env var → provider default.
+
+```yaml
+# Pin the grader model in eval.yaml (upstream-safe):
+defaults:
+  grader_provider: anthropic
+  grader_model: claude-sonnet-5     # or any current model ID
+```
+
+```bash
+# Or override a single run without editing any file:
+ANTHROPIC_MODEL=claude-opus-4-8 skillgrade
+```
+
+> **skillgrade version note:** The `defaults.grader_model` / per-task `grader_model` / per-grader
+> `model:` config fields work on upstream skillgrade today. The `ANTHROPIC_MODEL` / `OPENAI_MODEL`
+> / `GEMINI_MODEL` environment-variable override — and the fix for the `skillgrade init` AI-mode
+> 404 — currently live only in the `bossjones/skillgrade` fork (branch
+> `fix/anthropic-retired-model-404`) and require that fork or a future upstream release. With
+> upstream `npx skillgrade@latest`, if `init` returns 404 use template mode or `/scaffold-skill-eval`.
+
+Full field reference: [`references/skillgrade-eval-yaml-schema.md`](../references/skillgrade-eval-yaml-schema.md)
+→ Model selection.
+
 ## Monorepo-root markers
 
 Used in Step 0 of `claude-config-validation` to decide whether the current directory *is* the

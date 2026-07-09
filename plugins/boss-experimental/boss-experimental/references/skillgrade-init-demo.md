@@ -32,10 +32,17 @@ skillgrade init
 - `npx skillgrade@latest --version` → `0.1.6` (installs and runs fine under Node 20).
 - Template-mode `init` → writes a valid `eval.yaml` template.
 - AI-mode `init` → **`Anthropic API returned 404`**, then template fallback. A `404` here means
-  the model identifier skillgrade `0.1.6` requests does not resolve for the account. `init`
-  exposes **no `--model` override**, so this cannot be worked around from the CLI. This is a
-  skillgrade-version limitation, independent of this plugin. Re-try after a skillgrade release
-  that targets a current model, or author the `eval.yaml` by hand (recommended — see below).
+  the model identifier upstream skillgrade `0.1.6` requests has been retired and no longer
+  resolves. The model **is** selectable — `init` resolves it as the `*_MODEL` env var
+  (`ANTHROPIC_MODEL`/`OPENAI_MODEL`/`GEMINI_MODEL`) → provider default, e.g.
+  `ANTHROPIC_MODEL=claude-opus-4-8 skillgrade init`.
+
+  > **skillgrade version note:** The `defaults.grader_model` / per-task `grader_model` / per-grader
+  > `model:` config fields work on upstream skillgrade today. The `ANTHROPIC_MODEL` / `OPENAI_MODEL`
+  > / `GEMINI_MODEL` environment-variable override — and the fix for the `skillgrade init` AI-mode
+  > 404 — currently live only in the `bossjones/skillgrade` fork (branch
+  > `fix/anthropic-retired-model-404`) and require that fork or a future upstream release. With
+  > upstream `npx skillgrade@latest`, if `init` returns 404 use template mode or `/scaffold-skill-eval`.
 
 ## The template `init` produces
 
@@ -77,7 +84,7 @@ genericized from a battle-tested source. Run it two ways:
 # local (Claude Code is the agent, no key, no Docker)
 /run-skill-eval plugins/boss-experimental/boss-experimental/skills/claude-config-validation
 
-# CI (real skillgrade trials; needs a resolvable model + ANTHROPIC_API_KEY)
+# CI (real skillgrade trials; needs ANTHROPIC_API_KEY; model from grader_model / *_MODEL env → default)
 cd plugins/boss-experimental/boss-experimental/skills/claude-config-validation/eval
 ./run_eval.sh --smoke --provider=local
 ```

@@ -8,7 +8,7 @@
 
 | | |
 |---|---|
-| **Trigger** | `/scaffold-skill-eval <skill-path>` |
+| **Trigger** | `/scaffold-skill-eval <skill-path>`, or auto-invoked on phrases like "scaffold an eval", "generate an eval suite for a skill", "create test fixtures and graders for a skill", "add skillgrade tests" (from its `description` frontmatter) |
 | **`allowed-tools`** | `Read`, `Write`, `Bash`, `Glob`, `Grep` |
 | **Input** | `skill_path` — path to a skill directory containing a `SKILL.md` |
 | **Output** | A complete `{skill_path}/eval/` directory: `eval.yaml`, `run_eval.sh`, `README.md`, `graders/*.js`, `test-fixtures/*/`, `.gitignore` |
@@ -68,7 +68,7 @@
 
 | | |
 |---|---|
-| **Trigger** | `/run-skill-eval <skill-path>` (default: `plugins/boss-experimental/boss-experimental/skills/claude-config-validation`) |
+| **Trigger** | `/run-skill-eval <skill-path>` (default: `plugins/boss-experimental/boss-experimental/skills/claude-config-validation`), or auto-invoked on phrases like "run skill evals", "run the eval suite", "score a skill against its fixtures", "check if a skill passes its evals" |
 | **`allowed-tools`** | `Read`, `Bash`, `Glob`, `Grep` |
 | **Input** | Skill path via `$ARGUMENTS` |
 | **Output** | `eval/output-{task-name}.md` per task, a printed per-task score table, and an overall pass rate |
@@ -122,7 +122,7 @@ Full reference: [`references/skillgrade-eval-yaml-schema.md`](../references/skil
 | `trials` | `5` | Independent runs per task |
 | `timeout` | `300` | Seconds per trial |
 | `threshold` | `0.8` | Minimum pass rate for `--ci` mode |
-| `grader_model` | — | Default LLM model for `llm_rubric` graders |
+| `grader_model` | provider default | Default LLM model for `llm_rubric` graders — set this (or a `*_MODEL` env var) to adopt a newly released model with no code change; see [Selecting the skillgrade model](04-configuration.md#selecting-the-skillgrade-model) |
 | `docker` | `{base: "node:20-slim"}` | CI-only |
 | `environment` | `{cpus: 2, memory_mb: 2048}` | CI-only |
 
@@ -132,7 +132,9 @@ files into the agent's workspace via `src`/`dest`/optional `chmod`), `graders[]`
 
 **`tasks[].graders[]`**: `type` (`deterministic` | `llm_rubric`), `weight`, `run` (shell command,
 required for `deterministic`), `rubric` (text or file path, required for `llm_rubric`), optional
-`setup` (install grader deps) and `model` (per-grader LLM override).
+`setup` (install grader deps), `provider` (`gemini`/`anthropic`/`openai`), and `model` (per-grader
+LLM override — highest-precedence model source; see
+[Selecting the skillgrade model](04-configuration.md#selecting-the-skillgrade-model)).
 
 **Scoring**: a trial's score is `sum(grader_score * weight) / sum(weight)`; a trial *passes*
 only if every grader scores `1.0`. A task's pass rate is passed trials ÷ total trials; the task
@@ -157,7 +159,7 @@ passes if that rate meets `threshold`.
 
 | | |
 |---|---|
-| **Trigger** | `/claude-config-validation <path>` |
+| **Trigger** | `/claude-config-validation <path>`, or auto-invoked on phrases like "validate CLAUDE.md", "check my .claude config", "audit agent/skill/rule placement", "lint the knowledge architecture", or before merging Claude config changes |
 | **`allowed-tools`** | `Read`, `Glob`, `Grep` — **no `Bash`, no `Write`/`Edit`: this skill is strictly read-only** |
 | **Input** | `project_path` (defaults to cwd) |
 | **Output** | A markdown report: a 23-row check table, an `## Issues` section split into `### FAIL` / `### WARN`, and `## Recommendations` |
@@ -248,18 +250,20 @@ expects to read the invoking project's own `CLAUDE.md` for build/test/lint comma
 conventions. All use `permissionMode: bypassPermissions` except `config-reviewer`
 (`permissionMode: read-only`) — per the knowledge-architecture doctrine, the **tool list is the
 real permission boundary**, since these agents are designed for orchestrated (subagent)
-execution where interactive approval prompts don't work.
+execution where interactive approval prompts don't work. Each agent frontmatter also declares a
+`capabilities: [...]` array — a short tag list summarizing its role (used for discovery/routing
+purposes, not enforced by the harness).
 
-| Agent | Tools | permissionMode | model | maxTurns | Output |
-|---|---|---|---|---|---|
-| [`architect`](../agents/architect.md) | Read, Bash, Glob, Grep, Write | bypassPermissions | opus | 50 | Technical Requirements Document (TRD) |
-| [`coder`](../agents/coder.md) | Read, Write, Edit, Bash, Glob, Grep | bypassPermissions | opus | 50 | Code changes |
-| [`test-writer`](../agents/test-writer.md) | Read, Write, Edit, Bash, Glob, Grep | bypassPermissions | opus | 40 | Test files |
-| [`tester`](../agents/tester.md) | Read, Bash, Glob, Grep | bypassPermissions | opus | 30 | Structured pass/fail report |
-| [`reviewer`](../agents/reviewer.md) | Read, Bash, Glob, Grep | bypassPermissions | opus | 25 | Verdict + structured review |
-| [`pr-submission`](../agents/pr-submission.md) | Read, Bash, Glob, Grep | bypassPermissions | opus | 20 | Commit, branch, PR |
-| [`learner`](../agents/learner.md) | Read, Write, Edit, Bash, Glob, Grep | bypassPermissions | opus | 40 | Updated CLAUDE.md/agents/skills |
-| [`config-reviewer`](../agents/config-reviewer.md) | Read, Glob, Grep, Bash, **Agent** | **read-only** | (unset) | (unset) | Architectural review report |
+| Agent | Capabilities | Tools | permissionMode | model | maxTurns | Output |
+|---|---|---|---|---|---|---|
+| [`architect`](../agents/architect.md) | `planning`, `technical-design` | Read, Bash, Glob, Grep, Write | bypassPermissions | opus | 50 | Technical Requirements Document (TRD) |
+| [`coder`](../agents/coder.md) | `implementation`, `coding` | Read, Write, Edit, Bash, Glob, Grep | bypassPermissions | opus | 50 | Code changes |
+| [`test-writer`](../agents/test-writer.md) | `test-authoring` | Read, Write, Edit, Bash, Glob, Grep | bypassPermissions | opus | 40 | Test files |
+| [`tester`](../agents/tester.md) | `test-execution` | Read, Bash, Glob, Grep | bypassPermissions | opus | 30 | Structured pass/fail report |
+| [`reviewer`](../agents/reviewer.md) | `code-review` | Read, Bash, Glob, Grep | bypassPermissions | opus | 25 | Verdict + structured review |
+| [`pr-submission`](../agents/pr-submission.md) | `git`, `pull-request` | Read, Bash, Glob, Grep | bypassPermissions | opus | 20 | Commit, branch, PR |
+| [`learner`](../agents/learner.md) | `self-improvement`, `documentation` | Read, Write, Edit, Bash, Glob, Grep | bypassPermissions | opus | 40 | Updated CLAUDE.md/agents/skills |
+| [`config-reviewer`](../agents/config-reviewer.md) | `config-review`, `read-only-audit` | Read, Glob, Grep, Bash, **Agent** | **read-only** | (unset) | (unset) | Architectural review report |
 
 ### `architect` — TRD-only, no production code
 

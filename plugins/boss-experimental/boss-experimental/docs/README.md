@@ -33,6 +33,9 @@ depend on that stack.**
 | [`04-configuration.md`](04-configuration.md) | Config-driven canonical agent set, monorepo-root markers, opt-in Check 22, pipeline extension point |
 | [`05-environment.md`](05-environment.md) | Node/npm requirements, `ANTHROPIC_API_KEY` scope, the `skillgrade init` AI-mode 404 |
 
+This set is the technical reference (architecture, contracts, extension points). For hands-on,
+copy-pasteable walkthroughs instead, see [`tutorials/`](tutorials/README.md).
+
 ## Layout reference
 
 ```text
@@ -47,4 +50,5 @@ boss-experimental/
 │                                     skillgrade schema, skillgrade-vs-plugin-eval, init-demo
 ├── rules/claude-config-authoring.md (template — copy into your .claude/rules/)
 └── docs/                            this technical reference
+    └── tutorials/                   hands-on walkthroughs (companion to this reference)
 ```

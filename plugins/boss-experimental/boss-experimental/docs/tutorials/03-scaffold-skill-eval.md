@@ -185,6 +185,37 @@ Cross-check each field against the schema table:
 | `tasks[].workspace[].src`/`dest` | Paths relative to `eval.yaml`; `dest` is where it lands in the agent's workspace |
 | `tasks[].graders[].weight` | Contributes to `sum(score * weight) / sum(weight)`; a trial only passes at `1.0` |
 
+### Pinning the grader model
+
+Any `llm_rubric` grader calls an LLM to score a trial, and that model doesn't have to be
+whatever skillgrade defaults to. Add `grader_model` to `defaults` to pin it for every task in the
+file:
+
+```yaml
+defaults:
+    agent: claude
+    provider: local
+    trials: 5
+    timeout: 300
+    threshold: 0.8
+    grader_model: claude-sonnet-5   # pin the LLM grader model; point at any newly released
+                                     # model ID here -- no PR to this plugin needed
+```
+
+Need a different model for just one task, or just one grader? `grader_model:` also works at the
+per-task level, and a `model:` field on an individual grader overrides both — the precedence is
+per-grader `model:` > per-task `grader_model:` > `defaults.grader_model:`. If you set none of
+these, skillgrade falls back to the `ANTHROPIC_MODEL`/`OPENAI_MODEL`/`GEMINI_MODEL` environment
+variable, then a provider default (`claude-sonnet-5` for Anthropic).
+
+> **skillgrade version note:** The `defaults.grader_model` / per-task `grader_model` / per-grader
+> `model:` config fields work on upstream skillgrade today. The `ANTHROPIC_MODEL` / `OPENAI_MODEL`
+> / `GEMINI_MODEL` environment-variable override — and the fix for the `skillgrade init` AI-mode
+> 404 — currently live only in the `bossjones/skillgrade` fork (branch
+> `fix/anthropic-retired-model-404`) and require that fork or a future upstream release. With
+> upstream `npx skillgrade@latest`, if `init` returns 404 use template mode or
+> `/scaffold-skill-eval`.
+
 ## Step 5: Hand-edit a task
 
 Say you want a fourth fixture for a file with **no markdown files at all** in `docs/` (an edge

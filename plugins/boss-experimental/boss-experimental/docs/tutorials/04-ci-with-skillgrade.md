@@ -155,6 +155,37 @@ jobs:
 Adjust the `paths:` filter and `working-directory` to point at your own skill's `eval/` from
 [Tutorial 3](03-scaffold-skill-eval.md).
 
+### Pinning the grader model
+
+`llm_rubric` graders call an LLM to score each trial, and that model is configurable — you don't
+need a plugin code change or a new skillgrade release just because a new model ships. Pin it once
+in `eval.yaml` (this config field works on upstream skillgrade today):
+
+```yaml
+defaults:
+  agent: claude
+  provider: local
+  trials: 5
+  timeout: 300
+  threshold: 0.8
+  grader_model: claude-sonnet-5   # any current model ID; per-task/per-grader `model:` overrides this
+```
+
+Or override per-run without touching `eval.yaml` at all — handy for a one-off CI job you want
+pinned to a different model:
+
+```bash
+ANTHROPIC_MODEL=claude-opus-4-8 ./run_eval.sh --smoke --ci --threshold=0.8
+```
+
+> **skillgrade version note:** The `defaults.grader_model` / per-task `grader_model` / per-grader
+> `model:` config fields work on upstream skillgrade today. The `ANTHROPIC_MODEL` / `OPENAI_MODEL`
+> / `GEMINI_MODEL` environment-variable override — and the fix for the `skillgrade init` AI-mode
+> 404 — currently live only in the `bossjones/skillgrade` fork (branch
+> `fix/anthropic-retired-model-404`) and require that fork or a future upstream release. With
+> upstream `npx skillgrade@latest`, if `init` returns 404 use template mode or
+> `/scaffold-skill-eval`.
+
 ## The AI `init` 404, and why we hand-author `eval.yaml`
 
 If you're starting a brand-new skill and reach for `skillgrade init` to auto-generate an
@@ -180,9 +211,29 @@ skillgrade init
   Created eval.yaml.
 ```
 
-The `404` means skillgrade `0.1.6`'s hardcoded model identifier doesn't resolve for the account,
-and `init` exposes no `--model` override to work around it — this is a skillgrade-version
-limitation, independent of this plugin. **Recommendation:** don't wait on AI-mode `init`. Instead:
+The `404` happened because skillgrade `0.1.6`'s AI-mode `init` targeted a since-retired model
+identifier that no longer resolves for the account. This is no longer a dead end, though: the
+model skillgrade uses — both for `init`'s AI mode and for `llm_rubric` graders at eval-run time —
+is selectable rather than hardcoded. The precedence is:
+
+- **A `skillgrade` eval run** (any `llm_rubric` grader): per-grader `model:` > per-task
+  `grader_model:` > `defaults.grader_model:` in `eval.yaml` > `ANTHROPIC_MODEL`/`OPENAI_MODEL`/
+  `GEMINI_MODEL` env var > provider default.
+- **`skillgrade init`** (AI-mode scaffolding, before any `eval.yaml` exists): `ANTHROPIC_MODEL`/
+  `OPENAI_MODEL`/`GEMINI_MODEL` env var > provider default.
+
+Current provider defaults: anthropic `claude-sonnet-5`, openai `gpt-4o`, gemini
+`gemini-3-flash-preview`.
+
+> **skillgrade version note:** The `defaults.grader_model` / per-task `grader_model` / per-grader
+> `model:` config fields work on upstream skillgrade today. The `ANTHROPIC_MODEL` / `OPENAI_MODEL`
+> / `GEMINI_MODEL` environment-variable override — and the fix for the `skillgrade init` AI-mode
+> 404 — currently live only in the `bossjones/skillgrade` fork (branch
+> `fix/anthropic-retired-model-404`) and require that fork or a future upstream release. With
+> upstream `npx skillgrade@latest`, if `init` returns 404 use template mode or
+> `/scaffold-skill-eval`.
+
+**Recommendation:** don't wait on AI-mode `init` against upstream skillgrade. Instead:
 
 1. Use `/scaffold-skill-eval <skill-path>` ([Tutorial 3](03-scaffold-skill-eval.md)) — it generates
    real fixtures, graders, and a schema-conformant `eval.yaml` deterministically, with no API call
@@ -225,7 +276,7 @@ not by re-running AI `init` and clobbering your fixtures.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `run_eval.sh` prints the local-dev fallback instead of running trials | `ANTHROPIC_API_KEY` not set, or neither `skillgrade` nor `npx` on `PATH` | Export the key; confirm `node`/`npx` are installed |
-| `skillgrade init` AI mode returns 404 | Known skillgrade 0.1.6 limitation (see above) | Use template mode or `/scaffold-skill-eval` instead |
+| `skillgrade init` AI mode returns 404 | skillgrade `0.1.6`'s AI-mode `init` targets a retired model (see above) | On the `bossjones/skillgrade` fork (branch `fix/anthropic-retired-model-404`), `init` targets a current model and honors `ANTHROPIC_MODEL`; on upstream, use template mode or `/scaffold-skill-eval` instead |
 | CI job passes locally but fails in Actions | Different Node version, or key not forwarded to the job | Pin `node-version: "20"`, confirm the secret name matches `env:` |
 | `--ci --threshold=` has no effect | `--ci` and `--threshold` weren't both passed on the same invocation | `run_eval.sh` only appends the CI gate when `--ci` is present |
 
