@@ -150,6 +150,29 @@
         "email": "bossjones@theblacktonystark.com",
         "url": "https://github.com/bossjones"
       }
+    },
+    {
+      "name": "boss-experimental",
+      "source": "./plugins/boss-experimental/boss-experimental",
+      "description": "Experimental, not-ready-for-prime-time Claude Code tooling. First tenant: a genericized skillgrade-based skill-eval system plus config-validation, a knowledge-architecture doctrine, and a set of dev-workflow agents. Self-contained and parallel to the repo's existing plugin-eval stack.",
+      "version": "0.2.1",
+      "category": "boss-experimental",
+      "keywords": [
+        "experimental",
+        "skillgrade",
+        "skill-eval",
+        "eval",
+        "config-validation",
+        "knowledge-architecture",
+        "agents",
+        "claude-code",
+        "boss-experimental"
+      ],
+      "author": {
+        "name": "Malcolm Jones",
+        "email": "bossjones@theblacktonystark.com",
+        "url": "https://github.com/bossjones"
+      }
     }
   ]
 }

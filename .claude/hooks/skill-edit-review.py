@@ -3,8 +3,15 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""PostToolUse hook. Nudges Claude to invoke the `skill-review` skill whenever
-Edit/Write/MultiEdit touches a SKILL.md this repo cares about.
+"""PostToolUse hook. Nudges Claude to dispatch the `plugin-dev:skill-reviewer`
+agent whenever Edit/Write/MultiEdit touches a SKILL.md this repo cares about.
+
+The hook previously named a `skill-review` skill, which has never existed in
+this repo, in ~/.claude/skills, or in the marketplace — so the block was
+unsatisfiable and stalled every SKILL.md edit. The real reviewer is the
+`plugin-dev:skill-reviewer` agent (Read/Grep/Glob), which grades SKILL.md
+against Skill Authoring Best Practices and reports Critical/Major/Minor issues:
+https://github.com/anthropics/claude-plugins-official/blob/main/plugins/plugin-dev/agents/skill-reviewer.md
 
 Ported from skill-edit-review.mjs: the Node version could not run as a hook
 because `node` on this machine is supplied only by fnm via an ephemeral,
@@ -21,7 +28,7 @@ under .claude/skills/<name>/SKILL.md.
 This runs alongside version-bump-reviewer.py; both fire independently. The edit
 always commits (PostToolUse runs after the tool succeeds). The
 `decision: "block"` reason is feedback Claude is expected to address before
-continuing — it does not undo the edit. Address skill-review findings first,
+continuing — it does not undo the edit. Address skill-reviewer findings first,
 then run version-bump-reviewer.
 """
 
@@ -82,11 +89,14 @@ def main() -> int:
         return 0
 
     reason = (
-        f"You just edited {rel.as_posix()}. Before continuing, invoke the "
-        "`skill-review` skill to check this file against the Anthropic Software "
-        "Directory Policy and Skill Authoring Best Practices. Report any "
-        "critical or high findings to the user before making further edits. "
-        "Resolve skill-review findings before running version-bump-reviewer."
+        f"You just edited {rel.as_posix()}. Before continuing, dispatch the "
+        "`plugin-dev:skill-reviewer` agent (via the Agent tool) to check this "
+        "file against the Anthropic Software Directory Policy and Skill "
+        "Authoring Best Practices. Per .claude/rules/audit-protocol.md, pass it "
+        "the file path and nothing else — no description of what you changed, no "
+        "hint about what to look for. Report any Critical or Major findings to "
+        "the user before making further edits. Resolve skill-reviewer findings "
+        "before running version-bump-reviewer."
     )
     sys.stdout.write(json.dumps({"decision": "block", "reason": reason}))
     return 0

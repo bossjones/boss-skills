@@ -177,8 +177,9 @@ def main() -> int:
         "in .claude-plugin/marketplace.json. A new plugins[] entry in marketplace.json "
         "is an initial publish — validate parity, no bump. A repo-internal skill "
         "(.claude/skills/<name>/SKILL.md) bumps metadata.version in the SKILL.md "
-        "frontmatter. Then commit with a conventional message. If skill-review "
-        "reported critical or high findings, address those first."
+        "frontmatter. Then commit with a conventional message. If the "
+        "plugin-dev:skill-reviewer agent reported Critical or Major findings, "
+        "address those first."
     )
     sys.stdout.write(json.dumps({"decision": "block", "reason": reason}))
     return 0

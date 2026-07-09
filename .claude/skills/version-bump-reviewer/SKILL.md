@@ -20,11 +20,11 @@ description: >
   the user says "bump the version", "cut a release", "release this skill", "prepare this
   skill for merge", "introduce this plugin", or "does this need a version bump"; or
   whenever a plugin's package version may be out of sync with a recently changed
-  component. Run this AFTER skill-review so any policy or quality issues are addressed
+  component. Run this AFTER plugin-dev:skill-reviewer so any policy or quality issues are addressed
   first.
 allowed-tools: Bash(git diff *) Bash(git status *) Bash(git log *) Bash(git show *) Bash(git ls-tree *) Bash(git add *) Bash(git commit *) Bash(make *) Bash(uvx *) Bash(mkdir *) Bash(cp *) Read Edit
 metadata:
-  version: 0.1.1
+  version: 0.1.2
 ---
 
 # Version Bump Reviewer
@@ -32,7 +32,7 @@ metadata:
 Decides whether a plugin or skill change needs a semver bump and at what tier, then
 propagates the new version through every file that has to stay in sync for this repo, and
 writes a conventional-commit message a future CHANGELOG generator can grep. This skill is
-the version-aware sibling to `skill-review`: `skill-review` flags policy and quality
+the version-aware sibling to the `plugin-dev:skill-reviewer` agent: that agent flags policy and quality
 issues; this skill reasons about versioning and commits the result.
 
 The primary question this skill answers is **"does this change need a version bump, and
@@ -64,7 +64,7 @@ when `plugin.json.version` (or the `plugins[].version` in `marketplace.json`) is
     entries and version drift).
 
   The hook runs alongside `skill-edit-review.py`; both fire independently. Address
-  `skill-review` findings first, then run this skill.
+  `plugin-dev:skill-reviewer` findings first, then run this skill.
 
 - **Model-invoked** when the user asks to bump a version, cut a release, prepare a skill
   for merge, introduce/publish a new plugin, verify whether a change needs a bump, or
@@ -558,7 +558,7 @@ extension mapping or install a separate plugin.
 - **New plugin publish with mismatched `plugin.json` and `marketplace.json` versions.**
   Pick the larger as the published version, edit the smaller to match, and note the
   parity fix in the commit body.
-- **`skill-review` reported critical or high findings.** Don't commit. Tell the user
+- **`plugin-dev:skill-reviewer` reported Critical or Major findings.** Don't commit. Tell the user
   to resolve the findings first; this skill is the last step before commit, not the
   first.
 - **Pre-release with no numeric component to bump (e.g. `1.0.0-rc.5`).** Bump the
@@ -572,7 +572,7 @@ extension mapping or install a separate plugin.
 
 ## What this skill is NOT
 
-- Not a code or policy reviewer. `skill-review` does that and runs in its own hook.
+- Not a code or policy reviewer. The `plugin-dev:skill-reviewer` agent does that, dispatched by its own hook.
 - Not a structural validator. `make verify-structure` does that; this skill calls it
   but doesn't reimplement it.
 - Not a quality scorer. `plugin-eval` does that; this skill consumes its score as a
