@@ -578,7 +578,7 @@ def _print_diffs(actions: list[Action]) -> None:
             continue
         console.print(f"\n[bold]{_display(action.target)}[/bold] ← {_display(action.source)}")
         for line in lines:
-            console.print(line, end="")
+            console.print(line, end="", markup=False, highlight=False)
 
 
 def _print_plan(actions: list[Action]) -> None:

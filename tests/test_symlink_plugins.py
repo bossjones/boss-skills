@@ -14,6 +14,12 @@ import os
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Static import path so type checkers can resolve the dynamically loaded ``sp`` module's
+    # public types (e.g. ``sp.Action``); at runtime ``sp`` is loaded via importlib below.
+    from scripts.symlink_plugins import Action
 
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "symlink_plugins.py"
 
@@ -89,7 +95,7 @@ def test_skill_dir_symlink_is_relative_and_resolves(tmp_path: Path) -> None:
     target = tmp_path / ".claude" / "skills" / "foo"
     assert target.is_symlink()
     link = os.readlink(target)
-    assert not os.path.isabs(link) and link.startswith("..")
+    assert not Path(link).is_absolute() and link.startswith("..")
     assert (target / "SKILL.md").exists()
 
 
@@ -361,7 +367,7 @@ def test_diff_dirs_reports_only_in_source_only_in_target_and_differs(tmp_path: P
 # --------------------------------------------------------------------------- #
 
 
-def _action_for(repo: Path, components: tuple[str, ...], kind: str):
+def _action_for(repo: Path, components: tuple[str, ...], kind: str) -> Action:
     plugins = sp.discover_plugins(repo)
     actions = sp.plan_actions(repo, plugins, components)
     return next(a for a in actions if a.kind == kind)
@@ -385,7 +391,7 @@ def test_diff_action_repoint_shows_current_vs_correct_source(tmp_path: Path) -> 
     other = _write(tmp_path / "elsewhere" / "wrong.md", "wrong-target-content")
     link = tmp_path / ".claude" / "commands" / "build.md"
     link.parent.mkdir(parents=True)
-    link.symlink_to(os.path.relpath(other, start=link.parent))
+    link.symlink_to(other.relative_to(link.parent, walk_up=True))
 
     action = _action_for(tmp_path, ("commands",), sp.REPOINT)
     result = sp.diff_action(action)
