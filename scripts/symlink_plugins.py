@@ -207,7 +207,12 @@ def diff_files(source: Path, target: Path) -> list[str]:
     source_lines = _read_text_or_none(source)
     target_lines = _read_text_or_none(target)
     if source_lines is None or target_lines is None:
-        if source.read_bytes() == target.read_bytes():
+        try:
+            source_bytes = source.read_bytes()
+            target_bytes = target.read_bytes()
+        except OSError:
+            return [f"binary files {_display(target)} and {_display(source)} differ (unreadable)\n"]
+        if source_bytes == target_bytes:
             return []
         return [f"binary files {_display(target)} and {_display(source)} differ\n"]
 

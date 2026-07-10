@@ -327,6 +327,18 @@ def test_diff_files_binary_identical_bytes_returns_empty(tmp_path: Path) -> None
     assert sp.diff_files(source, target) == []
 
 
+def test_diff_files_unreadable_side_degrades_instead_of_crashing(tmp_path: Path) -> None:
+    # A directory raises OSError (IsADirectoryError) on read_bytes, exercising the
+    # binary-fallback guard: diff_files must report gracefully, never propagate the error.
+    source = tmp_path / "source.txt"
+    source.write_text("hello\n")
+    target_dir = tmp_path / "target_is_a_dir"
+    target_dir.mkdir()
+    result = sp.diff_files(source, target_dir)
+    assert len(result) == 1
+    assert "unreadable" in result[0].lower()
+
+
 # --------------------------------------------------------------------------- #
 # --diff: directory-level diffing
 # --------------------------------------------------------------------------- #
