@@ -33,6 +33,8 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
   - [`boss-cmux-team`](#boss-cmux-team)
 - [Security review](#security-review)
   - [`boss-security-review`](#boss-security-review)
+- [Planning](#planning)
+  - [`planf3`](#planf3)
 - [Dependencies](#dependencies)
 
 ## At a glance
@@ -56,6 +58,7 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 | [`boss-security-review`](#boss-security-review) | model-invoked | Security-review changed code (or a path/whole repo) → severity-graded report | `git` |
 | [`boss-cmux`](#boss-cmux) | model-invoked | Drive cmux windows/workspaces/panes/surfaces from natural language | cmux (macOS) |
 | [`boss-cmux-team`](#boss-cmux-team) | model-invoked | Spawn/orient/drive a config-driven multi-agent team in cmux | `uv`, cmux (macOS) |
+| [`planf3`](#planf3) | explicit | Write/maintain HTML plans with diagrams and a create/update/build lifecycle | `uv`, `OPENAI_API_KEY` optional |
 
 > **Adapted from:** the PR-review skills are adapted from
 > [mlflow](https://github.com/mlflow/mlflow) (Apache-2.0); the worktree and release-notes skills are
@@ -481,18 +484,53 @@ with cmux installed. New to cmux? Start with the hands-on [cmux tutorial](./cmux
 
 ---
 
+## Planning
+
+### `planf3`
+
+> Write and maintain implementation plans as self-contained HTML files with synced visual identity,
+> optional AI-generated diagrams, and a full create/update/build lifecycle.
+
+- **Invocation:** explicit (`disable-model-invocation: true`). Arguments: `[user-prompt]
+  [questionable]` — ask for it by name or `/agent-harness:planf3`.
+- **When to use:** As a richer alternative to `/agent-harness:plan` when the plan benefits from
+  embedded diagrams, a professional browsable artifact, or needs to be revised and executed across
+  multiple sessions rather than written once.
+- **What it does:** Routes the prompt to one of four workflows —
+  [Create Plan](../skills/planf3/workflows/create-plan.md) (new work → a fresh `specs/<name>.html`),
+  [Update Plan](../skills/planf3/workflows/update-plan.md) (revise existing plan content),
+  [Update References](../skills/planf3/workflows/update-references.md) (refresh metadata / back and
+  forward references), and [Build Plan](../skills/planf3/workflows/build-plan.md) (implement the
+  plan, flipping phase/task status markers `[]` → `[wip]` → `[x]`/`[f]`) — plus an internal
+  [Image Generation](../skills/planf3/workflows/image-generation.md) sub-workflow that both Create and
+  Update can call to fill or refresh embedded diagrams via two PEP 723 scripts
+  (`generate_gpt_image.py`, `edit_gpt_image.py`). Metadata (`modified`, `commits`, `agent`, `session`,
+  back/forward references) is append-only across the plan's lifecycle.
+- **Example:**
+
+  ```text
+  /agent-harness:planf3 "add rate limiting to the API client"
+  ```
+
+- **Source:** [`skills/planf3/SKILL.md`](../skills/planf3/SKILL.md)
+- **Tutorial:** [Write and build plans with planf3](../../../../docs/tutorials/agent-harness/planf3.md)
+
+---
+
 ## Dependencies
 
 - **`uv`** — runs the PEP 723 scripts behind `fetch-diff`, `fetch-unresolved-comments`,
-  `pr-review`, `worktree-doctor`, the `unicode-hygiene` scanner, `setup-second-brain`, and
-  `pyrefly-typing` (also invokes `uv add`/`uv run pyrefly` in the target repo). Their
-  dependencies (`aiohttp`, `pydantic`, `jsonschema`) resolve on demand, so the skills work right after
-  `/plugin install` with no setup step. (The unicode scanner and `setup-second-brain` are stdlib-only
-  — no dependencies to resolve.)
+  `pr-review`, `worktree-doctor`, the `unicode-hygiene` scanner, `setup-second-brain`,
+  `pyrefly-typing` (also invokes `uv add`/`uv run pyrefly` in the target repo), and `planf3`'s image
+  scripts. Their dependencies (`aiohttp`, `pydantic`, `jsonschema`, `openai`, `python-dotenv`) resolve
+  on demand, so the skills work right after `/plugin install` with no setup step. (The unicode
+  scanner and `setup-second-brain` are stdlib-only — no dependencies to resolve.)
 - **`node` ≥ 22 + `npm`** — only for the optional QMD step of `setup-second-brain`
   (`npm install -g @tobilu/qmd`). Everything else works without Node; QMD degrades to Grep.
 - **`gh`** (authenticated) or **`GH_TOKEN`** — for all GitHub-touching skills.
 - **`git` 2.5.0+** — for the worktree suite.
+- **`OPENAI_API_KEY`** — optional, only used by `planf3`'s image-generation sub-workflow. Without it,
+  plans still save correctly with their `{{...IMAGE}}` slots left as placeholder comments.
 
 `${CLAUDE_SKILL_DIR}` in the examples is set by Claude Code to the skill's own directory at runtime.
 </content>
