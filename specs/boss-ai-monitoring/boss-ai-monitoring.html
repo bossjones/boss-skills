@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan: boss-ai-monitoring — Local Observability for AI Coding Agents</title>
+<style>
+  /* ===== Synced visual identity: professional, focused, minimal.
+     Theme: "signal on slate" — engineering-document light surface, deep slate ink,
+     teal for live/healthy signals, amber for cost, coral for failures.
+     Generated images must match this palette. ===== */
+  :root {
+    --bg: #fafaf7;
+    --surface: #ffffff;
+    --ink: #1c2733;
+    --ink-soft: #4a5a6a;
+    --line: #e3e6e0;
+    --accent: #0e7c7b;        /* teal — live signals, links, healthy */
+    --accent-soft: #e3f2f1;
+    --cost: #b57614;          /* amber — cost/tokens */
+    --cost-soft: #faf1de;
+    --fail: #c0504d;          /* coral — failures/risks */
+    --fail-soft: #f9e9e8;
+    --new: #3a6ea5;
+    --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", "Inter", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 1.25rem 6rem;
+    background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 16px; line-height: 1.6;
+  }
+  main { max-width: 960px; margin: 0 auto; }
+  h1, h2, h3, h4 { line-height: 1.25; color: var(--ink); }
+  h1 { font-size: 1.9rem; margin: 2.5rem 0 0.5rem; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 1.35rem; margin: 3rem 0 0.75rem; padding-bottom: 0.35rem;
+    border-bottom: 2px solid var(--accent);
+  }
+  h3 { font-size: 1.1rem; margin: 1.75rem 0 0.5rem; }
+  h4 { font-size: 1rem; margin: 1.5rem 0 0.4rem; color: var(--ink-soft); }
+  p { margin: 0.6rem 0; }
+  a { color: var(--accent); }
+  code {
+    font-family: var(--mono); font-size: 0.86em;
+    background: var(--accent-soft); color: var(--ink);
+    padding: 0.1em 0.35em; border-radius: 4px;
+  }
+  pre {
+    background: #10202b; color: #dce8ee; border-radius: 8px;
+    padding: 1rem 1.2rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.55;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  figure { margin: 1.75rem auto; text-align: center; }
+  figure img {
+    max-width: 100%; border-radius: 10px; border: 1px solid var(--line);
+    box-shadow: 0 2px 10px rgba(28, 39, 51, 0.08);
+  }
+  figcaption { font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--line); padding: 0.45rem 0.65rem; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; }
+  ul { padding-left: 1.4rem; }
+  li { margin: 0.3rem 0; }
+
+  /* Metadata */
+  details.meta {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.6rem 1rem; margin: 1rem 0 0; font-size: 0.88rem;
+  }
+  details.meta summary { cursor: pointer; font-weight: 600; color: var(--ink-soft); }
+  details.meta dl { display: grid; grid-template-columns: 9rem 1fr; gap: 0.25rem 1rem; margin: 0.75rem 0 0.25rem; }
+  details.meta dt { font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft); }
+  details.meta dd { margin: 0; font-family: var(--mono); font-size: 0.8rem; overflow-wrap: anywhere; }
+
+  /* File tags */
+  .tag {
+    display: inline-block; font-family: var(--mono); font-size: 0.7rem; font-weight: 700;
+    padding: 0.05em 0.5em; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .tag.existing { background: var(--accent-soft); color: var(--accent); }
+  .tag.new { background: #e7eef7; color: var(--new); }
+
+  /* Phases */
+  .phase {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1.1rem 1.5rem 1.4rem; margin: 1.5rem 0;
+  }
+  .phase > h3 { margin-top: 0.25rem; }
+  code.status {
+    background: var(--ink); color: #9fe8d3; min-width: 2.2em; text-align: center;
+    display: inline-block; font-weight: 700;
+  }
+  ul.checklist { list-style: none; padding-left: 0.25rem; }
+  ul.checklist li { margin: 0.45rem 0; }
+  .loop {
+    background: var(--cost-soft); border-left: 4px solid var(--cost);
+    border-radius: 6px; padding: 0.7rem 1rem; margin-top: 1.1rem; font-size: 0.92rem;
+  }
+
+  /* Questionables */
+  #questionables details, #amendments details {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.55rem 1rem; margin: 0.6rem 0;
+  }
+  #questionables summary, #amendments summary { cursor: pointer; font-weight: 600; }
+  .qa-answer { color: var(--ink-soft); font-size: 0.94rem; }
+
+  .callout {
+    background: var(--accent-soft); border-left: 4px solid var(--accent);
+    border-radius: 6px; padding: 0.7rem 1rem; margin: 1rem 0; font-size: 0.94rem;
+  }
+  .callout.risk { background: var(--fail-soft); border-left-color: var(--fail); }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ===== HEADER + UPDATABLE METADATA ===== -->
+  <header>
+    <h1>Plan: boss-ai-monitoring — Local Observability for AI Coding Agents</h1>
+    <details class="meta">
+      <summary>Metadata</summary>
+      <dl>
+        <dt>created</dt>      <dd>2026-07-11T19:08:54Z</dd>
+        <dt>modified</dt>     <dd>2026-07-11T19:08:54Z, 2026-07-11T19:41:50Z</dd>
+        <dt>commits</dt>      <dd>59335b3, 8b3b245</dd>
+        <dt>agent name</dt>   <dd>Claude Fable 5 (claude-fable-5)</dd>
+        <dt>session id</dt>   <dd>a69eb84a-0a31-476a-a6c3-47c199ba1e14</dd>
+        <dt>back refs</dt>    <dd>specs/breakout-openobserve.md (standalone-repo breakout pattern)</dd>
+        <dt>forward refs</dt> <dd>github.com/bossjones/boss-ai-monitoring (target standalone repo, to be created in Phase 1)</dd>
+      </dl>
+    </details>
+  </header>
+
+  <!-- Hero image — synced to the :root visual identity. -->
+  <figure>
+    <img src="hero.png" alt="Three telemetry streams — OTel, JSONL, LangSmith — converging into one local dashboard showing cost, time per task, and live activity">
+    <figcaption>One local pane of glass: three telemetry streams from Claude Code merged into a single realtime dashboard.</figcaption>
+  </figure>
+
+  <!-- ===== PURPOSE / PROBLEM / SOLUTION ===== -->
+  <section id="purpose">
+    <h2>Purpose</h2>
+    <p>Build <strong>boss-ai-monitoring</strong>: a locally-run, KISS observability tool for AI coding agents — Claude Code first — that answers, in one place and in near-realtime: <em>What are my agents doing right now? How long does each task take? What does each session, agent, skill, and model cost? Which tools succeed and fail? Am I getting better or worse over time?</em> The spec starts in this repo; the implementation lands in a standalone public GitHub repo (<code>bossjones/boss-ai-monitoring</code>) built with Python via uv, strict TDD, and optional Docker packaging. LangSmith traces (already configured via the langsmith-claude-code-plugins hook plugin) merge into the same store for a unified view.</p>
+  </section>
+
+  <section id="problem">
+    <h2>Problem</h2>
+    <p>Claude Code emits rich telemetry, but it is fragmented across three disconnected surfaces that no single local tool unifies:</p>
+    <ul>
+      <li><strong>Native OpenTelemetry</strong> (<code>CLAUDE_CODE_ENABLE_TELEMETRY=1</code>) — authoritative <code>cost_usd</code>, 8 metrics, ~24 log events with <code>session.id</code> and <code>prompt.id</code> correlation keys — but forward-only and unused unless something is listening on an OTLP endpoint.</li>
+      <li><strong>Session transcripts</strong> (<code>~/.claude/projects/**/*.jsonl</code>) — full retroactive history of every session, message, and tool call — but a reverse-engineered format with no cost ground truth.</li>
+      <li><strong>LangSmith traces</strong> (hooks plugin) — turn/tool/subagent-level traces with a queryable API — but siloed in LangSmith's cloud UI, disconnected from local cost and transcript data.</li>
+    </ul>
+    <p>Existing tools each solve a slice: <code>ccusage</code> (CLI cost tables), <code>Sniffly</code> (JSONL error analysis), <code>agtop</code> (live TUI, no persistence), <code>agentic-metric</code> (SQLite aggregation, no web UI), <code>claude-code-otel</code> (Grafana, 4-container stack, no LangSmith/transcript joins). None provide: a persistent local store joining all three sources, per-task (prompt-level) timing, realtime web views, <em>and</em> a frontend an AI agent can itself inspect in a browser and improve.</p>
+    <figure>
+      <img src="problem-fragmented-signals.png" alt="Three disconnected telemetry silos — OTel, JSONL, LangSmith — with broken dashed links and an empty dashboard frame marked with a question mark">
+      <figcaption>Three telemetry surfaces, zero unified local view: OTel is unheard, transcripts are unparsed, LangSmith is siloed.</figcaption>
+    </figure>
+  </section>
+
+  <section id="solution">
+    <h2>Solution</h2>
+    <p>One Python service (uv-managed, single Docker container optional) with three ingest paths writing to <strong>one DuckDB file</strong>, fronted by a <strong>FastAPI + SSE + vanilla HTML/htmx dashboard</strong>. This is the convergent design of the closest prior art (Sniffly, disler/pi-agent-observability) and was confirmed with the user over Grafana (4-container stack, agent-hostile JSON dashboards) and over marimo-as-primary (polling-only refresh, per-viewer kernels).</p>
+    <pre><code>Claude Code ──OTLP http/json──▶ FastAPI :4318  /v1/logs + /v1/metrics   (live, authoritative cost)
+~/.claude/projects/**/*.jsonl ─▶ incremental JSONL reader (byte-offset cursors; history + gap-fill)
+LangSmith cloud ◀──hooks plugin traces… ──▶ poller: Client.list_runs(start_time cursor)
+                                   │
+                                   ▼  batched writes (Appender)
+                        ┌─────────────────────────┐
+                        │  one DuckDB file        │  raw `events` (JSON payload col)
+                        │  + SQL views = metrics  │  lineage: otlp | jsonl | langsmith
+                        └─────────────────────────┘
+                                   │
+                                   ▼
+        FastAPI + Jinja2 + htmx + SSE dashboard  (live feed, per-task timeline, cost rollups)
+        [optional] marimo notebook on the same DuckDB file (ad-hoc exploration)</code></pre>
+    <ul>
+      <li><strong>Events over metrics</strong> — OTel log events (<code>api_request</code>, <code>tool_result</code>, <code>tool_decision</code>, …) are the primary stream; the 8 official metrics and the "5 metrics that matter" are derived SQL views. <code>prompt.id</code> groups everything downstream of one user prompt = per-task timing. <code>session.id</code> ↔ LangSmith <code>thread_id</code> = merge key.</li>
+      <li><strong>Anthropic telemetry discipline</strong> — every event row carries <code>model</code>, <code>git_sha</code>, <code>agent_name</code>/<code>skill_name</code>, and <code>source</code> lineage, so slow-regression time-series and per-feature cost/latency attribution work in plain SQL ("store results like telemetry, not test logs").</li>
+      <li><strong>Watcher discipline</strong> — anything analytical (correction mining, drift checks, error classification) runs as <em>trailing background jobs</em> over stored data, never on the agent's critical path.</li>
+      <li><strong>Agent-editable frontend</strong> — server-rendered HTML/htmx is the format a coding agent edits most reliably; Phase 7 codifies the screenshot → critique → edit → reload loop.</li>
+    </ul>
+    <figure>
+      <img src="solution-architecture.png" alt="Architecture: OTel, JSONL, and LangSmith streams merging into one DuckDB file, feeding an SSE dashboard, with a marimo notebook satellite">
+      <figcaption>Three ingest paths, one DuckDB file, one SSE-driven dashboard — with marimo as an exploration sidecar.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ===== RELEVANT FILES ===== -->
+  <section id="files" class="files">
+    <h2>Relevant Files</h2>
+
+    <h3>Existing Files (this repo — read-only context)</h3>
+    <ul>
+      <li><span class="tag existing">existing</span> <code>specs/breakout-openobserve.md</code> — the repo's canonical "starts here → standalone GitHub repo" pattern (gh repo create, uv scaffold, hatchling, justfile, RED/GREEN/REFACTOR); this plan mirrors its structure.</li>
+      <li><span class="tag existing">existing</span> <code>.env.sample</code> — where <code>LANGSMITH_API_KEY</code> / telemetry env var documentation gets referenced for local development from this repo; the standalone repo ships its own <code>.env.sample</code>.</li>
+      <li><span class="tag existing">existing</span> <code>~/.claude/projects/**/*.jsonl</code> — Claude Code session transcripts; the backfill data source (read-only, external to both repos).</li>
+    </ul>
+
+    <h3>New Files (target standalone repo <code>bossjones/boss-ai-monitoring</code>)</h3>
+    <ul>
+      <li><span class="tag new">new</span> <code>pyproject.toml</code> — uv + hatchling, Python ≥3.13, deps: fastapi, uvicorn, duckdb, jinja2, httpx, langsmith, pydantic, pydantic-settings, pyyaml, sse-starlette; dev: pytest, pytest-asyncio, respx, ruff, pyrefly, playwright.</li>
+      <li><span class="tag new">new</span> <code>justfile</code> — <code>just check</code> = ruff + pyrefly + codespell + pytest; <code>just dev</code>, <code>just docker-build</code>.</li>
+      <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/config.py</code> — pydantic-settings <code>BaseSettings</code> configuration: defaults → optional YAML file → env var overrides (highest precedence).</li>
+      <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/store/schema.py</code> + <code>store/writer.py</code> — DuckDB schema (raw <code>events</code> table, JSON payload column), batched Appender writer, cursor tables.</li>
+      <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/store/views.sql</code> — SQL views: sessions, per-prompt tasks, daily cost, tool stats, five-metrics, drift check.</li>
+      <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/ingest/otlp.py</code> — FastAPI router: <code>POST /v1/logs</code>, <code>POST /v1/metrics</code> (OTLP http/json), OTel → ObsEvent mapping, idempotency.</li>
+      <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/ingest/jsonl.py</code> — incremental transcript reader with per-file byte-offset cursors; dedupe vs OTLP events.</li>
+      <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/ingest/langsmith_poll.py</code> — rate-limit-aware <code>list_runs</code> poller with start_time cursor.</li>
+      <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/jobs/</code> — trailing background jobs: correction-language scan, OTel-vs-JSONL drift self-check, error classification.</li>
+      <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/web/</code> — <code>app.py</code>, <code>templates/*.html</code> (Jinja2 + htmx), <code>static/style.css</code>, SSE stream endpoint.</li>
+      <li><span class="tag new">new</span> <code>tests/</code> — TDD suite: fixture JSONL transcripts, canned OTLP payloads, respx-mocked LangSmith, playwright smoke test.</li>
+      <li><span class="tag new">new</span> <code>notebooks/explore.py</code> — marimo exploration notebook (read-only connection to the same DuckDB file).</li>
+      <li><span class="tag new">new</span> <code>Dockerfile</code> + <code>compose.yaml</code> — single-container packaging; local <code>uv run</code> remains the primary dev path.</li>
+      <li><span class="tag new">new</span> <code>docs/AGENT_LOOP.md</code> — the agent frontend-improvement feedback loop (Phase 7).</li>
+      <li><span class="tag new">new</span> <code>.env.sample</code>, <code>README.md</code>, <code>.github/workflows/ci.yml</code>, <code>LICENSE</code> (MIT), <code>.pre-commit-config.yaml</code>.</li>
+    </ul>
+  </section>
+
+  <!-- ===== IMPLEMENTATION PHASES ===== -->
+  <section id="phases">
+    <h2>Implementation Phases</h2>
+    <p><strong>IMPORTANT:</strong> Execute every phase and task step by step, in order, top to bottom. Every code phase is strict TDD: write the failing test first (RED), implement to green (GREEN), then refactor with tests passing (REFACTOR).</p>
+    <p>Status markers: <code>[]</code> idle · <code>[wip]</code> in progress · <code>[x]</code> complete · <code>[f]</code> failed. All start as <code>[]</code>; the Build Plan workflow updates them as it works.</p>
+
+    <!-- ================= PHASE 1 ================= -->
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 1: Standalone Repo Scaffold + TDD Harness</h3>
+      <p>Create the public repo and a uv package skeleton whose test/lint harness is proven <em>before</em> any feature code exists. Mirrors the <code>breakout-openobserve</code> scaffold recipe.</p>
+
+      <h4>1. Create repository and package skeleton</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>gh repo create bossjones/boss-ai-monitoring --public --description "Local-first observability for AI coding agents (Claude Code): cost, per-task timing, tool activity, LangSmith merge" --clone</code></li>
+        <li><code class="status">[]</code> <code>uv init --package --python 3.13</code>; set hatchling build backend, <code>src/</code> layout, project metadata, MIT <code>LICENSE</code>.</li>
+        <li><code class="status">[]</code> <code>uv add fastapi uvicorn duckdb jinja2 httpx langsmith pydantic pydantic-settings pyyaml sse-starlette</code> and <code>uv add --dev pytest pytest-asyncio respx ruff pyrefly codespell pre-commit playwright</code>.</li>
+        <li><code class="status">[]</code> Write <code>justfile</code>: <code>check</code> (ruff check + ruff format --check + pyrefly check + codespell + pytest), <code>dev</code> (uvicorn --reload), <code>fmt</code>, <code>docker-build</code>.</li>
+        <li><code class="status">[]</code> Type-checker workflow: pyrefly is the checker; when adding or fixing annotations anywhere in this repo, invoke the <code>/agent-harness:pyrefly-typing</code> skill for typing help (pyrefly-idiomatic annotations, suppressions, config).</li>
+        <li><code class="status">[]</code> Write <code>.github/workflows/ci.yml</code> (uv setup → <code>just check</code>) and <code>.pre-commit-config.yaml</code>.</li>
+        <li><code class="status">[]</code> Write <code>.env.sample</code> documenting <code>CLAUDE_CODE_ENABLE_TELEMETRY</code>, <code>OTEL_METRICS_EXPORTER=otlp</code>, <code>OTEL_LOGS_EXPORTER=otlp</code>, <code>OTEL_EXPORTER_OTLP_PROTOCOL=http/json</code>, <code>OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318</code>, <code>LANGSMITH_API_KEY</code>, <code>CC_LANGSMITH_PROJECT</code>, <code>BAM_DB_PATH</code>, <code>BAM_CLAUDE_PROJECTS_DIR</code>.</li>
+      </ul>
+
+      <h4>2. Prove the TDD harness (RED → GREEN)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Write failing smoke test <code>tests/test_smoke.py::test_package_imports</code> asserting <code>boss_ai_monitoring.__version__</code> exists — watch it fail, then make it pass.</li>
+        <li><code class="status">[]</code> Commit scaffold; push; confirm CI green on GitHub.</li>
+      </ul>
+
+      <h4>3. Configuration module (TDD)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> RED: tests for <code>config.py</code> — a pydantic-settings <code>BaseSettings</code> model (<code>BamSettings</code>) with nested sections (<code>server</code>: dashboard/OTLP ports+bind; <code>store</code>: db_path; <code>ingest</code>: jsonl scan interval, projects dir, langsmith poll interval/project; <code>jobs</code>: enable flags) and precedence <strong>env vars (prefix <code>BAM_</code>, nested via <code>__</code>) &gt; YAML file (<code>config.yaml</code> or <code>$BAM_CONFIG</code> path, via <code>YamlConfigSettingsSource</code>) &gt; code defaults</strong>.</li>
+        <li><code class="status">[]</code> GREEN: implement; missing YAML file is fine (defaults apply); malformed YAML raises a clear startup error naming the file and line.</li>
+        <li><code class="status">[]</code> Ship a commented <code>config.sample.yaml</code>; document precedence in README and keep <code>.env.sample</code> as the env-var reference.</li>
+      </ul>
+
+      <h4>4. Testing Strategy</h4>
+      <p>Config module is fully unit-tested (tmp YAML files + monkeypatched env, asserting precedence and error paths). Beyond that, the phase's product is a working harness — validation is the harness itself plus CI.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>just check</code> — full lint/type/test gate passes locally.</li>
+        <li><code class="status">[]</code> <code>gh run watch --exit-status</code> — CI passes on the pushed scaffold.</li>
+      </ul>
+      <div class="loop">
+        🔁 <strong>Do not exit this phase until every box above is checked.</strong>
+        If any command fails, fix the cause and re-run — loop until all pass.
+      </div>
+    </div>
+
+    <!-- ================= PHASE 2 ================= -->
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 2: Storage Core — DuckDB Schema, Writer, Metric Views</h3>
+      <p>One DuckDB file is the whole persistence story. A canonical <code>ObsEvent</code> envelope (pi-agent-observability pattern) with a JSON payload column means new event types need no migrations; SQL views turn raw events into every metric the dashboard shows.</p>
+
+      <figure>
+        <img src="phase2-storage-pipeline.png" alt="Event envelopes tagged otlp, jsonl, and langsmith funneling into a DuckDB events table, with SQL views fanning out as derived metric panels">
+        <figcaption>Raw lineage-tagged events in, derived SQL-view metrics out — no migrations as event types evolve.</figcaption>
+      </figure>
+
+      <h4>1. Event schema (TDD)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> RED: tests for <code>events</code> table shape — columns: <code>event_id</code> (pk), <code>ts</code>, <code>source</code> (otlp|jsonl|langsmith), <code>event_type</code>, <code>session_id</code>, <code>prompt_id</code>, <code>model</code>, <code>git_sha</code>, <code>agent_name</code>, <code>skill_name</code>, <code>tool_name</code>, <code>cost_usd</code>, <code>duration_ms</code>, <code>tokens_input</code>, <code>tokens_output</code>, <code>tokens_cache_read</code>, <code>tokens_cache_creation</code>, <code>success</code>, <code>cwd</code>, <code>payload</code> (JSON) — plus <code>ingest_cursors</code> table (source, key, cursor, updated_at).</li>
+        <li><code class="status">[]</code> GREEN: <code>store/schema.py</code> creates tables idempotently (<code>CREATE TABLE IF NOT EXISTS</code>).</li>
+      </ul>
+
+      <h4>2. Batched writer (TDD)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> RED: tests — writer buffers N events / T ms then flushes atomically via DuckDB Appender; duplicate <code>event_id</code> is a no-op (idempotent ingest); single-writer access serialized behind one connection.</li>
+        <li><code class="status">[]</code> GREEN: <code>store/writer.py</code> with async-safe batch queue + flush loop.</li>
+      </ul>
+
+      <h4>3. Metric views (TDD — golden fixtures)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> RED: seed a fixture event set with known totals; assert view outputs: <code>v_sessions</code> (start/end/duration/cost/model), <code>v_tasks</code> (per <code>prompt_id</code>: wall-clock, cost, tokens, tool counts), <code>v_costs_daily</code>, <code>v_tool_stats</code> (success rate, p50/p95 duration per tool), <code>v_attribution</code> (cost+latency per agent_name/skill_name/model — the Anthropic per-feature attribution), <code>v_five_metrics</code> (task completion rate, tool selection accuracy via tool_result.success, autonomy score via tool_decision.source, recovery rate via error→retry patterns, cost per successful task).</li>
+        <li><code class="status">[]</code> GREEN: <code>store/views.sql</code> applied at startup.</li>
+      </ul>
+
+      <h4>4. Testing Strategy</h4>
+      <p>Pure pytest against a temp-file DuckDB (no mocks needed — DuckDB is embedded). Edge cases: empty DB, duplicate event ids, events missing optional attrs (NULL prompt_id), out-of-order timestamps, JSON payload with unexpected keys (must not break views).</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run pytest tests/store -q</code> — schema, writer, and all views green including edge cases.</li>
+        <li><code class="status">[]</code> <code>just check</code> — zero lint/type errors.</li>
+      </ul>
+      <div class="loop">
+        🔁 <strong>Do not exit this phase until every box above is checked.</strong>
+        If any command fails, fix the cause and re-run — loop until all pass.
+      </div>
+    </div>
+
+    <!-- ================= PHASE 3 ================= -->
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 3: Ingest — OTLP Receiver (live, authoritative)</h3>
+      <p>Skip the otel-collector: the FastAPI app itself speaks OTLP http/json on <code>:4318</code>. Claude Code points straight at it. Log events are the primary stream (authoritative <code>cost_usd</code>, <code>duration_ms</code>, all four token classes, <code>prompt.id</code>); metrics are accepted and stored but views prefer events (delta temporality makes raw metrics annoying).</p>
+
+      <h4>1. OTLP endpoints (TDD)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Capture real fixture payloads: run Claude Code once with telemetry pointed at a dump script; commit sanitized <code>tests/fixtures/otlp/*.json</code> (api_request, tool_result, tool_decision, user_prompt, compaction, api_error + a metrics export).</li>
+        <li><code class="status">[]</code> RED: tests POSTing fixtures to <code>/v1/logs</code> and <code>/v1/metrics</code> assert correct ObsEvent rows land (cost, tokens, session_id, prompt_id extracted from OTel attributes) and correct OTLP response envelope returned.</li>
+        <li><code class="status">[]</code> GREEN: <code>ingest/otlp.py</code> — parse OTLP JSON (resourceLogs → scopeLogs → logRecords), map attributes → ObsEvent columns, everything else into <code>payload</code>.</li>
+        <li><code class="status">[]</code> RED→GREEN: idempotency — replaying the same fixture batch creates no duplicate rows (event_id = hash of source + session_id + timeUnixNano + body).</li>
+        <li><code class="status">[]</code> RED→GREEN: malformed payloads return 400 without crashing the writer; unknown event types are stored raw (never dropped).</li>
+      </ul>
+
+      <h4>2. End-to-end wiring</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Document (README + .env.sample) the exact Claude Code settings/env to emit here; verify a real local session's events appear in DuckDB.</li>
+      </ul>
+
+      <h4>3. Testing Strategy</h4>
+      <p>FastAPI <code>TestClient</code> + canned OTLP fixtures — hermetic, no network. Edge cases: batched multi-record payloads, missing optional attributes, gzip content-encoding, oversized bodies (reject &gt; configurable limit), concurrent posts (writer serialization).</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run pytest tests/ingest/test_otlp.py -q</code> — all fixture and edge-case tests green.</li>
+        <li><code class="status">[]</code> <code>just check</code> — clean.</li>
+        <li><code class="status">[]</code> Manual E2E: <code>just dev</code> + one real Claude Code prompt → <code>duckdb $BAM_DB_PATH "SELECT event_type, count(*) FROM events GROUP BY 1"</code> shows live rows.</li>
+      </ul>
+      <div class="loop">
+        🔁 <strong>Do not exit this phase until every box above is checked.</strong>
+        If any command fails, fix the cause and re-run — loop until all pass.
+      </div>
+    </div>
+
+    <!-- ================= PHASE 4 ================= -->
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 4: Ingest — JSONL Transcript Backfill + Gap-Fill</h3>
+      <p>OTel is forward-only; transcripts are the historical record and the safety net when the endpoint was down. Incremental reader over <code>~/.claude/projects/</code> with per-file byte-offset cursors (agentic-metric's proven pattern), deduped against OTLP-sourced events.</p>
+
+      <h4>1. Incremental reader (TDD)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Commit sanitized fixture transcripts (<code>tests/fixtures/transcripts/</code>): a completed session, a still-growing session, a session with subagents, a malformed line.</li>
+        <li><code class="status">[]</code> RED: tests — scan discovers files; parses assistant/user/tool entries into ObsEvents (source=jsonl); a second scan after appending lines ingests only the delta (byte-offset cursor persisted in <code>ingest_cursors</code>); truncated/rotated file resets cursor safely; malformed lines are skipped with a logged warning, never a crash.</li>
+        <li><code class="status">[]</code> GREEN: <code>ingest/jsonl.py</code> — polling scanner (configurable interval, default 15s) + parser.</li>
+        <li><code class="status">[]</code> RED→GREEN: dedupe — when an OTLP event with the same session_id + request_id already exists, the JSONL row is marked <code>source=jsonl</code> shadow and excluded from cost views (OTel cost is authoritative; JSONL costs are estimates and flagged as such).</li>
+        <li><code class="status">[]</code> RED→GREEN: per-session <code>git_sha</code>/<code>cwd</code> extraction from transcript metadata where present.</li>
+      </ul>
+
+      <h4>2. Testing Strategy</h4>
+      <p>Pure pytest over fixture directories in tmp_path — hermetic. Edge cases above plus: empty projects dir, thousands-of-files dir (scan stays under a time budget), unicode/emoji content, sessions spanning compaction.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run pytest tests/ingest/test_jsonl.py -q</code> — green including cursor, dedupe, and malformed-line cases.</li>
+        <li><code class="status">[]</code> Manual E2E: point at real <code>~/.claude/projects/</code> → historical sessions appear; re-run ingests nothing new (cursors hold).</li>
+        <li><code class="status">[]</code> <code>just check</code> — clean.</li>
+      </ul>
+      <div class="loop">
+        🔁 <strong>Do not exit this phase until every box above is checked.</strong>
+        If any command fails, fix the cause and re-run — loop until all pass.
+      </div>
+    </div>
+
+    <!-- ================= PHASE 5 ================= -->
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 5: Ingest — LangSmith Poller (merged view)</h3>
+      <p>The langsmith-claude-code-plugins hook plugin already pushes traces up; this phase pulls them back down. A cursor-based poller on <code>Client.list_runs</code> lands runs as ObsEvents (source=langsmith), joined to local sessions via <code>thread_id</code> ↔ <code>session.id</code>.</p>
+
+      <h4>1. Poller (TDD)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> RED (respx-mocked LangSmith API): poller calls <code>list_runs(project_name=$CC_LANGSMITH_PROJECT, start_time=&lt;cursor&gt;, select=[trimmed fields])</code>; maps runs → ObsEvents (run_type, latency, token usage, feedback, trace_id); persists start_time cursor; join populates <code>session_id</code> from thread_id.</li>
+        <li><code class="status">[]</code> RED→GREEN: rate-limit awareness — max 10 req/10s budget, exponential backoff on 429, poll interval configurable (default 60s).</li>
+        <li><code class="status">[]</code> RED→GREEN: graceful degradation — missing/invalid <code>LANGSMITH_API_KEY</code> disables the poller with a visible dashboard notice, never a crash (LangSmith is enrichment, not a dependency).</li>
+        <li><code class="status">[]</code> RED→GREEN: unmatched runs (no local session with that thread_id) are stored and surfaced in a "LangSmith-only" bucket, not dropped.</li>
+      </ul>
+
+      <h4>2. Testing Strategy</h4>
+      <p>respx-mocked httpx transport for the LangSmith client — hermetic, deterministic. Edge cases: empty pages, pagination, 429 storms, runs with missing token usage, clock-skewed start_time overlap (cursor overlaps 1 min and dedupes on run id).</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run pytest tests/ingest/test_langsmith.py -q</code> — green including rate-limit and degradation cases.</li>
+        <li><code class="status">[]</code> Manual E2E with the real key: one traced Claude Code session appears in DuckDB with both otlp and langsmith rows sharing a session_id.</li>
+        <li><code class="status">[]</code> <code>just check</code> — clean.</li>
+      </ul>
+      <div class="loop">
+        🔁 <strong>Do not exit this phase until every box above is checked.</strong>
+        If any command fails, fix the cause and re-run — loop until all pass.
+      </div>
+    </div>
+
+    <!-- ================= PHASE 6 ================= -->
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 6: Dashboard — FastAPI + Jinja2 + htmx + SSE</h3>
+      <p>The single pane of glass. Server-rendered HTML with htmx partial swaps; realtime via one SSE stream. Vanilla CSS matching a small design-token sheet — deliberately framework-free so an agent can edit any view file directly (Phase 7 depends on this).</p>
+
+      <figure>
+        <img src="phase6-dashboard.png" alt="Dashboard mockup: stat tiles for cost, tokens, sessions, and tool success on top; live feed on the left; per-task timeline bars in the center">
+        <figcaption>Overview: stat tiles, live session feed, per-task timelines — every panel carrying a provenance/freshness footer.</figcaption>
+      </figure>
+
+      <h4>1. Views (TDD where testable — route/JSON tests; visual polish iterates in Phase 7)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> RED→GREEN <code>/</code> Overview: stat tiles (today's cost, tokens by class, active sessions, tool success rate), 14-day cost sparkline, recent sessions table.</li>
+        <li><code class="status">[]</code> RED→GREEN <code>/live</code>: SSE-driven live event feed (new events pushed on ingest flush) + active-session cards with running cost/duration.</li>
+        <li><code class="status">[]</code> RED→GREEN <code>/sessions/{id}</code>: per-task timeline — one row per <code>prompt_id</code> with wall-clock bar, cost, tokens, tool calls (success/fail), subagent/skill attribution; LangSmith deep-link when a matching trace exists.</li>
+        <li><code class="status">[]</code> RED→GREEN <code>/costs</code>: daily/weekly rollups; attribution table per model / agent / skill / project (the +6%-accuracy-for-+72%-latency style tradeoff view).</li>
+        <li><code class="status">[]</code> RED→GREEN <code>/api/events/stream</code> (SSE, sse-starlette) and JSON endpoints backing every panel (each panel = htmx fragment + JSON twin for tests).</li>
+        <li><code class="status">[]</code> RED→GREEN provenance/freshness footer component on every panel: source lineage (otlp/jsonl/langsmith) + MAX(ts) per source + drift-check badge (Anthropic trust pattern).</li>
+      </ul>
+
+      <h4>2. Testing Strategy</h4>
+      <p>Route tests with TestClient against seeded DuckDB fixtures (assert JSON twins + key DOM markers in HTML fragments); one playwright smoke test booting the real server: loads <code>/</code>, opens <code>/live</code>, POSTs an OTLP fixture, asserts the event appears via SSE within 5s. Edge cases: empty DB (all views render friendly empty states), sessions with no prompt_id events, very long sessions (pagination).</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run pytest tests/web -q</code> — route/JSON/fragment tests green.</li>
+        <li><code class="status">[]</code> <code>uv run pytest tests/e2e/test_smoke_playwright.py -q</code> — SSE realtime smoke test green.</li>
+        <li><code class="status">[]</code> <code>just check</code> — clean.</li>
+      </ul>
+      <div class="loop">
+        🔁 <strong>Do not exit this phase until every box above is checked.</strong>
+        If any command fails, fix the cause and re-run — loop until all pass.
+      </div>
+    </div>
+
+    <!-- ================= PHASE 7 ================= -->
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 7: Agent Frontend-Improvement Loop</h3>
+      <p>Codify the feedback loop where an AI agent inspects the running dashboard in a browser and improves it. The deliverable is <code>docs/AGENT_LOOP.md</code> plus one demonstrated iteration with before/after screenshots committed.</p>
+
+      <figure>
+        <img src="phase7-agent-loop.png" alt="Circular feedback loop with an agent at the center: view the dashboard, screenshot, edit templates, reload">
+        <figcaption>View → screenshot → critique → edit templates/CSS → reload: the agent iterates on its own dashboard.</figcaption>
+      </figure>
+
+      <h4>1. Document and demonstrate the loop</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Write <code>docs/AGENT_LOOP.md</code>: start <code>just dev</code>; open the dashboard with (in order of preference) the Claude Code desktop in-app browser / built-in Browser pane (<code>preview_start</code> → <code>navigate</code> → <code>read_page</code>/screenshot), the Playwright MCP (<code>browser_navigate</code> → <code>browser_take_screenshot</code>), or a boss-cmux browser surface (<code>cmux</code> open surface → <code>read-screen</code>); critique against the design-token sheet; edit <code>web/templates/</code> + <code>web/static/style.css</code>; uvicorn --reload picks it up; re-screenshot and compare.</li>
+        <li><code class="status">[]</code> Add <code>docs/design-tokens.md</code> — the palette/typography contract the agent critiques against (same identity family as this spec).</li>
+        <li><code class="status">[]</code> Run one real iteration end-to-end with Claude Code; commit before/after screenshots under <code>docs/img/agent-loop/</code>.</li>
+      </ul>
+
+      <h4>2. Testing Strategy</h4>
+      <p>Process validation, not unit tests: the loop is proven by artifacts and by the playwright suite staying green after the agent's edits (regression net for agent-made frontend changes).</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>ls docs/img/agent-loop/</code> — before/after screenshots exist and are referenced from AGENT_LOOP.md.</li>
+        <li><code class="status">[]</code> <code>uv run pytest tests/e2e -q</code> — playwright smoke still green after the demonstrated agent edit.</li>
+      </ul>
+      <div class="loop">
+        🔁 <strong>Do not exit this phase until every box above is checked.</strong>
+        If any command fails, fix the cause and re-run — loop until all pass.
+      </div>
+    </div>
+
+    <!-- ================= PHASE 8 ================= -->
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 8: Trailing Quality Jobs (off the critical path)</h3>
+      <p>Watcher's lesson applied: heavy or judgmental analysis runs as background jobs over stored data — never blocking ingest or the agent. Three jobs, all pure-SQL/heuristic in v1 (LLM-judged variants are future work).</p>
+
+      <h4>1. Jobs (TDD)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> RED→GREEN correction-language scan: heuristic detection over transcript user messages ("no, that's wrong", "undo that", re-prompt within 60s of a failed tool_result) → per-session correction score (Anthropic's correction-mining analog); surfaced on session pages.</li>
+        <li><code class="status">[]</code> RED→GREEN drift self-check: daily job comparing OTel-derived vs JSONL-derived session/token totals per day; drift &gt; threshold writes an alert row → dashboard badge (Anthropic "silent failure" sanity-check pattern).</li>
+        <li><code class="status">[]</code> RED→GREEN error classification rollup: group <code>api_error</code>/<code>tool_result.error_type</code> into a taxonomy table feeding a dashboard panel (Sniffly's most-loved feature).</li>
+        <li><code class="status">[]</code> RED→GREEN scheduler: asyncio periodic runner with jitter, per-job enable/disable config, last-run status persisted and shown in the provenance footer.</li>
+      </ul>
+
+      <h4>2. Testing Strategy</h4>
+      <p>Pytest over seeded fixture data with known expected outputs (e.g. a fixture set with 2 corrections and 1 drift day must yield exactly those rows). Edge cases: empty data, all-sources-agree (no alert), job crash isolation (one failing job never kills the scheduler or ingest).</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run pytest tests/jobs -q</code> — all jobs green including crash-isolation test.</li>
+        <li><code class="status">[]</code> <code>just check</code> — clean.</li>
+      </ul>
+      <div class="loop">
+        🔁 <strong>Do not exit this phase until every box above is checked.</strong>
+        If any command fails, fix the cause and re-run — loop until all pass.
+      </div>
+    </div>
+
+    <!-- ================= PHASE 9 ================= -->
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 9: marimo Notebook, Docker Packaging, Docs</h3>
+      <p>Ship the exploration sidecar, the container story, and the onboarding docs that turn this from "works on my machine" into a standalone project.</p>
+
+      <h4>1. marimo exploration notebook</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv add --group notebooks marimo</code>; write <code>notebooks/explore.py</code>: read-only DuckDB connection (avoids the single-writer conflict with the running app), reactive SQL cells for "why did Tuesday cost $9?" digging — per-day drill-down, per-session breakdown, token-class mix, tool failure explorer.</li>
+        <li><code class="status">[]</code> Document <code>uvx marimo edit notebooks/explore.py</code> and <code>marimo run</code> app mode in the README.</li>
+      </ul>
+
+      <h4>2. Docker packaging</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Multi-stage <code>Dockerfile</code> (uv-based build, slim runtime); <code>compose.yaml</code>: one service, ports 8000 (dashboard) + 4318 (OTLP), volumes for the DuckDB file and read-only <code>~/.claude/projects</code> mount; document the host-networking nuance for Claude Code → container OTLP delivery on macOS (<code>host.docker.internal</code>).</li>
+        <li><code class="status">[]</code> Local <code>uv run</code> stays the documented primary dev path; Docker is the deployment convenience.</li>
+      </ul>
+
+      <h4>3. Docs</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> README: quickstart (enable CC telemetry env vars → <code>uv run bam serve</code> → open dashboard), architecture diagram, LangSmith plugin setup (<code>/plugin marketplace add langchain-ai/langsmith-claude-code-plugins</code> + <code>TRACE_TO_LANGSMITH</code>/<code>CC_LANGSMITH_*</code> vars), privacy notes (content-capture OTel flags stay off unless opted in).</li>
+        <li><code class="status">[]</code> Back-reference this spec: link <code>bossjones/boss-skills</code> <code>specs/boss-ai-monitoring/</code> from the README; append the standalone repo URL to this spec's forward refs.</li>
+      </ul>
+
+      <h4>4. Testing Strategy</h4>
+      <p>Build-and-boot validation: the container must serve both ports and pass the same E2E fixture round-trip as local dev. Edge cases: missing volume mounts (clear error), notebook opened while app is writing (read-only mode holds).</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>docker compose up --build -d && curl -sf localhost:8000/ && curl -sf -X POST localhost:4318/v1/logs -H 'Content-Type: application/json' -d @tests/fixtures/otlp/api_request.json</code> — container round-trip works.</li>
+        <li><code class="status">[]</code> <code>uvx marimo run notebooks/explore.py</code> — notebook opens read-only against a live DB without errors.</li>
+        <li><code class="status">[]</code> <code>just check</code> and CI green on the final push.</li>
+      </ul>
+      <div class="loop">
+        🔁 <strong>Do not exit this phase until every box above is checked.</strong>
+        If any command fails, fix the cause and re-run — loop until all pass.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== GLOBAL VALIDATION ===== -->
+  <section id="validation">
+    <h2>Validation Commands</h2>
+    <p>Execute these commands (in the standalone repo) to validate the entire plan is complete:</p>
+    <ul class="checklist">
+      <li><code class="status">[]</code> <code>just check</code> — ruff + pyrefly + codespell + full pytest suite passes with zero warnings.</li>
+      <li><code class="status">[]</code> <code>uv run pytest -q</code> — every TDD suite (store, ingest×3, web, jobs, e2e) green.</li>
+      <li><code class="status">[]</code> <code>just dev</code> + one real Claude Code session with telemetry enabled — live events visible on <code>/live</code> within seconds; session page shows per-task timeline with cost.</li>
+      <li><code class="status">[]</code> <code>curl -sf -X POST localhost:4318/v1/logs -d @tests/fixtures/otlp/api_request.json -H 'Content-Type: application/json'</code> then reload <code>/</code> — fixture event visible (ingest→store→view round trip).</li>
+      <li><code class="status">[]</code> LangSmith rows joined: <code>duckdb $BAM_DB_PATH "SELECT source, count(*) FROM events GROUP BY 1"</code> shows otlp, jsonl, and langsmith all &gt; 0 after a traced session.</li>
+      <li><code class="status">[]</code> <code>docker compose up --build</code> — containerized round-trip passes.</li>
+      <li><code class="status">[]</code> <code>gh run watch --exit-status</code> — CI green on main.</li>
+      <li><code class="status">[]</code> Agent loop artifacts exist: <code>docs/AGENT_LOOP.md</code> + before/after screenshots.</li>
+    </ul>
+    <div class="loop">
+      🔁 <strong>The plan is not complete until every box is checked and every command passes. If for some reason a step is not possible to complete, mark it with [f] and move on if possible.</strong>
+    </div>
+  </section>
+
+  <!-- ===== QUESTIONABLES ===== -->
+  <section id="questionables">
+    <h2>Questionables</h2>
+    <figure>
+      <img src="questionables-decisions.png" alt="Decision signpost: the lit teal path leads to the web app plus DuckDB; dimmed paths to the Grafana stack and notebook UI recede">
+      <figcaption>Decisions taken (lit) and alternatives consciously set aside (dimmed) — each recorded with its rationale below.</figcaption>
+    </figure>
+
+    <details>
+      <summary>✅ CONFIRMED: Custom FastAPI + SSE + HTML/htmx web app as primary UI (not Grafana)</summary>
+      <p class="qa-answer">User confirmed via AskUserQuestion (2026-07-11). Rationale: one Python service beats a 4-container Grafana/Prometheus/Loki stack for KISS; SSE gives realtime; server-rendered HTML is the most agent-editable format for the Phase 7 loop. Grafana (ColeMurray/claude-code-otel, community dashboard 25255) is documented in Notes as the alternative if team-wide aggregation is ever needed.</p>
+    </details>
+    <details>
+      <summary>✅ CONFIRMED: Single DuckDB file as the store (not SQLite / Prometheus)</summary>
+      <p class="qa-answer">User confirmed via AskUserQuestion (2026-07-11). Columnar aggregations (the whole workload), native JSONL reading, one-file ops, marimo-native. Single-writer + slow row-inserts mitigated by the batched Appender writer. If ingest rate ever demands it, the documented fallback is SQLite-WAL staging with batched flushes into DuckDB.</p>
+    </details>
+    <details>
+      <summary>✅ CONFIRMED: LangSmith merge in MVP scope (Phase 5, after the local pipeline is proven)</summary>
+      <p class="qa-answer">User confirmed via AskUserQuestion (2026-07-11). LangSmith is enrichment, not a dependency: the poller degrades gracefully without a key, and unmatched runs get a visible bucket rather than silent drops.</p>
+    </details>
+    <details>
+      <summary>✅ CONFIRMED: marimo included as optional exploration layer (not primary dashboard)</summary>
+      <p class="qa-answer">User confirmed via AskUserQuestion (2026-07-11). Direct answer to "is marimo a good option here?": yes as a reactive-SQL exploration sidecar over the same DuckDB file; no as the always-on dashboard (polling-only refresh via mo.ui.refresh, per-viewer kernel sessions, widget-set UI an agent can't freely restyle).</p>
+    </details>
+    <details>
+      <summary>ASSUMPTION: Repo name <code>bossjones/boss-ai-monitoring</code>, Python 3.13, MIT license, hatchling + justfile scaffold</summary>
+      <p class="qa-answer">Follows the user's chosen spec directory name and the repo's proven breakout-openobserve scaffold conventions. Trivial to change at Phase 1 before <code>gh repo create</code>.</p>
+    </details>
+    <details>
+      <summary>ASSUMPTION: Direct OTLP ingest on :4318 — no otel-collector</summary>
+      <p class="qa-answer">The FastAPI app speaks OTLP http/json itself, replacing collector+Prometheus+Loki with one service. Cost: we only support http/json (not gRPC) — acceptable since we control the documented client config. If a collector is ever wanted (fan-out to Grafana too), it can sit in front without code changes.</p>
+    </details>
+    <details>
+      <summary>ASSUMPTION: OTel content-capture flags stay OFF by default</summary>
+      <p class="qa-answer"><code>OTEL_LOG_USER_PROMPTS</code> / <code>_ASSISTANT_RESPONSES</code> / <code>_TOOL_CONTENT</code> etc. default off upstream and stay opt-in here, matching every surveyed tool. Transcript JSONL already contains full content locally; the dashboard surfaces metadata by default and content only when explicitly enabled.</p>
+    </details>
+    <details>
+      <summary>ASSUMPTION: Hooks-based realtime push deferred</summary>
+      <p class="qa-answer">OTel logs export every ~5s, which is realtime enough for the live feed. A PostToolUse/Stop hook POSTing to the API is a documented future option if sub-second liveness is ever wanted — not MVP.</p>
+    </details>
+    <details>
+      <summary>ASSUMPTION: Single-user, single-host, trusted-network scope</summary>
+      <p class="qa-answer">No auth on the dashboard/OTLP ports in v1; bind to localhost by default. Multi-user/team aggregation is explicitly out of scope (that's where the Grafana alternative wins).</p>
+    </details>
+    <details>
+      <summary>RISK: JSONL transcript format is reverse-engineered and shifts across Claude Code versions</summary>
+      <p class="qa-answer">Mitigations: unknown fields land in the JSON payload column (views never depend on exhaustive parsing); malformed lines skip-and-log; the Phase 8 drift self-check catches systematic divergence between JSONL- and OTel-derived totals — the exact "silent failure" Anthropic's sanity-check pattern targets.</p>
+    </details>
+    <details>
+      <summary>RISK: LangSmith thread_id ↔ session.id join is best-effort</summary>
+      <p class="qa-answer">Both derive from the CC session, but plugin versions could change grouping behavior. Mitigation: join validated in Phase 5 E2E against a real traced session; unmatched runs stay visible in a LangSmith-only bucket with timestamp-proximity as a secondary hint, never silently merged.</p>
+    </details>
+  </section>
+
+  <!-- ===== NOTES ===== -->
+  <section id="notes">
+    <h2>Notes</h2>
+
+    <h3>Research digest: the tool landscape (July 2026)</h3>
+    <table>
+      <tr><th>Tool</th><th>Data source</th><th>Storage</th><th>UI</th><th>Lesson taken</th></tr>
+      <tr><td><a href="https://ccusage.com">ccusage</a> (~4.8k★)</td><td>JSONL</td><td>none</td><td>CLI tables / statusline</td><td>JSONL parsing is the de facto history standard</td></tr>
+      <tr><td><a href="https://github.com/chiphuyen/sniffly">Sniffly</a></td><td>JSONL</td><td>local</td><td>Python web, :8081</td><td>error breakdown is the most-loved panel → Phase 8</td></tr>
+      <tr><td><a href="https://github.com/ldegio/agtop">agtop</a></td><td>JSONL + LiteLLM pricing + ps/lsof</td><td>none</td><td>Node TUI</td><td>process↔session mapping is neat; no persistence hurts</td></tr>
+      <tr><td><a href="https://github.com/MrQianjinsi/agentic-metric">agentic-metric</a></td><td>JSONL (byte-offset cursors)</td><td>SQLite</td><td>Python TUI</td><td>closest prior art; its cursor pattern → Phase 4</td></tr>
+      <tr><td><a href="https://github.com/ColeMurray/claude-code-otel">claude-code-otel</a></td><td>native OTel</td><td>Prometheus+Loki</td><td>Grafana compose</td><td>the reference Grafana alternative (documented, not adopted)</td></tr>
+      <tr><td><a href="https://github.com/disler/pi-agent-observability">pi-agent-observability</a></td><td>agent hooks</td><td>SQLite WAL, JSON payload cols</td><td>Bun + SSE + vanilla HTML</td><td>ObsEvent envelope, json_extract views, SSE, agent-legible HTML → Phases 2/6</td></tr>
+      <tr><td><a href="https://watcher.apolloresearch.ai/blog/monitor-coding-agents.html">Apollo Watcher</a></td><td>tool calls + transcripts</td><td>—</td><td>—</td><td>tiered evaluation; heavy analysis off the critical path → Phase 8</td></tr>
+    </table>
+
+    <h3>Claude Code OTel quick reference</h3>
+    <pre><code># ~/.claude/settings.json env block, or shell profile
+CLAUDE_CODE_ENABLE_TELEMETRY=1
+OTEL_METRICS_EXPORTER=otlp
+OTEL_LOGS_EXPORTER=otlp
+OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+# optional: OTEL_METRIC_EXPORT_INTERVAL=60000, OTEL_LOGS_EXPORT_INTERVAL=5000
+# content capture (ALL default off — keep them off unless debugging):
+# OTEL_LOG_USER_PROMPTS, OTEL_LOG_ASSISTANT_RESPONSES, OTEL_LOG_TOOL_DETAILS</code></pre>
+    <p>Metrics (8): <code>session.count</code>, <code>lines_of_code.count</code>, <code>pull_request.count</code>, <code>commit.count</code>, <code>cost.usage</code>, <code>token.usage</code>, <code>code_edit_tool.decision</code>, <code>active_time.total</code>. Key log events: <code>api_request</code> (cost_usd, duration_ms, 4 token classes), <code>tool_result</code> (tool_name, success, duration_ms, error_type), <code>tool_decision</code> (accept/reject + source), <code>user_prompt</code>, <code>compaction</code>, <code>api_error</code>. Every event carries <code>session.id</code> + <code>prompt.id</code>. Gotchas: metrics use delta temporality; <code>OTEL_*</code> vars are not inherited by Bash/hooks/MCP subprocesses. Docs: <a href="https://code.claude.com/docs/en/monitoring-usage">code.claude.com/docs/en/monitoring-usage</a>.</p>
+
+    <h3>LangSmith integration reference</h3>
+    <p>Tracing in: <code>/plugin marketplace add langchain-ai/langsmith-claude-code-plugins</code>, then <code>TRACE_TO_LANGSMITH=true</code>, <code>CC_LANGSMITH_API_KEY</code>, <code>CC_LANGSMITH_PROJECT</code> (hooks-based, not OTel; client-side secret redaction on by default; coexists with the OTel pipeline). Pulling back out: <code>langsmith.Client().list_runs(project_name=…, start_time=…, select=[…], filter=…)</code> or <code>POST /runs/query</code>; rate limits ~10 req/10s on ≤7-day windows → cursor polling, never full scans. Docs: <a href="https://docs.langchain.com/langsmith/trace-claude-code">trace-claude-code</a>, <a href="https://docs.langchain.com/langsmith/export-traces">export-traces</a>.</p>
+
+    <h3>Metric definitions the dashboard commits to</h3>
+    <ul>
+      <li><strong>Per-task time</strong> — wall-clock between first and last event sharing a <code>prompt.id</code>; user-vs-CLI split from <code>active_time.total</code>.</li>
+      <li><strong>The 5 metrics that matter</strong> (<a href="https://machinelearningmastery.com/beyond-accuracy-5-metrics-that-actually-matter-for-ai-agents/">MLM</a>): Task Completion Rate, Tool Selection Accuracy (<code>tool_result.success</code>), Autonomy Score (<code>tool_decision.source</code> config vs user), Recovery Rate (error→retry patterns), Cost per Successful Task.</li>
+      <li><strong>Anthropic-style quality telemetry</strong> (<a href="https://claude.com/blog/how-anthropic-enables-self-service-data-analytics-with-claude">self-service analytics post</a>): every row carries model + git SHA + agent/skill version attrs so pass/regression queries are time-series; correction-language frequency as a production quality signal; drift sanity-checks against a blessed source; provenance footers for trust. Their measured tradeoff (adversarial-review subagents: +6% accuracy, +32% tokens, +72% latency) is the archetype for the <code>/costs</code> attribution view.</li>
+    </ul>
+
+    <h3>Rejected approaches (and why)</h3>
+    <ul>
+      <li><strong>Grafana stack as primary</strong> — 4 containers, JSON-blob dashboards hostile to the agent-edit loop, awkward LangSmith/transcript joins. Kept as documented alternative for team-scale.</li>
+      <li><strong>marimo as primary dashboard</strong> — polling-only refresh, per-viewer kernels, widget-set UI. Adopted as sidecar instead.</li>
+      <li><strong>otel-collector in the path</strong> — unnecessary hop for a single local consumer; app speaks OTLP directly.</li>
+      <li><strong>Streamlit / Reflex</strong> — Streamlit can't push to the browser; Reflex owns the DOM via a generated Next.js app.</li>
+      <li><strong>Prometheus as the store</strong> — can't hold transcripts or LangSmith payloads; second query language for no gain at this scale.</li>
+      <li><strong>LLM-judged quality scoring in v1</strong> — Watcher-style tiered judging is future work; v1 stays deterministic/heuristic (and Anthropic's warning stands: LLM-generated definitions "encoded the very ambiguities we were trying to eliminate").</li>
+    </ul>
+
+    <h3>Dependencies (all via <code>uv add</code>)</h3>
+    <p>Runtime: <code>fastapi</code>, <code>uvicorn</code>, <code>duckdb</code>, <code>jinja2</code>, <code>httpx</code>, <code>langsmith</code>, <code>pydantic</code>, <code>pydantic-settings</code>, <code>pyyaml</code>, <code>sse-starlette</code>. Dev: <code>pytest</code>, <code>pytest-asyncio</code>, <code>respx</code>, <code>ruff</code>, <code>pyrefly</code>, <code>codespell</code>, <code>playwright</code>, <code>pre-commit</code>. Notebooks group: <code>marimo</code>. Frontend: htmx vendored as a single static file (no npm, no build step — keeps the agent-edit loop trivial).</p>
+
+    <h3>Tooling conventions</h3>
+    <ul>
+      <li><strong>Type checking = pyrefly</strong> (not ty/mypy/basedpyright). When writing or repairing annotations in the new repo, invoke the <code>/agent-harness:pyrefly-typing</code> skill for pyrefly-idiomatic typing help.</li>
+      <li><strong>Configuration = pydantic + pydantic-settings</strong>: typed <code>BaseSettings</code> with defaults, an optional YAML file (<code>config.yaml</code> / <code>$BAM_CONFIG</code>), and <code>BAM_</code>-prefixed env vars overriding everything — one config object injected everywhere; no ad-hoc <code>os.environ</code> reads outside <code>config.py</code>.</li>
+    </ul>
+
+    <h3>About this spec's images</h3>
+    <p>All figures are gpt-image-2 PNGs generated via the planf3 Image Generation workflow, prompted against the plan's <code>:root</code> palette. (The first pass shipped hand-authored SVG stand-ins because <code>OPENAI_API_KEY</code> was unset; once the key was added the PNGs replaced them — see Amendments.) To refine any figure, run the Image Generation → Update sub-workflow against this file.</p>
+
+    <h3>Future work (explicitly out of MVP)</h3>
+    <ul>
+      <li>Multi-agent support beyond Claude Code (agtop/agentic-metric cover Codex/Copilot/OpenCode transcript formats — the ObsEvent envelope is already agent-agnostic).</li>
+      <li>Watcher-style tiered LLM judging of session quality as a trailing job.</li>
+      <li>Optional hook-based sub-second push; optional Grafana export (the DuckDB views could back a JSON API datasource).</li>
+      <li>Cost budgets/alerts (daily spend threshold → notification).</li>
+    </ul>
+
+    <figure>
+      <img src="notes-roadmap.png" alt="Roadmap: a lit road segment labeled MVP leading toward faint milestones for multi-agent support, LLM judging, and budgets">
+      <figcaption>MVP ships the lit road; multi-agent support, LLM-judged quality, and budget alerts wait on the horizon.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ===== AMENDMENTS ===== -->
+  <section id="amendments">
+    <h2>Amendments</h2>
+    <p><em>Running history of changes made after the plan was first executed. Append-only; populated by the Update Plan / Update References workflows.</em></p>
+    <details>
+      <summary>2026-07-11T19:41:50Z — pyrefly, pydantic-settings config layer, gpt-image-2 figures</summary>
+      <p>Per user request after initial commit: (1) type checker swapped from ty to <strong>pyrefly</strong> throughout (justfile, deps, CI gate), with a standing instruction to invoke the <code>/agent-harness:pyrefly-typing</code> skill when working on typing in the new repo; (2) added a <strong>pydantic + pydantic-settings configuration module</strong> (Phase 1, task 3): typed defaults → optional YAML file → <code>BAM_</code>-prefixed env var overrides; (3) <code>OPENAI_API_KEY</code> was added to the repo env, so all 8 figures were regenerated as gpt-image-2 PNGs, replacing the interim hand-authored SVGs.</p>
+    </details>
+  </section>
+
+</main>
+</body>
+</html>
