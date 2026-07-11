@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 640" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <rect width="1536" height="640" fill="#FAFAF7"/>
+  <!-- roads from a fork -->
+  <!-- chosen path: lit teal, to dashboard+db -->
+  <path d="M 768 560 C 768 460, 900 380, 1060 330" fill="none" stroke="#0E7C7B" stroke-width="16" stroke-linecap="round"/>
+  <!-- dimmed alternatives -->
+  <path d="M 768 560 C 768 470, 640 400, 480 340" fill="none" stroke="#4A5A6A" stroke-width="10" stroke-linecap="round" opacity="0.28" stroke-dasharray="2 26"/>
+  <path d="M 768 560 C 768 480, 730 380, 700 260" fill="none" stroke="#4A5A6A" stroke-width="10" stroke-linecap="round" opacity="0.28" stroke-dasharray="2 26"/>
+  <!-- signpost -->
+  <g>
+    <rect x="756" y="330" width="24" height="240" rx="6" fill="#1C2733"/>
+    <g font-size="21" font-weight="600">
+      <rect x="780" y="350" width="252" height="52" rx="8" fill="#0E7C7B"/>
+      <path d="M 1032 350 L 1064 376 L 1032 402 z" fill="#0E7C7B"/>
+      <text x="800" y="384" fill="#FAFAF7">web app + DuckDB</text>
+      <rect x="504" y="420" width="252 " height="52" rx="8" fill="#E3E6E0"/>
+      <path d="M 504 420 L 472 446 L 504 472 z" fill="#E3E6E0"/>
+      <text x="560" y="454" fill="#4A5A6A">Grafana stack</text>
+      <rect x="780" y="490" width="252" height="52" rx="8" fill="#E3E6E0"/>
+      <path d="M 1032 490 L 1064 516 L 1032 542 z" fill="#E3E6E0"/>
+      <text x="822" y="524" fill="#4A5A6A">notebook UI</text>
+    </g>
+  </g>
+  <!-- destination: dashboard + db, lit -->
+  <g>
+    <rect x="1100" y="220" width="260" height="170" rx="12" fill="#FFFFFF" stroke="#0E7C7B" stroke-width="3"/>
+    <rect x="1100" y="220" width="260" height="34" rx="12" fill="#0E7C7B"/>
+    <rect x="1100" y="237" width="260" height="17" fill="#0E7C7B"/>
+    <rect x="1124" y="272" width="100" height="44" rx="7" fill="#FAF1DE"/>
+    <rect x="1238" y="272" width="100" height="44" rx="7" fill="#E3F2F1"/>
+    <rect x="1124" y="332" width="214" height="14" rx="5" fill="#0E7C7B" opacity="0.75"/>
+    <rect x="1124" y="356" width="150" height="14" rx="5" fill="#0E7C7B" opacity="0.5"/>
+    <path d="M 1180 420 a 50 16 0 0 1 100 0 v 60 a 50 16 0 0 1 -100 0 z" fill="#FFFFFF" stroke="#0E7C7B" stroke-width="2.5"/>
+    <ellipse cx="1230" cy="420" rx="50" ry="16" fill="#E3F2F1" stroke="#0E7C7B" stroke-width="2.5"/>
+  </g>
+  <!-- dimmed destinations -->
+  <g opacity="0.3">
+    <rect x="380" y="220" width="180" height="110" rx="12" fill="#FFFFFF" stroke="#4A5A6A" stroke-width="2.5" stroke-dasharray="10 8"/>
+    <rect x="620" y="140" width="160" height="110" rx="12" fill="#FFFFFF" stroke="#4A5A6A" stroke-width="2.5" stroke-dasharray="10 8"/>
+  </g>
+</svg>

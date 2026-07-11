@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 640" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <rect width="1536" height="640" fill="#FAFAF7"/>
+  <!-- browser chrome -->
+  <rect x="128" y="40" width="1280" height="560" rx="16" fill="#FFFFFF" stroke="#1C2733" stroke-width="2.5"/>
+  <rect x="128" y="40" width="1280" height="52" rx="16" fill="#1C2733"/>
+  <rect x="128" y="66" width="1280" height="26" fill="#1C2733"/>
+  <circle cx="162" cy="66" r="8" fill="#C0504D"/>
+  <circle cx="190" cy="66" r="8" fill="#B57614"/>
+  <circle cx="218" cy="66" r="8" fill="#0E7C7B"/>
+  <rect x="560" y="52" width="420" height="28" rx="14" fill="#4A5A6A" opacity="0.5"/>
+  <!-- stat tiles row -->
+  <g font-size="18">
+    <rect x="168" y="120" width="280" height="96" rx="10" fill="#FAF1DE"/>
+    <text x="192" y="156" fill="#4A5A6A">today's cost</text>
+    <text x="192" y="196" font-size="34" font-weight="700" fill="#B57614">$4.21</text>
+    <rect x="472" y="120" width="280" height="96" rx="10" fill="#E3F2F1"/>
+    <text x="496" y="156" fill="#4A5A6A">tokens</text>
+    <text x="496" y="196" font-size="34" font-weight="700" fill="#0E7C7B">1.2M</text>
+    <rect x="776" y="120" width="280" height="96" rx="10" fill="#E7EEF7"/>
+    <text x="800" y="156" fill="#4A5A6A">sessions</text>
+    <text x="800" y="196" font-size="34" font-weight="700" fill="#3A6EA5">7</text>
+    <rect x="1080" y="120" width="280" height="96" rx="10" fill="#E3F2F1"/>
+    <text x="1104" y="156" fill="#4A5A6A">tool success</text>
+    <text x="1104" y="196" font-size="34" font-weight="700" fill="#0E7C7B">94%</text>
+  </g>
+  <!-- live feed column -->
+  <g>
+    <rect x="168" y="248" width="360" height="300" rx="10" fill="#FFFFFF" stroke="#E3E6E0" stroke-width="2"/>
+    <text x="192" y="286" font-size="19" font-weight="600" fill="#1C2733">live feed</text>
+    <g>
+      <circle cx="206" cy="322" r="7" fill="#0E7C7B"/>
+      <circle cx="206" cy="322" r="13" fill="none" stroke="#0E7C7B" stroke-width="1.5" opacity="0.4"/>
+      <rect x="228" y="314" width="240" height="12" rx="5" fill="#E3E6E0"/>
+      <circle cx="206" cy="366" r="7" fill="#0E7C7B" opacity="0.8"/>
+      <rect x="228" y="358" width="200" height="12" rx="5" fill="#E3E6E0"/>
+      <circle cx="206" cy="410" r="7" fill="#C0504D" opacity="0.85"/>
+      <rect x="228" y="402" width="260" height="12" rx="5" fill="#E3E6E0"/>
+      <circle cx="206" cy="454" r="7" fill="#0E7C7B" opacity="0.6"/>
+      <rect x="228" y="446" width="180" height="12" rx="5" fill="#E3E6E0"/>
+      <circle cx="206" cy="498" r="7" fill="#0E7C7B" opacity="0.5"/>
+      <rect x="228" y="490" width="230" height="12" rx="5" fill="#E3E6E0"/>
+    </g>
+  </g>
+  <!-- per-task timeline -->
+  <g>
+    <rect x="560" y="248" width="800" height="300" rx="10" fill="#FFFFFF" stroke="#E3E6E0" stroke-width="2"/>
+    <text x="584" y="286" font-size="19" font-weight="600" fill="#1C2733">per-task timeline</text>
+    <g font-size="15" fill="#4A5A6A">
+      <text x="584" y="330">task 1</text>
+      <rect x="668" y="316" width="380" height="22" rx="6" fill="#0E7C7B" opacity="0.9"/>
+      <text x="584" y="374">task 2</text>
+      <rect x="700" y="360" width="240" height="22" rx="6" fill="#0E7C7B" opacity="0.7"/>
+      <text x="584" y="418">task 3</text>
+      <rect x="740" y="404" width="500" height="22" rx="6" fill="#0E7C7B" opacity="0.8"/>
+      <rect x="1180" y="404" width="60" height="22" rx="6" fill="#C0504D" opacity="0.8"/>
+      <text x="584" y="462">task 4</text>
+      <rect x="820" y="448" width="180" height="22" rx="6" fill="#0E7C7B" opacity="0.6"/>
+      <text x="584" y="506">task 5</text>
+      <rect x="900" y="492" width="320" height="22" rx="6" fill="#B57614" opacity="0.75"/>
+    </g>
+  </g>
+  <!-- provenance footer -->
+  <text x="768" y="580" font-size="16" text-anchor="middle" fill="#4A5A6A">sources: otlp · jsonl · langsmith — fresh 2s ago</text>
+</svg>

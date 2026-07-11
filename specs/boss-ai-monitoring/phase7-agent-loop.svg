@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 640" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <rect width="1536" height="640" fill="#FAFAF7"/>
+  <defs>
+    <marker id="arr3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0E7C7B"/>
+    </marker>
+  </defs>
+  <!-- circular arrows -->
+  <g fill="none" stroke="#0E7C7B" stroke-width="4" stroke-linecap="round">
+    <path d="M 900 150 A 260 175 0 0 1 1010 300" marker-end="url(#arr3)"/>
+    <path d="M 1000 420 A 260 175 0 0 1 880 496" marker-end="url(#arr3)"/>
+    <path d="M 640 500 A 260 175 0 0 1 528 350" marker-end="url(#arr3)"/>
+    <path d="M 540 230 A 260 175 0 0 1 650 148" marker-end="url(#arr3)"/>
+  </g>
+  <!-- node: view (browser) -->
+  <g>
+    <rect x="668" y="84" width="200" height="120" rx="12" fill="#FFFFFF" stroke="#1C2733" stroke-width="2.5"/>
+    <rect x="668" y="84" width="200" height="30" rx="12" fill="#1C2733"/>
+    <rect x="668" y="99" width="200" height="15" fill="#1C2733"/>
+    <circle cx="688" cy="99" r="5" fill="#C0504D"/>
+    <circle cx="706" cy="99" r="5" fill="#B57614"/>
+    <rect x="690" y="130" width="80" height="40" rx="6" fill="#E3F2F1"/>
+    <rect x="784" y="130" width="64" height="40" rx="6" fill="#FAF1DE"/>
+    <text x="768" y="236" font-size="24" font-weight="600" text-anchor="middle" fill="#1C2733">view</text>
+  </g>
+  <!-- node: screenshot (camera frame) -->
+  <g>
+    <g fill="none" stroke="#1C2733" stroke-width="4" stroke-linecap="round">
+      <path d="M 1040 330 h 34 M 1040 330 v 34"/>
+      <path d="M 1216 330 h -34 M 1216 330 v 34"/>
+      <path d="M 1040 470 h 34 M 1040 470 v -34"/>
+      <path d="M 1216 470 h -34 M 1216 470 v -34"/>
+    </g>
+    <circle cx="1128" cy="400" r="34" fill="none" stroke="#0E7C7B" stroke-width="4"/>
+    <circle cx="1128" cy="400" r="14" fill="#0E7C7B"/>
+    <text x="1128" y="530" font-size="24" font-weight="600" text-anchor="middle" fill="#1C2733">screenshot</text>
+  </g>
+  <!-- node: edit (code file + pencil) -->
+  <g>
+    <rect x="672" y="440" width="150" height="170" rx="10" fill="#FFFFFF" stroke="#1C2733" stroke-width="2.5"/>
+    <g stroke-linecap="round" stroke-width="8">
+      <path d="M 694 480 h 70" stroke="#0E7C7B"/>
+      <path d="M 694 510 h 100" stroke="#E3E6E0"/>
+      <path d="M 694 540 h 84" stroke="#B57614"/>
+      <path d="M 694 570 h 96" stroke="#E3E6E0"/>
+    </g>
+    <g transform="translate(800 560) rotate(-45)">
+      <rect x="0" y="-11" width="86" height="22" rx="4" fill="#B57614"/>
+      <path d="M 86 -11 L 108 0 L 86 11 z" fill="#1C2733"/>
+    </g>
+    <text x="748" y="636" font-size="24" font-weight="600" text-anchor="middle" fill="#1C2733">edit</text>
+  </g>
+  <!-- node: reload (refresh arrow) -->
+  <g>
+    <path d="M 470 348 A 62 62 0 1 1 408 286" fill="none" stroke="#0E7C7B" stroke-width="9" stroke-linecap="round"/>
+    <path d="M 408 258 L 408 314 L 452 286 z" fill="#0E7C7B"/>
+    <text x="408" y="470" font-size="24" font-weight="600" text-anchor="middle" fill="#1C2733">reload</text>
+  </g>
+  <!-- agent at center -->
+  <g>
+    <rect x="708" y="300" width="120" height="90" rx="16" fill="#E3F2F1" stroke="#0E7C7B" stroke-width="2.5"/>
+    <circle cx="744" cy="336" r="10" fill="#1C2733"/>
+    <circle cx="792" cy="336" r="10" fill="#1C2733"/>
+    <path d="M 744 366 Q 768 382 792 366" fill="none" stroke="#1C2733" stroke-width="4" stroke-linecap="round"/>
+    <path d="M 768 300 v -22" stroke="#0E7C7B" stroke-width="4"/>
+    <circle cx="768" cy="270" r="7" fill="#0E7C7B"/>
+    <text x="768" y="425" font-size="20" text-anchor="middle" fill="#4A5A6A">agent</text>
+  </g>
+</svg>
