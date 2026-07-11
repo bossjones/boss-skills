@@ -124,7 +124,7 @@
       <summary>Metadata</summary>
       <dl>
         <dt>created</dt>      <dd>2026-07-11T19:08:54Z</dd>
-        <dt>modified</dt>     <dd>2026-07-11T19:08:54Z</dd>
+        <dt>modified</dt>     <dd>2026-07-11T19:08:54Z, 2026-07-11T19:41:50Z</dd>
         <dt>commits</dt>      <dd>59335b3</dd>
         <dt>agent name</dt>   <dd>Claude Fable 5 (claude-fable-5)</dd>
         <dt>session id</dt>   <dd>a69eb84a-0a31-476a-a6c3-47c199ba1e14</dd>
@@ -136,7 +136,7 @@
 
   <!-- Hero image — synced to the :root visual identity. -->
   <figure>
-    <img src="hero.svg" alt="Three telemetry streams — OTel, JSONL, LangSmith — converging into one local dashboard showing cost, time per task, and live activity">
+    <img src="hero.png" alt="Three telemetry streams — OTel, JSONL, LangSmith — converging into one local dashboard showing cost, time per task, and live activity">
     <figcaption>One local pane of glass: three telemetry streams from Claude Code merged into a single realtime dashboard.</figcaption>
   </figure>
 
@@ -156,7 +156,7 @@
     </ul>
     <p>Existing tools each solve a slice: <code>ccusage</code> (CLI cost tables), <code>Sniffly</code> (JSONL error analysis), <code>agtop</code> (live TUI, no persistence), <code>agentic-metric</code> (SQLite aggregation, no web UI), <code>claude-code-otel</code> (Grafana, 4-container stack, no LangSmith/transcript joins). None provide: a persistent local store joining all three sources, per-task (prompt-level) timing, realtime web views, <em>and</em> a frontend an AI agent can itself inspect in a browser and improve.</p>
     <figure>
-      <img src="problem-fragmented-signals.svg" alt="Three disconnected telemetry silos — OTel, JSONL, LangSmith — with broken dashed links and an empty dashboard frame marked with a question mark">
+      <img src="problem-fragmented-signals.png" alt="Three disconnected telemetry silos — OTel, JSONL, LangSmith — with broken dashed links and an empty dashboard frame marked with a question mark">
       <figcaption>Three telemetry surfaces, zero unified local view: OTel is unheard, transcripts are unparsed, LangSmith is siloed.</figcaption>
     </figure>
   </section>
@@ -184,7 +184,7 @@ LangSmith cloud ◀──hooks plugin traces… ──▶ poller: Client.list_ru
       <li><strong>Agent-editable frontend</strong> — server-rendered HTML/htmx is the format a coding agent edits most reliably; Phase 7 codifies the screenshot → critique → edit → reload loop.</li>
     </ul>
     <figure>
-      <img src="solution-architecture.svg" alt="Architecture: OTel, JSONL, and LangSmith streams merging into one DuckDB file, feeding an SSE dashboard, with a marimo notebook satellite">
+      <img src="solution-architecture.png" alt="Architecture: OTel, JSONL, and LangSmith streams merging into one DuckDB file, feeding an SSE dashboard, with a marimo notebook satellite">
       <figcaption>Three ingest paths, one DuckDB file, one SSE-driven dashboard — with marimo as an exploration sidecar.</figcaption>
     </figure>
   </section>
@@ -202,8 +202,9 @@ LangSmith cloud ◀──hooks plugin traces… ──▶ poller: Client.list_ru
 
     <h3>New Files (target standalone repo <code>bossjones/boss-ai-monitoring</code>)</h3>
     <ul>
-      <li><span class="tag new">new</span> <code>pyproject.toml</code> — uv + hatchling, Python ≥3.13, deps: fastapi, uvicorn, duckdb, jinja2, httpx, langsmith, pydantic, sse-starlette; dev: pytest, pytest-asyncio, respx, ruff, ty, playwright.</li>
-      <li><span class="tag new">new</span> <code>justfile</code> — <code>just check</code> = ruff + ty + codespell + pytest; <code>just dev</code>, <code>just docker-build</code>.</li>
+      <li><span class="tag new">new</span> <code>pyproject.toml</code> — uv + hatchling, Python ≥3.13, deps: fastapi, uvicorn, duckdb, jinja2, httpx, langsmith, pydantic, pydantic-settings, pyyaml, sse-starlette; dev: pytest, pytest-asyncio, respx, ruff, pyrefly, playwright.</li>
+      <li><span class="tag new">new</span> <code>justfile</code> — <code>just check</code> = ruff + pyrefly + codespell + pytest; <code>just dev</code>, <code>just docker-build</code>.</li>
+      <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/config.py</code> — pydantic-settings <code>BaseSettings</code> configuration: defaults → optional YAML file → env var overrides (highest precedence).</li>
       <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/store/schema.py</code> + <code>store/writer.py</code> — DuckDB schema (raw <code>events</code> table, JSON payload column), batched Appender writer, cursor tables.</li>
       <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/store/views.sql</code> — SQL views: sessions, per-prompt tasks, daily cost, tool stats, five-metrics, drift check.</li>
       <li><span class="tag new">new</span> <code>src/boss_ai_monitoring/ingest/otlp.py</code> — FastAPI router: <code>POST /v1/logs</code>, <code>POST /v1/metrics</code> (OTLP http/json), OTel → ObsEvent mapping, idempotency.</li>
@@ -234,8 +235,9 @@ LangSmith cloud ◀──hooks plugin traces… ──▶ poller: Client.list_ru
       <ul class="checklist">
         <li><code class="status">[]</code> <code>gh repo create bossjones/boss-ai-monitoring --public --description "Local-first observability for AI coding agents (Claude Code): cost, per-task timing, tool activity, LangSmith merge" --clone</code></li>
         <li><code class="status">[]</code> <code>uv init --package --python 3.13</code>; set hatchling build backend, <code>src/</code> layout, project metadata, MIT <code>LICENSE</code>.</li>
-        <li><code class="status">[]</code> <code>uv add fastapi uvicorn duckdb jinja2 httpx langsmith pydantic sse-starlette</code> and <code>uv add --dev pytest pytest-asyncio respx ruff ty codespell pre-commit playwright</code>.</li>
-        <li><code class="status">[]</code> Write <code>justfile</code>: <code>check</code> (ruff check + ruff format --check + ty + codespell + pytest), <code>dev</code> (uvicorn --reload), <code>fmt</code>, <code>docker-build</code>.</li>
+        <li><code class="status">[]</code> <code>uv add fastapi uvicorn duckdb jinja2 httpx langsmith pydantic pydantic-settings pyyaml sse-starlette</code> and <code>uv add --dev pytest pytest-asyncio respx ruff pyrefly codespell pre-commit playwright</code>.</li>
+        <li><code class="status">[]</code> Write <code>justfile</code>: <code>check</code> (ruff check + ruff format --check + pyrefly check + codespell + pytest), <code>dev</code> (uvicorn --reload), <code>fmt</code>, <code>docker-build</code>.</li>
+        <li><code class="status">[]</code> Type-checker workflow: pyrefly is the checker; when adding or fixing annotations anywhere in this repo, invoke the <code>/agent-harness:pyrefly-typing</code> skill for typing help (pyrefly-idiomatic annotations, suppressions, config).</li>
         <li><code class="status">[]</code> Write <code>.github/workflows/ci.yml</code> (uv setup → <code>just check</code>) and <code>.pre-commit-config.yaml</code>.</li>
         <li><code class="status">[]</code> Write <code>.env.sample</code> documenting <code>CLAUDE_CODE_ENABLE_TELEMETRY</code>, <code>OTEL_METRICS_EXPORTER=otlp</code>, <code>OTEL_LOGS_EXPORTER=otlp</code>, <code>OTEL_EXPORTER_OTLP_PROTOCOL=http/json</code>, <code>OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318</code>, <code>LANGSMITH_API_KEY</code>, <code>CC_LANGSMITH_PROJECT</code>, <code>BAM_DB_PATH</code>, <code>BAM_CLAUDE_PROJECTS_DIR</code>.</li>
       </ul>
@@ -246,8 +248,15 @@ LangSmith cloud ◀──hooks plugin traces… ──▶ poller: Client.list_ru
         <li><code class="status">[]</code> Commit scaffold; push; confirm CI green on GitHub.</li>
       </ul>
 
-      <h4>3. Testing Strategy</h4>
-      <p>Nothing to unit-test beyond the smoke test yet; the phase's product is a working harness. Validation is the harness itself plus CI.</p>
+      <h4>3. Configuration module (TDD)</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> RED: tests for <code>config.py</code> — a pydantic-settings <code>BaseSettings</code> model (<code>BamSettings</code>) with nested sections (<code>server</code>: dashboard/OTLP ports+bind; <code>store</code>: db_path; <code>ingest</code>: jsonl scan interval, projects dir, langsmith poll interval/project; <code>jobs</code>: enable flags) and precedence <strong>env vars (prefix <code>BAM_</code>, nested via <code>__</code>) &gt; YAML file (<code>config.yaml</code> or <code>$BAM_CONFIG</code> path, via <code>YamlConfigSettingsSource</code>) &gt; code defaults</strong>.</li>
+        <li><code class="status">[]</code> GREEN: implement; missing YAML file is fine (defaults apply); malformed YAML raises a clear startup error naming the file and line.</li>
+        <li><code class="status">[]</code> Ship a commented <code>config.sample.yaml</code>; document precedence in README and keep <code>.env.sample</code> as the env-var reference.</li>
+      </ul>
+
+      <h4>4. Testing Strategy</h4>
+      <p>Config module is fully unit-tested (tmp YAML files + monkeypatched env, asserting precedence and error paths). Beyond that, the phase's product is a working harness — validation is the harness itself plus CI.</p>
       <ul class="checklist">
         <li><code class="status">[]</code> <code>just check</code> — full lint/type/test gate passes locally.</li>
         <li><code class="status">[]</code> <code>gh run watch --exit-status</code> — CI passes on the pushed scaffold.</li>
@@ -264,7 +273,7 @@ LangSmith cloud ◀──hooks plugin traces… ──▶ poller: Client.list_ru
       <p>One DuckDB file is the whole persistence story. A canonical <code>ObsEvent</code> envelope (pi-agent-observability pattern) with a JSON payload column means new event types need no migrations; SQL views turn raw events into every metric the dashboard shows.</p>
 
       <figure>
-        <img src="phase2-storage-pipeline.svg" alt="Event envelopes tagged otlp, jsonl, and langsmith funneling into a DuckDB events table, with SQL views fanning out as derived metric panels">
+        <img src="phase2-storage-pipeline.png" alt="Event envelopes tagged otlp, jsonl, and langsmith funneling into a DuckDB events table, with SQL views fanning out as derived metric panels">
         <figcaption>Raw lineage-tagged events in, derived SQL-view metrics out — no migrations as event types evolve.</figcaption>
       </figure>
 
@@ -389,7 +398,7 @@ LangSmith cloud ◀──hooks plugin traces… ──▶ poller: Client.list_ru
       <p>The single pane of glass. Server-rendered HTML with htmx partial swaps; realtime via one SSE stream. Vanilla CSS matching a small design-token sheet — deliberately framework-free so an agent can edit any view file directly (Phase 7 depends on this).</p>
 
       <figure>
-        <img src="phase6-dashboard.svg" alt="Dashboard mockup: stat tiles for cost, tokens, sessions, and tool success on top; live feed on the left; per-task timeline bars in the center">
+        <img src="phase6-dashboard.png" alt="Dashboard mockup: stat tiles for cost, tokens, sessions, and tool success on top; live feed on the left; per-task timeline bars in the center">
         <figcaption>Overview: stat tiles, live session feed, per-task timelines — every panel carrying a provenance/freshness footer.</figcaption>
       </figure>
 
@@ -422,7 +431,7 @@ LangSmith cloud ◀──hooks plugin traces… ──▶ poller: Client.list_ru
       <p>Codify the feedback loop where an AI agent inspects the running dashboard in a browser and improves it. The deliverable is <code>docs/AGENT_LOOP.md</code> plus one demonstrated iteration with before/after screenshots committed.</p>
 
       <figure>
-        <img src="phase7-agent-loop.svg" alt="Circular feedback loop with an agent at the center: view the dashboard, screenshot, edit templates, reload">
+        <img src="phase7-agent-loop.png" alt="Circular feedback loop with an agent at the center: view the dashboard, screenshot, edit templates, reload">
         <figcaption>View → screenshot → critique → edit templates/CSS → reload: the agent iterates on its own dashboard.</figcaption>
       </figure>
 
@@ -512,7 +521,7 @@ LangSmith cloud ◀──hooks plugin traces… ──▶ poller: Client.list_ru
     <h2>Validation Commands</h2>
     <p>Execute these commands (in the standalone repo) to validate the entire plan is complete:</p>
     <ul class="checklist">
-      <li><code class="status">[]</code> <code>just check</code> — ruff + ty + codespell + full pytest suite passes with zero warnings.</li>
+      <li><code class="status">[]</code> <code>just check</code> — ruff + pyrefly + codespell + full pytest suite passes with zero warnings.</li>
       <li><code class="status">[]</code> <code>uv run pytest -q</code> — every TDD suite (store, ingest×3, web, jobs, e2e) green.</li>
       <li><code class="status">[]</code> <code>just dev</code> + one real Claude Code session with telemetry enabled — live events visible on <code>/live</code> within seconds; session page shows per-task timeline with cost.</li>
       <li><code class="status">[]</code> <code>curl -sf -X POST localhost:4318/v1/logs -d @tests/fixtures/otlp/api_request.json -H 'Content-Type: application/json'</code> then reload <code>/</code> — fixture event visible (ingest→store→view round trip).</li>
@@ -530,7 +539,7 @@ LangSmith cloud ◀──hooks plugin traces… ──▶ poller: Client.list_ru
   <section id="questionables">
     <h2>Questionables</h2>
     <figure>
-      <img src="questionables-decisions.svg" alt="Decision signpost: the lit teal path leads to the web app plus DuckDB; dimmed paths to the Grafana stack and notebook UI recede">
+      <img src="questionables-decisions.png" alt="Decision signpost: the lit teal path leads to the web app plus DuckDB; dimmed paths to the Grafana stack and notebook UI recede">
       <figcaption>Decisions taken (lit) and alternatives consciously set aside (dimmed) — each recorded with its rationale below.</figcaption>
     </figure>
 
@@ -629,10 +638,16 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
     </ul>
 
     <h3>Dependencies (all via <code>uv add</code>)</h3>
-    <p>Runtime: <code>fastapi</code>, <code>uvicorn</code>, <code>duckdb</code>, <code>jinja2</code>, <code>httpx</code>, <code>langsmith</code>, <code>pydantic</code>, <code>sse-starlette</code>. Dev: <code>pytest</code>, <code>pytest-asyncio</code>, <code>respx</code>, <code>ruff</code>, <code>ty</code>, <code>codespell</code>, <code>playwright</code>, <code>pre-commit</code>. Notebooks group: <code>marimo</code>. Frontend: htmx vendored as a single static file (no npm, no build step — keeps the agent-edit loop trivial).</p>
+    <p>Runtime: <code>fastapi</code>, <code>uvicorn</code>, <code>duckdb</code>, <code>jinja2</code>, <code>httpx</code>, <code>langsmith</code>, <code>pydantic</code>, <code>pydantic-settings</code>, <code>pyyaml</code>, <code>sse-starlette</code>. Dev: <code>pytest</code>, <code>pytest-asyncio</code>, <code>respx</code>, <code>ruff</code>, <code>pyrefly</code>, <code>codespell</code>, <code>playwright</code>, <code>pre-commit</code>. Notebooks group: <code>marimo</code>. Frontend: htmx vendored as a single static file (no npm, no build step — keeps the agent-edit loop trivial).</p>
+
+    <h3>Tooling conventions</h3>
+    <ul>
+      <li><strong>Type checking = pyrefly</strong> (not ty/mypy/basedpyright). When writing or repairing annotations in the new repo, invoke the <code>/agent-harness:pyrefly-typing</code> skill for pyrefly-idiomatic typing help.</li>
+      <li><strong>Configuration = pydantic + pydantic-settings</strong>: typed <code>BaseSettings</code> with defaults, an optional YAML file (<code>config.yaml</code> / <code>$BAM_CONFIG</code>), and <code>BAM_</code>-prefixed env vars overriding everything — one config object injected everywhere; no ad-hoc <code>os.environ</code> reads outside <code>config.py</code>.</li>
+    </ul>
 
     <h3>About this spec's images</h3>
-    <p>All figures are hand-authored SVGs in this directory, drawn directly in the plan's <code>:root</code> palette (exactly synced by construction). The planf3 gpt-image-2 generation path was attempted but <code>OPENAI_API_KEY</code> is not present in the repo's local env file (it is documented in <code>.env.sample</code> but unset). To replace any figure with a generated PNG later: add the key, then run the planf3 Image Generation → Update sub-workflow against this file.</p>
+    <p>All figures are gpt-image-2 PNGs generated via the planf3 Image Generation workflow, prompted against the plan's <code>:root</code> palette. (The first pass shipped hand-authored SVG stand-ins because <code>OPENAI_API_KEY</code> was unset; once the key was added the PNGs replaced them — see Amendments.) To refine any figure, run the Image Generation → Update sub-workflow against this file.</p>
 
     <h3>Future work (explicitly out of MVP)</h3>
     <ul>
@@ -643,7 +658,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
     </ul>
 
     <figure>
-      <img src="notes-roadmap.svg" alt="Roadmap: a lit road segment labeled MVP leading toward faint milestones for multi-agent support, LLM judging, and budgets">
+      <img src="notes-roadmap.png" alt="Roadmap: a lit road segment labeled MVP leading toward faint milestones for multi-agent support, LLM judging, and budgets">
       <figcaption>MVP ships the lit road; multi-agent support, LLM-judged quality, and budget alerts wait on the horizon.</figcaption>
     </figure>
   </section>
@@ -652,6 +667,10 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
   <section id="amendments">
     <h2>Amendments</h2>
     <p><em>Running history of changes made after the plan was first executed. Append-only; populated by the Update Plan / Update References workflows.</em></p>
+    <details>
+      <summary>2026-07-11T19:41:50Z — pyrefly, pydantic-settings config layer, gpt-image-2 figures</summary>
+      <p>Per user request after initial commit: (1) type checker swapped from ty to <strong>pyrefly</strong> throughout (justfile, deps, CI gate), with a standing instruction to invoke the <code>/agent-harness:pyrefly-typing</code> skill when working on typing in the new repo; (2) added a <strong>pydantic + pydantic-settings configuration module</strong> (Phase 1, task 3): typed defaults → optional YAML file → <code>BAM_</code>-prefixed env var overrides; (3) <code>OPENAI_API_KEY</code> was added to the repo env, so all 8 figures were regenerated as gpt-image-2 PNGs, replacing the interim hand-authored SVGs.</p>
+    </details>
   </section>
 
 </main>
