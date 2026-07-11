@@ -7,10 +7,10 @@
 # ///
 
 """
-Status Line v10 - Context Window Usage + Adobe-priced Session Cost
+Status Line v10 - Context Window Usage + Session Cost
 Display: [Model] | # [###---] | 42.5% used | ~115k left | session_id | $ $0.0421
 Like v6 but appends a running cost total computed from the transcript using
-Adobe-discounted Anthropic/Bedrock pricing.
+public Anthropic list pricing.
 """
 
 from __future__ import annotations
@@ -23,7 +23,9 @@ import sys
 from pathlib import Path
 
 try:
-    from dotenv import load_dotenv  # pyrefly: ignore[missing-import]  # PEP 723 script-scoped dep; import is optional (guarded below)
+    from dotenv import (
+        load_dotenv,  # pyrefly: ignore[missing-import]  # PEP 723 script-scoped dep; import is optional (guarded below)
+    )
 
     load_dotenv()
 except ImportError:
@@ -42,32 +44,32 @@ MAGENTA = "\033[35m"
 RESET = "\033[0m"
 
 
-# Adobe-discounted prices (USD per 1M tokens), global rates: (input, output)
-ADOBE_PRICING: dict[str, tuple[float, float]] = {
+# Public Anthropic list prices (USD per 1M tokens): (input, output)
+MODEL_PRICING: dict[str, tuple[float, float]] = {
     # Claude 5 family
-    "claude-fable-5": (9.00, 45.00),
-    "claude-mythos-5": (9.00, 45.00),  # limited availability
+    "claude-fable-5": (10.00, 50.00),
+    "claude-mythos-5": (10.00, 50.00),  # limited availability
     # Opus
-    "claude-opus-4-8": (4.50, 22.50),
-    "claude-opus-4-7": (4.50, 22.50),
-    "claude-opus-4-6": (4.50, 22.50),
-    "claude-opus-4-5": (4.50, 22.50),
-    "claude-opus-4-1": (13.50, 67.50),  # deprecated
-    "claude-opus-4": (13.50, 67.50),  # retired except Bedrock/GCP
+    "claude-opus-4-8": (5.00, 25.00),
+    "claude-opus-4-7": (5.00, 25.00),
+    "claude-opus-4-6": (5.00, 25.00),
+    "claude-opus-4-5": (5.00, 25.00),
+    "claude-opus-4-1": (15.00, 75.00),  # deprecated
+    "claude-opus-4": (15.00, 75.00),  # retired except Bedrock/GCP
     # Sonnet
-    # NOTE: Sonnet 5 has a pricing cliff — $2/$10 standard (this Adobe rate)
-    # through 2026-08-31, then $3/$15 standard ($2.70/$13.50 Adobe) from
-    # 2026-09-01. Update this entry after that date.
-    "claude-sonnet-5": (1.80, 9.00),
-    "claude-sonnet-4-6": (2.70, 13.50),
-    "claude-sonnet-4-5": (2.70, 13.50),
-    "claude-sonnet-4": (2.70, 13.50),  # retired except Bedrock/GCP
+    # NOTE: Sonnet 5 has a pricing cliff — $2/$10 intro rate through
+    # 2026-08-31, then $3/$15 standard from 2026-09-01. Update this entry
+    # after that date.
+    "claude-sonnet-5": (2.00, 10.00),
+    "claude-sonnet-4-6": (3.00, 15.00),
+    "claude-sonnet-4-5": (3.00, 15.00),
+    "claude-sonnet-4": (3.00, 15.00),  # retired except Bedrock/GCP
     # Haiku
-    "claude-haiku-4-5": (0.90, 4.50),
-    "claude-haiku-3-5": (0.72, 3.60),  # retired except Bedrock/GCP
+    "claude-haiku-4-5": (1.00, 5.00),
+    "claude-haiku-3-5": (0.80, 4.00),  # retired except Bedrock/GCP
 }
-# Fallback for unknown/newer models — opus-tier global Adobe rates
-DEFAULT_PRICING: tuple[float, float] = (4.50, 22.50)
+# Fallback for unknown/newer models — opus-tier public list rate
+DEFAULT_PRICING: tuple[float, float] = (5.00, 25.00)
 
 # Standard Anthropic cache multipliers applied on top of input price
 CACHE_CREATION_MULTIPLIER = 1.25
@@ -88,7 +90,7 @@ def get_usage_color(percentage: float) -> str:
 
 def create_progress_bar(percentage: float, width: int = 15) -> str:
     """Create a visual progress bar."""
-    filled = int((percentage / 100) * width)
+    filled = max(0, min(width, int((percentage / 100) * width)))
     empty = width - filled
 
     color = get_usage_color(percentage)
@@ -133,8 +135,8 @@ def normalize_model_id(model_id: str) -> str:
 
 
 def get_pricing(model_id: str) -> tuple[float, float]:
-    """Look up Adobe pricing for a model id, falling back to opus-tier rates."""
-    return ADOBE_PRICING.get(normalize_model_id(model_id), DEFAULT_PRICING)
+    """Look up list pricing for a model id, falling back to opus-tier rates."""
+    return MODEL_PRICING.get(normalize_model_id(model_id), DEFAULT_PRICING)
 
 
 def shorten_cwd(path: str) -> str:
@@ -166,7 +168,7 @@ def get_git_branch(cwd: str) -> str | None:
 
 
 def compute_session_cost(transcript_path: str | None) -> float:
-    """Compute total session cost (USD) from a transcript JSONL using Adobe prices.
+    """Compute total session cost (USD) from a transcript JSONL using list prices.
 
     Returns 0.0 on any failure so the status line never breaks.
     """
@@ -217,7 +219,7 @@ def compute_session_cost(transcript_path: str | None) -> float:
 
 
 def generate_status_line(input_data: dict) -> str:
-    """Generate the context window usage status line with Adobe-priced cost."""
+    """Generate the context window usage status line with session cost."""
     model_info = input_data.get("model", {}) or {}
     model_name = model_info.get("display_name", "Claude")
 
@@ -230,7 +232,7 @@ def generate_status_line(input_data: dict) -> str:
     used_percentage = context_data.get("used_percentage", 0) or 0
     context_window_size = context_data.get("context_window_size", 200000) or 200000
 
-    remaining_tokens = int(context_window_size * ((100 - used_percentage) / 100))
+    remaining_tokens = max(0, int(context_window_size * ((100 - used_percentage) / 100)))
 
     usage_color = get_usage_color(used_percentage)
 
