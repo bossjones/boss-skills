@@ -307,3 +307,7 @@ specs/boss-experimental/00-overview.md
 specs/boss-experimental/01-skillgrade-eval-system.md
 specs/boss-experimental/02-config-validation-and-knowledge-arch.md
 specs/boss-experimental/03-agents-and-conventions.md
+
+# Third-party research sources (verbatim transcripts, scraped articles).
+# Kept locally so doc claims stay auditable; not republished from this public repo.
+ai_docs/sources/
