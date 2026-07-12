@@ -13,6 +13,7 @@ Stage all modified/untracked files (excluding secrets), write a conventional com
 - **NEVER use `git add -A` or `git add .`** — always stage specific files by name.
 - **NEVER amend existing commits** — always create a new commit.
 - **NEVER force push** unless the user explicitly asks.
+- **NEVER silently discard a human-authored PR body.** Refresh a stale description by preserving what is still true and adding what is missing. If the body contains review notes, context, or decisions you cannot re-derive from the diff, keep them.
 - **Always use conventional commit prefixes**: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`.
 
 ## Phase 1: Understand the Changes
@@ -87,17 +88,66 @@ git push -u origin $(git branch --show-current)
 git push
 ```
 
-## Phase 5: PR — Create or Reuse
+## Phase 5: PR — Create, or Reuse and Refresh
 
-First, check whether a PR already exists for the current branch:
+First, check whether a PR already exists for the current branch, pulling its **full** state — not just the URL:
 
 ```bash
-gh pr view --json url,title,state 2>/dev/null
+gh pr view --json url,title,body,state,commits,baseRefName 2>/dev/null
 ```
 
-**If a PR already exists** (command exits 0): the push in Phase 4 already updated it. Report the existing PR URL and title — no need to create a new one. Mention that the new commit was pushed to the open PR.
+### If a PR already exists (command exits 0)
 
-**If no PR exists** (command exits non-zero): create one with `gh pr create`. Base the PR on `main` unless the branch name suggests otherwise.
+The push in Phase 4 already updated the PR's commits. But a PR that has been open for a while accumulates commits its own title and body never described — **a stale description misleads reviewers about what they are approving.** Do not just report the URL. Check the description against reality:
+
+**1. Compare** the PR's title and body against what the branch actually contains:
+
+```bash
+git log --oneline <base>..HEAD
+git diff --stat <base>...HEAD
+```
+
+**2. Judge** whether the title and body still honestly describe the **whole** branch. Signs the description is stale:
+
+- The title describes only the earliest commit, not the branch as a whole.
+- The body's Summary or Test plan refers to work that is now a small fraction of the branch.
+- The body promises things the branch no longer does.
+
+**3a. If stale** — refresh **both** the title and the body:
+
+```bash
+gh pr edit <number> \
+  --title "<title covering the whole branch>" \
+  --body "$(cat <<'EOF'
+## Summary
+- <bullet: what the branch does now, in full>
+
+> Note: this PR grew past its original scope; description rewritten to match.
+
+## Test plan
+- [ ] <verification that matches the current diff>
+
+## Known limitations
+- <caveat a reviewer would otherwise discover the hard way>
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+When writing the new body:
+
+- **Preserve what you cannot re-derive.** Carry over review notes, context, and decisions already in the body (see the guardrail above). Rewrite the parts the diff makes false; keep the parts it does not.
+- **Say the PR outgrew its scope**, in one line, when it clearly has. Quietly swapping the text hides from the reviewer *why* the PR no longer matches its own history.
+- **Carry a "Known limitations" section** whenever the branch has any: things not yet verified, caveats a reviewer would otherwise hit the hard way. An honest PR body beats a flattering one.
+
+Report in the summary that the description was refreshed.
+
+**3b. If still accurate** — leave the title and body alone, and **say so explicitly** in the summary. "Already accurate" is a real outcome and the user should hear it; silence is not.
+
+### If no PR exists (command exits non-zero)
+
+Create one with `gh pr create`. Base the PR on `main` unless the branch name suggests otherwise.
 
 ```bash
 gh pr create \
@@ -123,7 +173,7 @@ Provide a brief summary at the end:
 ```text
 **Committed:** `<prefix>: <description>`
 **Pushed:** <short SHA>
-**PR:** <URL>  ← (existing) or (new)
+**PR:** <URL>  ← (existing, description refreshed) | (existing, already accurate) | (new)
 ```
 
 If `gh` is not authenticated, tell the user to run `gh auth login` and stop before trying to create the PR.
