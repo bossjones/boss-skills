@@ -1,0 +1,1 @@
+../../plugins/boss-dev/agent-harness/hooks/ruff_autoformat.py

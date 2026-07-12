@@ -23,7 +23,9 @@ import sys
 from pathlib import Path
 
 try:
-    from dotenv import load_dotenv
+    from dotenv import (
+        load_dotenv,  # pyrefly: ignore[missing-import]  # PEP 723 script-scoped dep; import is optional (guarded below)
+    )
 
     load_dotenv()
 except ImportError:
@@ -44,16 +46,30 @@ RESET = "\033[0m"
 
 # Public Anthropic list prices (USD per 1M tokens): (input, output)
 MODEL_PRICING: dict[str, tuple[float, float]] = {
-    "claude-haiku-4-5": (1.00, 5.00),
-    "claude-sonnet-4-5": (3.00, 15.00),
+    # Claude 5 family
+    "claude-fable-5": (10.00, 50.00),
+    "claude-mythos-5": (10.00, 50.00),  # limited availability
+    # Opus
+    "claude-opus-4-8": (5.00, 25.00),
+    "claude-opus-4-7": (5.00, 25.00),
+    "claude-opus-4-6": (5.00, 25.00),
+    "claude-opus-4-5": (5.00, 25.00),
+    "claude-opus-4-1": (15.00, 75.00),  # deprecated
+    "claude-opus-4": (15.00, 75.00),  # retired except Bedrock/GCP
+    # Sonnet
+    # NOTE: Sonnet 5 has a pricing cliff — $2/$10 intro rate through
+    # 2026-08-31, then $3/$15 standard from 2026-09-01. Update this entry
+    # after that date.
+    "claude-sonnet-5": (2.00, 10.00),
     "claude-sonnet-4-6": (3.00, 15.00),
-    "claude-opus-4-5": (15.00, 75.00),
-    "claude-opus-4-6": (15.00, 75.00),
-    "claude-opus-4-7": (15.00, 75.00),
-    "claude-opus-4-8": (15.00, 75.00),
+    "claude-sonnet-4-5": (3.00, 15.00),
+    "claude-sonnet-4": (3.00, 15.00),  # retired except Bedrock/GCP
+    # Haiku
+    "claude-haiku-4-5": (1.00, 5.00),
+    "claude-haiku-3-5": (0.80, 4.00),  # retired except Bedrock/GCP
 }
-# Fallback for unknown/newer models — opus-tier list rates
-DEFAULT_PRICING: tuple[float, float] = (15.00, 75.00)
+# Fallback for unknown/newer models — opus-tier public list rate
+DEFAULT_PRICING: tuple[float, float] = (5.00, 25.00)
 
 # Standard Anthropic cache multipliers applied on top of input price
 CACHE_CREATION_MULTIPLIER = 1.25

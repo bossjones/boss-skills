@@ -1,0 +1,1 @@
+../../plugins/boss-dev/agent-harness/hooks/snyk_agent_scan.py

@@ -14,6 +14,12 @@ import os
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Static import path so type checkers can resolve the dynamically loaded ``sp`` module's
+    # public types (e.g. ``sp.Action``); at runtime ``sp`` is loaded via importlib below.
+    from scripts.symlink_plugins import Action
 
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "symlink_plugins.py"
 
@@ -89,7 +95,7 @@ def test_skill_dir_symlink_is_relative_and_resolves(tmp_path: Path) -> None:
     target = tmp_path / ".claude" / "skills" / "foo"
     assert target.is_symlink()
     link = os.readlink(target)
-    assert not os.path.isabs(link) and link.startswith("..")
+    assert not Path(link).is_absolute() and link.startswith("..")
     assert (target / "SKILL.md").exists()
 
 
@@ -279,3 +285,207 @@ def test_copy_mode_makes_real_files(tmp_path: Path) -> None:
     cmd = tmp_path / ".claude" / "commands" / "build.md"
     assert not skill.is_symlink() and skill.is_dir()
     assert not cmd.is_symlink() and cmd.read_text() == "cmd"
+
+
+# --------------------------------------------------------------------------- #
+# --diff: file-level diffing
+# --------------------------------------------------------------------------- #
+
+
+def test_diff_files_identical_returns_empty(tmp_path: Path) -> None:
+    source = _write(tmp_path / "source.txt", "same content\n")
+    target = _write(tmp_path / "target.txt", "same content\n")
+    assert sp.diff_files(source, target) == []
+
+
+def test_diff_files_text_returns_unified_diff(tmp_path: Path) -> None:
+    source = _write(tmp_path / "source.txt", "line one\nline two\n")
+    target = _write(tmp_path / "target.txt", "line one\nline changed\n")
+    result = sp.diff_files(source, target)
+    joined = "".join(result)
+    assert "-line two" in joined or "-line changed" in joined
+    assert "+line two" in joined or "+line changed" in joined
+    assert any(line.startswith("-line") for line in result)
+    assert any(line.startswith("+line") for line in result)
+
+
+def test_diff_files_binary_reports_binary_differ(tmp_path: Path) -> None:
+    source = tmp_path / "source.bin"
+    target = tmp_path / "target.bin"
+    source.write_bytes(b"\x00\x01\x02")
+    target.write_bytes(b"\x00\x01\x03")
+    result = sp.diff_files(source, target)
+    assert len(result) == 1
+    assert "binary" in result[0].lower()
+
+
+def test_diff_files_binary_identical_bytes_returns_empty(tmp_path: Path) -> None:
+    source = tmp_path / "source.bin"
+    target = tmp_path / "target.bin"
+    source.write_bytes(b"\x00\x01\x02")
+    target.write_bytes(b"\x00\x01\x02")
+    assert sp.diff_files(source, target) == []
+
+
+def test_diff_files_unreadable_side_degrades_instead_of_crashing(tmp_path: Path) -> None:
+    # A directory raises OSError (IsADirectoryError) on read_bytes, exercising the
+    # binary-fallback guard: diff_files must report gracefully, never propagate the error.
+    source = tmp_path / "source.txt"
+    source.write_text("hello\n")
+    target_dir = tmp_path / "target_is_a_dir"
+    target_dir.mkdir()
+    result = sp.diff_files(source, target_dir)
+    assert len(result) == 1
+    assert "unreadable" in result[0].lower()
+
+
+# --------------------------------------------------------------------------- #
+# --diff: directory-level diffing
+# --------------------------------------------------------------------------- #
+
+
+def test_list_files_ignores_build_junk(tmp_path: Path) -> None:
+    root = tmp_path / "dir"
+    _write(root / "real.txt", "keep")
+    _write(root / "__pycache__" / "mod.cpython.pyc", "junk")
+    _write(root / "nested.pyc", "junk")
+    _write(root / ".DS_Store", "junk")
+
+    files = sp._list_files(root)
+    assert set(files.keys()) == {"real.txt"}
+
+
+def test_diff_dirs_reports_only_in_source_only_in_target_and_differs(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    target = tmp_path / "target"
+    _write(source / "only_source.txt", "a")
+    _write(source / "common.txt", "source-version")
+    _write(target / "only_target.txt", "b")
+    _write(target / "common.txt", "target-version")
+
+    entries = sp.diff_dirs(source, target)
+    by_path = {e.rel_path: e for e in entries}
+    assert len(entries) == 3
+    assert by_path["only_source.txt"].status == sp.DIR_ONLY_IN_SOURCE
+    assert by_path["only_source.txt"].diff == []
+    assert by_path["only_target.txt"].status == sp.DIR_ONLY_IN_TARGET
+    assert by_path["only_target.txt"].diff == []
+    assert by_path["common.txt"].status == sp.DIR_DIFFERS
+    assert by_path["common.txt"].diff != []
+
+
+# --------------------------------------------------------------------------- #
+# --diff: diff_action dispatcher
+# --------------------------------------------------------------------------- #
+
+
+def _action_for(repo: Path, components: tuple[str, ...], kind: str) -> Action:
+    plugins = sp.discover_plugins(repo)
+    actions = sp.plan_actions(repo, plugins, components)
+    return next(a for a in actions if a.kind == kind)
+
+
+def test_diff_action_backup_replace_dir_shows_skill_drift(tmp_path: Path) -> None:
+    root = _plugin_root(tmp_path, "cat/p")
+    _skill(root, "foo", "# plugin version\n")
+    _write(tmp_path / ".claude" / "skills" / "foo" / "SKILL.md", "# local version\n")
+
+    action = _action_for(tmp_path, ("skills",), sp.BACKUP_REPLACE)
+    result = sp.diff_action(action)
+    joined = "".join(result)
+    assert "local version" in joined or "plugin version" in joined
+    assert any("SKILL.md" in line for line in result)
+
+
+def test_diff_action_repoint_shows_current_vs_correct_source(tmp_path: Path) -> None:
+    root = _plugin_root(tmp_path, "cat/p")
+    _write(root / "commands" / "build.md", "correct-source-content")
+    other = _write(tmp_path / "elsewhere" / "wrong.md", "wrong-target-content")
+    link = tmp_path / ".claude" / "commands" / "build.md"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(other.relative_to(link.parent, walk_up=True))
+
+    action = _action_for(tmp_path, ("commands",), sp.REPOINT)
+    result = sp.diff_action(action)
+    joined = "".join(result)
+    assert result != []
+    assert "wrong-target-content" in joined or "correct-source-content" in joined
+
+
+def test_diff_action_repoint_broken_symlink_reports_broken_message(tmp_path: Path) -> None:
+    root = _plugin_root(tmp_path, "cat/p")
+    _write(root / "commands" / "build.md", "content")
+    link = tmp_path / ".claude" / "commands" / "build.md"
+    link.parent.mkdir(parents=True)
+    link.symlink_to("../../gone/nowhere.md")
+
+    action = _action_for(tmp_path, ("commands",), sp.REPOINT)
+    result = sp.diff_action(action)
+    assert len(result) == 1
+    assert "broken" in result[0].lower()
+
+
+def test_diff_action_skip_and_create_return_empty(tmp_path: Path) -> None:
+    root = _plugin_root(tmp_path, "cat/p")
+    _write(root / "commands" / "build.md", "cmd")
+    _run(tmp_path, ("commands",))  # now consistent -> replanning yields SKIP
+
+    skip_action = _action_for(tmp_path, ("commands",), sp.SKIP)
+    assert sp.diff_action(skip_action) == []
+
+    _write(root / "commands" / "new.md", "new-cmd")
+    create_action = _action_for(tmp_path, ("commands",), sp.CREATE)
+    assert sp.diff_action(create_action) == []
+
+
+def test_diff_action_conflict_and_orphan_return_empty(tmp_path: Path) -> None:
+    p1 = _plugin_root(tmp_path, "cat/a-first")
+    p2 = _plugin_root(tmp_path, "cat/b-second")
+    _write(p1 / "commands" / "dup.md", "from-first")
+    _write(p2 / "commands" / "dup.md", "from-second")
+    _write(tmp_path / ".claude" / "commands" / "orphan.md", "mine")
+
+    conflict_action = _action_for(tmp_path, ("commands",), sp.CONFLICT)
+    assert sp.diff_action(conflict_action) == []
+
+    orphan_action = _action_for(tmp_path, ("commands",), sp.ORPHAN_LEFT)
+    assert sp.diff_action(orphan_action) == []
+
+
+def test_diff_action_type_mismatch_reports_note(tmp_path: Path) -> None:
+    root = _plugin_root(tmp_path, "cat/p")
+    _skill(root, "foo")
+    _write(tmp_path / ".claude" / "skills" / "foo", "not-a-dir")
+
+    action = _action_for(tmp_path, ("skills",), sp.BACKUP_REPLACE)
+    result = sp.diff_action(action)
+    assert len(result) == 1
+    assert "mismatch" in result[0].lower()
+
+
+# --------------------------------------------------------------------------- #
+# --diff: CLI wiring
+# --------------------------------------------------------------------------- #
+
+
+def test_main_diff_alone_exits_zero_and_does_not_mutate(tmp_path: Path) -> None:
+    root = _plugin_root(tmp_path, "cat/p")
+    _write(root / "commands" / "build.md", "plugin-version")
+    target = _write(tmp_path / ".claude" / "commands" / "build.md", "old-copy")
+
+    exit_code = sp.main(["--diff", "--repo-root", str(tmp_path), "--components", "commands"])
+
+    assert exit_code == 0
+    assert not target.is_symlink()
+    assert target.read_text() == "old-copy"
+
+
+def test_main_diff_with_check_preserves_check_exit_code(tmp_path: Path) -> None:
+    _plugin_root(tmp_path, "cat/p")
+    link = tmp_path / ".claude" / "commands" / "x.md"
+    link.parent.mkdir(parents=True)
+    link.symlink_to("../../plugins/cat/p/commands/gone.md")
+
+    exit_code = sp.main(["--diff", "--check", "--repo-root", str(tmp_path), "--components", "commands"])
+
+    assert exit_code == 1
