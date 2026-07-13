@@ -1,8 +1,38 @@
 # Troubleshooting
 
-Common failure modes when fetching a PR diff, and how to recover.
+Common failure modes when fetching a diff, and how to recover. The skill has two
+modes; the first section applies to both, then PR-mode and local-mode failures are
+covered separately.
 
-## Authentication
+## Choosing a mode
+
+Exactly one of `<pr_url>` or `--base <ref>` is required.
+
+- Passing **both**, or **neither**, exits non-zero with
+  `provide exactly one of <pr_url> or --base REF`. There is no default mode —
+  reviewing the wrong source silently would be worse than an error.
+
+## Local mode (`--base`)
+
+Local mode shells out to `git diff --merge-base <ref> HEAD`. It needs no token, but
+it does need a git repository with a shared history.
+
+- **Unknown or typo'd ref** — exits with
+  `git diff --merge-base <ref> HEAD failed: ...`. Check the ref exists locally
+  (`git rev-parse <ref>`); a remote-only branch may need `git fetch` first, or an
+  explicit `origin/<ref>`.
+- **Not inside a git repository** — git's own error is surfaced. Run from within the
+  checkout, or pass the repo as the working directory.
+- **No common ancestor** — if the branch and `<ref>` have unrelated histories there
+  is no merge-base and git fails. This usually means the wrong `<ref>`, or a repo
+  grafted from an unrelated history.
+- **Detached HEAD** — works fine; `HEAD` is just the current commit. The diff is
+  still computed against the merge-base with `<ref>`.
+- **Uncommitted changes are not reviewed.** The diff is `HEAD` versus the
+  merge-base, so anything unstaged or staged-but-uncommitted is invisible. Commit
+  first if you want it reviewed.
+
+## Authentication (PR mode only)
 
 The script needs a GitHub token. It looks at `GH_TOKEN` first, then falls back
 to running `gh auth token`. If neither is available it prints
@@ -41,8 +71,13 @@ truncation, so the whole annotated diff is printed at once — which can be slow
 to scan and expensive to feed downstream.
 
 - Scope the fetch with `--files` to only the paths you intend to review.
-- Remember that lock files and protobuf-generated Java are already masked, so
-  bulk machine-generated churn does not dominate the output.
+- Remember that the usual bulk offenders are already masked — lock files, minified
+  bundles (`.min.js` / `.min.css`), sourcemaps (`.map`), and any file whose first
+  line carries an `@generated` marker — so machine-generated churn does not dominate
+  the output. See
+  [`output-format.md`](output-format.md#masked-files) for the full rule set.
+- Migrations are deliberately **never** masked, so a migration-heavy PR stays large
+  on purpose.
 
 ## `--files` glob behavior
 

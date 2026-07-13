@@ -137,12 +137,33 @@ def _resolve_prompt(prompt: str) -> str:
 
 
 def build_command(role: dict[str, Any], ctx: Ctx) -> str:
-    """Build the pane launch command for a role from the config (no shell execution)."""
-    launcher = str(role.get("launcher", "pi"))
+    """Build the pane launch command for a role from the config (no shell execution).
+
+    The default shape is pi's: ``--append-system-prompt <path>`` plus ``--name``. Other
+    launchers do not share it — ``claude`` has no ``--name``, and its
+    ``--append-system-prompt`` takes an inline *string*, not a path. So a role may supply
+    its own ``command`` template, used verbatim after interpolation:
+
+        "command": "claude --dangerously-skip-permissions --model __MODEL__ '__KICKOFF__'"
+
+    Placeholders: ``__MODEL__``, ``__KICKOFF__``, ``__PROMPT__`` (absolute path to the
+    role-prompt file), plus the usual ``__FEATURE__`` / ``__SENTINEL__`` / ``__APP_PATH__``
+    / ``__STACK__``. Roles without a ``command`` keep the original behavior exactly.
+    """
     model = str(role["model"])
-    name = f"{role['name']}-{ctx.feature}"
     prompt = _resolve_prompt(str(role["prompt"]))
     kickoff = _interpolate(str(role.get("kickoff", "")), ctx)
+
+    if template := role.get("command"):
+        return (
+            _interpolate(str(template), ctx)
+            .replace("__MODEL__", model)
+            .replace("__PROMPT__", prompt)
+            .replace("__KICKOFF__", kickoff)
+        )
+
+    launcher = str(role.get("launcher", "pi"))
+    name = f"{role['name']}-{ctx.feature}"
     return f'{launcher} --append-system-prompt {prompt} --model {model} --name {name} "{kickoff}"'
 
 
@@ -296,6 +317,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cwd", default=None, help="repo/working dir for the team (default: current dir)")
     parser.add_argument("--orch-pi-model", default=None, help="model for the pi orchestrator")
     parser.add_argument("--dry-run", action="store_true", help="print the plan and exit without contacting cmux")
+    parser.add_argument(
+        "--no-exec",
+        action="store_true",
+        help="spawn the team but do NOT exec an orchestrator; print refs and exit 0. "
+        "Use when an orchestrator already exists (e.g. a skill driving this from a Bash call, "
+        "which execvp would otherwise hijack and hang).",
+    )
     args = parser.parse_args(argv)
 
     feature = slugify(args.feature)
@@ -368,8 +396,14 @@ def main(argv: list[str] | None = None) -> int:
 
     spawn = write_spawn_file(config, feature, win, args.agent, cwd)
     print(f"team window={win} workspace={ws_ref} lead={lead}  spawn={spawn}", flush=True)
-    print(f"launching {args.agent} orchestrator, already aware via /cmux-did-spawn ...", flush=True)
 
+    if args.no_exec:
+        # The caller IS the orchestrator. Replacing this process with a new one would
+        # hijack their shell (and hang a tool call that is waiting on our exit).
+        print("--no-exec: team is up; no orchestrator launched.", flush=True)
+        return 0
+
+    print(f"launching {args.agent} orchestrator, already aware via /cmux-did-spawn ...", flush=True)
     exec_orchestrator(config, args.agent, feature, orch_pi_model, cwd)
     return 0
 

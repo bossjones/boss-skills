@@ -41,10 +41,11 @@ Apache-2.0):
 
 | Skill | Description |
 | --- | --- |
-| `fetch-diff` | Fetch a GitHub PR diff with old/new line numbers and auto-generated-file masking, optionally filtered to file globs. |
+| `fetch-diff` | Fetch a GitHub PR diff — or a local branch diff against its merge-base — with old/new line numbers and generated-file masking (migrations are never masked), optionally filtered to file globs. |
 | `fetch-unresolved-comments` | Fetch only the unresolved PR review threads via the GitHub GraphQL API, grouped by file. |
 | `pr-review` | Review a PR and emit a schema-validated local review payload — inline comments plus an approve-or-comment decision. |
 | `add-review-comment` | Post a single inline review comment to a PR line or line range via the GitHub API. |
+| `review-factory-core` | Shared deterministic engine for the multi-agent review factory: risk tiering, roster sizing, context scoping, prompt-injection stripping, anchor validation, and cost scoring. A library — drive it with `/review-factory-workflow` or `/review-factory-cmux`. |
 
 **Git worktree lifecycle** (adapted from
 [claude-code-ultimate-guide](https://github.com/FlorianBruniaux/claude-code-ultimate-guide), MIT):
@@ -87,7 +88,7 @@ setup.
 
 ## Commands
 
-Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
+Nineteen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
 `/agent-harness:<name>`.
 
 | Command | Arguments | Purpose |
@@ -105,6 +106,8 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 | `all_tools` | — | List every available tool as TypeScript-style signatures with purposes. |
 | `sentient` | — | Demo command that triggers the `rm -rf` guard in `pre_tool_use.py`. |
 | `docs-tutorial` | `[what to document]` | Generate a tutorial/doc by delegating to `/documentation-generation:doc-generate` with the correct fully-qualified tutorial-engineer subagent; defaults to the current branch's features. |
+| `review-factory-workflow` | `[--pr <url> \| --base <ref>] [--tier ...]` | Multi-agent code review: risk-tiered specialist fan-out via the Workflow tool, a judge pass, and a human-approved review. Headless. |
+| `review-factory-cmux` | `[--pr <url> \| --base <ref>] [--tier ...]` | The same review factory, run as visible cmux panes you can watch and intervene in. Requires cmux. |
 
 ## Agents
 

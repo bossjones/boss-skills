@@ -1,0 +1,44 @@
+{
+  "planted-sql-injection": {
+    "file": "src/db/queries.py",
+    "line": 7,
+    "severity": "critical",
+    "role": "security"
+  },
+  "planted-shell-injection": {
+    "file": "scripts/deploy.py",
+    "line": 6,
+    "severity": "critical",
+    "role": "security"
+  },
+  "planted-missing-authz": {
+    "file": "src/api/routes.py",
+    "line": 13,
+    "severity": "critical",
+    "role": "security"
+  },
+  "planted-perf-quadratic": {
+    "file": "src/report/aggregate.py",
+    "line": 6,
+    "severity": "moderate",
+    "role": "performance"
+  },
+  "planted-stale-claude-md": {
+    "file": "CLAUDE.md",
+    "line": 9,
+    "severity": "moderate",
+    "role": "agent-instructions"
+  },
+  "planted-skill-backtick-bug": {
+    "file": "skills/example/SKILL.md",
+    "line": 11,
+    "severity": "critical",
+    "role": "agent-instructions"
+  },
+  "clean-no-defects": {
+    "file": "src/text/format.py",
+    "line": null,
+    "severity": null,
+    "role": null
+  }
+}

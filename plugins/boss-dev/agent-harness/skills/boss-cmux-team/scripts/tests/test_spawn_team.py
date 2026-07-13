@@ -104,6 +104,68 @@ def test_build_command_threads_model_feature_and_sentinel() -> None:
     assert cmd.strip().startswith("pi --append-system-prompt ")
 
 
+class TestCommandOverride:
+    """A per-role `command` template, for launchers whose flags are not pi's."""
+
+    def test_command_override_is_used_verbatim_after_interpolation(self) -> None:
+        ctx = spawn_team.Ctx(feature="myfeat", sentinel="TASK-DONE", app_path="/app", stack="py")
+        role = {
+            "name": "security",
+            "model": "sonnet",
+            "prompt": "roles/lead.md",
+            "kickoff": "Read the brief for __FEATURE__.",
+            "command": "claude --dangerously-skip-permissions --model __MODEL__ '__KICKOFF__'",
+        }
+        cmd = spawn_team.build_command(role, ctx)
+        assert cmd == "claude --dangerously-skip-permissions --model sonnet 'Read the brief for myfeat.'"
+        # claude has no --name and takes an inline system prompt, not a path.
+        assert "--name" not in cmd
+        assert "--append-system-prompt" not in cmd
+
+    def test_prompt_placeholder_resolves_to_an_absolute_path(self) -> None:
+        ctx = spawn_team.Ctx(feature="f", sentinel="S", app_path="", stack="")
+        role = {"name": "r", "model": "m", "prompt": "roles/lead.md", "command": "cat __PROMPT__"}
+        cmd = spawn_team.build_command(role, ctx)
+        assert cmd.startswith("cat /")
+        assert cmd.endswith("assets/roles/lead.md")
+
+    def test_default_pi_shape_is_unchanged_when_no_command_given(self) -> None:
+        """Regression: existing configs must behave exactly as before."""
+        ctx = spawn_team.Ctx(feature="myfeat", sentinel="TASK-DONE", app_path="", stack="")
+        role = {"name": "lead", "model": "some-model", "prompt": "roles/lead.md", "kickoff": "go"}
+        cmd = spawn_team.build_command(role, ctx)
+        assert cmd.startswith("pi --append-system-prompt ")
+        assert "--name lead-myfeat" in cmd
+        assert cmd.endswith('"go"')
+
+
+def test_no_exec_spawns_nothing_and_never_execs() -> None:
+    """--no-exec must not reach execvp: the caller is already the orchestrator.
+
+    Exercised via --dry-run so no cmux contact happens; the point is that argparse
+    accepts the flag and the two are composable.
+    """
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "cc", "review-smoke", "--no-exec", "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert "# feature: review-smoke" in proc.stdout
+
+
+def test_no_exec_flag_is_accepted() -> None:
+    """The flag exists and is wired to the parser (guards against a silent rename)."""
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "--no-exec" in proc.stdout
+
+
 def test_layout_has_no_flotion_or_hardcoded_models() -> None:
     config = spawn_team.load_config(spawn_team.DEFAULT_CONFIG)
     blob = spawn_team.compact_layout(spawn_team.build_layout(config, "demo")).lower()

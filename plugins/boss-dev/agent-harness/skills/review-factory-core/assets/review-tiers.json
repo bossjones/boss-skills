@@ -1,0 +1,123 @@
+{
+  "_comment": [
+    "Risk tiers, roster, and filtering policy for the review factory. This file is DATA:",
+    "prepare_review.py reads it and never hardcodes any of these values, so the roster can be",
+    "adjusted from cost/yield evidence (score_run.py's cost-per-finding-per-specialist) without",
+    "touching code. Thresholds follow Cloudflare's published tiers.",
+    "",
+    "Tier assessment order (first match wins), implemented in assess_risk_tier():",
+    "  1. any changed path matches security_sensitive_globs  -> full  (risk beats size)",
+    "  2. lines > full.min_lines OR files > full.min_files    -> full",
+    "  3. lines <= trivial.max_lines AND files <= trivial.max_files -> trivial",
+    "  4. lines <= lite.max_lines AND files <= lite.max_files       -> lite",
+    "  5. otherwise                                           -> full  (broad blast radius)",
+    "Rule 5 catches the 21-50-file, <=100-line case: many files touched is itself a risk signal."
+  ],
+
+  "specialist_model": "sonnet",
+
+  "tiers": {
+    "trivial": {
+      "max_lines": 10,
+      "max_files": 20,
+      "lead_model": "sonnet",
+      "roles": ["generalist"]
+    },
+    "lite": {
+      "max_lines": 100,
+      "max_files": 20,
+      "lead_model": "opus",
+      "roles": ["code-quality", "security", "docs"]
+    },
+    "full": {
+      "min_lines": 100,
+      "min_files": 50,
+      "lead_model": "opus",
+      "roles": ["security", "code-quality", "performance", "docs", "agent-instructions"]
+    }
+  },
+
+  "security_sensitive_globs": [
+    "**/auth/**",
+    "**/crypto/**",
+    "**/*secret*",
+    "**/*credential*",
+    "**/.env*",
+    "**/hooks/**",
+    "**/settings*.json",
+    ".github/workflows/**",
+    "**/permissions*",
+    "**/Dockerfile*"
+  ],
+
+  "role_focus_globs": {
+    "security": [
+      "**/auth/**",
+      "**/crypto/**",
+      "**/*secret*",
+      "**/*credential*",
+      "**/.env*",
+      "**/hooks/**",
+      "**/settings*.json",
+      ".github/workflows/**",
+      "**/permissions*",
+      "**/Dockerfile*",
+      "**/*.py",
+      "**/*.sh"
+    ],
+    "docs": [
+      "**/*.md",
+      "**/*.rst",
+      "**/*.txt"
+    ],
+    "agent-instructions": [
+      "**/CLAUDE.md",
+      "**/AGENTS.md",
+      "**/GEMINI.md",
+      "**/SKILL.md",
+      ".claude/**",
+      "**/commands/*.md",
+      "**/agents/*.md",
+      "**/.cursor/**"
+    ],
+    "performance": [
+      "**/*.py",
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.go",
+      "**/*.rs",
+      "**/*.sql"
+    ],
+    "code-quality": [],
+    "generalist": []
+  },
+
+  "_role_focus_comment": [
+    "An empty focus list means 'no narrowing' — the role reviews every kept file.",
+    "A non-empty list is FOCUS, not a hard filter: the role still sees the full file list in its",
+    "brief, but its patches and attention are scoped to matches. Scoping is the single biggest",
+    "lever on both cost and noise (Cloudflare's per-file patch scoping)."
+  ],
+
+  "boundary_tags": [
+    "system",
+    "system-reminder",
+    "instructions",
+    "important",
+    "assistant",
+    "human",
+    "user",
+    "tool_use",
+    "tool_result",
+    "function_calls",
+    "thinking"
+  ],
+
+  "_boundary_tags_comment": [
+    "Tag names stripped (case-insensitively, with or without attributes, opening and closing)",
+    "from PR titles, bodies, and comments before they reach shared-context.md. A PR description",
+    "is attacker-controlled text; without this a PR body could impersonate a system turn and",
+    "redirect a specialist. Stripping happens in code, not in a prompt asking nicely."
+  ]
+}

@@ -13,6 +13,7 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
   - [`fetch-unresolved-comments`](#fetch-unresolved-comments)
   - [`pr-review`](#pr-review)
   - [`add-review-comment`](#add-review-comment)
+  - [`review-factory-core`](#review-factory-core)
 - [Git worktree lifecycle](#git-worktree-lifecycle)
   - [`git-worktree`](#git-worktree)
   - [`git-worktree-status`](#git-worktree-status)
@@ -41,10 +42,11 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 
 | Skill | Invocation | When to use | Needs |
 | --- | --- | --- | --- |
-| [`fetch-diff`](#fetch-diff) | model-invoked | Get a PR diff with line numbers for review | `uv`, `gh`/`GH_TOKEN` |
+| [`fetch-diff`](#fetch-diff) | model-invoked | Get a PR **or local branch** diff with line numbers for review | `uv`, `gh`/`GH_TOKEN` (PR mode only) |
 | [`fetch-unresolved-comments`](#fetch-unresolved-comments) | model-invoked | Get only open PR review threads | `uv`, `gh` |
 | [`pr-review`](#pr-review) | explicit | Full PR review → local payload (no posting) | `uv`, `gh` |
 | [`add-review-comment`](#add-review-comment) | model-invoked | Post one inline comment to a PR line | `gh` |
+| [`review-factory-core`](#review-factory-core) | library (not model-invoked) | Shared engine behind `/review-factory-workflow` and `/review-factory-cmux` | `uv` |
 | [`git-worktree`](#git-worktree) | explicit | Start a feature in an isolated worktree | `git` 2.5+ |
 | [`git-worktree-status`](#git-worktree-status) | explicit | Non-blocking worktree health check | `git` |
 | [`git-worktree-clean`](#git-worktree-clean) | explicit | Batch-clean stale/merged worktrees | `git` |
@@ -144,6 +146,39 @@ chain with [`fix-gh-pr-comments`](./commands.md#fix-gh-pr-comments).
   added/modified, LEFT for deleted), optional `start_line`/`start_side` for ranges, and `commit_id`.
   Comments end with `🤖 Generated with Claude`.
 - **Source:** [`skills/add-review-comment/SKILL.md`](../skills/add-review-comment/SKILL.md)
+
+### `review-factory-core`
+
+> The shared deterministic engine behind the multi-agent review factory. A **library**, not a
+> playbook — it sets `disable-model-invocation: true`.
+
+- **When to use:** Never directly. Drive it with `/review-factory-workflow` (headless, via the
+  Workflow tool) or `/review-factory-cmux` (visible panes). Both arms share this core; only the
+  execution substrate differs, which is what makes the comparison between them a fair test.
+- **The design rule:** *Agents + code, not agents alone.* Anything a computer can decide is decided
+  by a computer; agents are used only where judgment is genuinely required (reviewing code, judging
+  findings).
+
+| Script | Purpose |
+| --- | --- |
+| `prepare_review.py` | Acquire the diff (`--pr`, `--base`, or `--diff-file` for hermetic replay), assess risk, size and **prune** the roster, scope per-file patches, strip prompt-injection boundary tags, and record every valid anchor. `--dry-run` prints the plan and writes nothing. |
+| `validate_findings.py` | Reject findings anchored to lines that do **not** exist in the diff, before the judge reads them. |
+| `score_run.py` | Cost by model, cache hit rate, and **cost-per-finding per specialist** — the metric that says which agent pays its bills. |
+
+- **Risk sizes the team.** A security-sensitive path (CI workflow, auth, hooks, secrets) forces Full
+  tier regardless of diff size — a two-line workflow edit is exactly what a size-only heuristic waves
+  through. Conversely, a role whose focus globs match nothing is **pruned**, so a docs-only change
+  does not pay for a security reviewer.
+- **Anchors are computed once.** `manifest.json` records every `(file, side, line)` that genuinely
+  exists in the diff. A hallucinated anchor is the most damaging thing the system can emit — it looks
+  authoritative and, posted, lands a comment on an unrelated line of someone's code.
+- **No agent posts to GitHub.** Specialists write only their own findings file; the judge writes only
+  a payload conforming to [`pr-review`](#pr-review)'s existing schema. The orchestrator shows the
+  verdict to a human and posts only on approval.
+- **Configuration is data:** `assets/review-tiers.json` (tiers, security globs, roster, focus globs)
+  and `assets/model-pricing.json`. Retune the roster from cost/yield evidence without touching code.
+- **Source:** [`skills/review-factory-core/SKILL.md`](../skills/review-factory-core/SKILL.md) ·
+  design record: [`specs/cloudflare-software-factory-implementation.md`](../../../../specs/cloudflare-software-factory-implementation.md)
 
 ---
 

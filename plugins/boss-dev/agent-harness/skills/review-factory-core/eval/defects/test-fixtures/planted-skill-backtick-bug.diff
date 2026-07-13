@@ -1,0 +1,17 @@
+diff --git a/skills/example/SKILL.md b/skills/example/SKILL.md
+index aaa..bbb 100644
+--- a/skills/example/SKILL.md
++++ b/skills/example/SKILL.md
+@@ -1,0 +1,12 @@
+          1 | +---
+          2 | +name: example
+          3 | +description: Example skill for demonstrating the release workflow.
+          4 | +---
+          5 | +
+          6 | +# Example
+          7 | +
+          8 | +Check the working tree before releasing:
+          9 | +
+         10 | +```bash
+         11 | +!`git status`
+         12 | +```

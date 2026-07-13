@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-harness",
   "displayName": "Agent Harness",
-  "version": "0.28.0",
+  "version": "0.30.0",
   "description": "Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build and operate agentic dev workflows.",
   "author": {
     "name": "Malcolm Jones",

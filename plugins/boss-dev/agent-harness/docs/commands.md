@@ -39,6 +39,9 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
   - [`sentient`](#sentient)
 - [Documentation](#documentation)
   - [`docs-tutorial`](#docs-tutorial)
+- [Code review](#code-review)
+  - [`review-factory-workflow`](#review-factory-workflow)
+  - [`review-factory-cmux`](#review-factory-cmux)
 - [cmux orchestration](#cmux-orchestration)
   - [`cmux-fresh`](#cmux-fresh)
   - [`cmux-spawn-team`](#cmux-spawn-team)
@@ -62,6 +65,8 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 | [`update_status_line`](#update_status_line) | `<session_id> <key> <value>` | Write custom data into a session status line | — |
 | [`sentient`](#sentient) | — | Demo the `rm -rf` hook guard | — |
 | [`docs-tutorial`](#docs-tutorial) | `[what to document]` | Generate a tutorial/doc via the right tutorial-engineer subagent | — |
+| [`review-factory-workflow`](#review-factory-workflow) | `[--pr <url> \| --base <ref>] [--tier ...]` | Multi-agent code review, headless (Workflow tool) | `uv`, `gh` for PRs |
+| [`review-factory-cmux`](#review-factory-cmux) | `[--pr <url> \| --base <ref>] [--tier ...]` | The same review, in visible panes you can watch | `uv`, cmux (macOS) |
 | [`cmux-fresh`](#cmux-fresh) | — | Clear cmux's saved session so it boots blank | cmux (macOS) |
 | [`cmux-spawn-team`](#cmux-spawn-team) | `[team-name] [feature...] [--config PATH]` | Boot a multi-agent team as a cmux workspace | `uv`, cmux (macOS) |
 | [`cmux-did-spawn`](#cmux-did-spawn) | `<spawn-file path>` | Orient onto a just-spawned team and drive its lead | cmux (macOS) |
@@ -378,6 +383,44 @@ fails.
   ```
 
 - **Source:** [`commands/docs-tutorial.md`](../commands/docs-tutorial.md)
+
+---
+
+## Code review
+
+A risk-tiered, multi-specialist code review factory. Both commands run the **same** review —
+the same deterministic core, the same role prompts, the same judge, the same payload — and
+differ **only** in the substrate the specialists run on. That is deliberate: the two are a
+controlled comparison, so do not tune one arm's prompts without the other.
+
+The engine is [`review-factory-core`](./skills.md#review-factory-core), which sizes the team to
+the risk of the change (a security-sensitive path forces the full roster no matter how small the
+diff; a role with nothing to review is pruned), scopes each specialist to its own patches, strips
+prompt-injection tags from untrusted PR text, and rejects findings anchored to lines that do not
+exist in the diff.
+
+**No agent posts to GitHub.** The judge writes a schema-validated payload; you are shown the
+verdict and every comment, and nothing is posted until you approve it.
+
+### `review-factory-workflow`
+
+> Fan the specialists out with the `Workflow` tool. Headless.
+
+- **When to use:** The default. Nothing to watch, nothing to tear down, and it is the only arm
+  that could ever run in CI.
+- **Arguments:** `[--pr <url> | --base <ref>] [--tier trivial|lite|full]`. With no arguments,
+  reviews the current branch against `main`. `--tier` overrides the risk assessment.
+- **Source:** [`commands/review-factory-workflow.md`](../commands/review-factory-workflow.md)
+
+### `review-factory-cmux`
+
+> Fan the specialists out as visible cmux panes.
+
+- **When to use:** When you want to *watch* the agents work and be able to reach into a pane and
+  correct one. Requires cmux to be running.
+- **Trade-off:** You get visibility and independent OS processes; you pay for a heartbeat loop,
+  stall detection, and teardown — and it can never run headless.
+- **Source:** [`commands/review-factory-cmux.md`](../commands/review-factory-cmux.md)
 
 ---
 
