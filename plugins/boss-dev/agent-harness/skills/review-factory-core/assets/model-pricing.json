@@ -1,0 +1,32 @@
+{
+  "_comment": [
+    "USD per million tokens, by model-id prefix (longest matching prefix wins).",
+    "Prices change; this is data precisely so a stale number is a one-line edit and never",
+    "a code change. If a run reports $0.00 for a model, its prefix is missing here — add it.",
+    "",
+    "cache_write multiplies the input rate (a cache write costs more than a plain input token).",
+    "cache_read multiplies the input rate (a cache hit costs a small fraction). The whole point",
+    "of putting briefs on disk and keeping launch commands to one line is to drive cache_read",
+    "up and everything else down — Cloudflare reported an 85.7% cache hit rate."
+  ],
+
+  "cache_write_multiplier": 1.25,
+  "cache_read_multiplier": 0.1,
+
+  "models": {
+    "claude-opus-4": { "input": 15.0, "output": 75.0 },
+    "claude-sonnet-4": { "input": 3.0, "output": 15.0 },
+    "claude-sonnet-5": { "input": 3.0, "output": 15.0 },
+    "claude-haiku-4": { "input": 1.0, "output": 5.0 },
+    "claude-fable-5": { "input": 3.0, "output": 15.0 }
+  },
+
+  "_cloudflare_baseline": {
+    "_comment": "Published medians from Cloudflare's AI code review factory, for comparison.",
+    "cost_per_review_avg": { "trivial": 0.2, "lite": 0.67, "full": 1.68 },
+    "cost_per_review_median": { "trivial": 0.17, "lite": 0.61, "full": 1.47 },
+    "overall_median": 0.98,
+    "overall_p99": 4.45,
+    "cache_hit_rate": 0.857
+  }
+}

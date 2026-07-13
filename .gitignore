@@ -311,3 +311,9 @@ specs/boss-experimental/03-agents-and-conventions.md
 # Third-party research sources (verbatim transcripts, scraped articles).
 # Kept locally so doc claims stay auditable; not republished from this public repo.
 ai_docs/sources/
+
+# Multi-agent runtime scratch. Both are per-run working state, not source:
+#   .review/  review-factory workspaces (diffs, briefs, findings, payloads)
+#   .team/    cmux team spawn files (spawn_team.py writes .team/<feature>.spawn.json)
+.review/
+.team/
