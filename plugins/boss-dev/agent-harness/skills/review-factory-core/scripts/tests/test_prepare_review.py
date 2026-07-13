@@ -109,6 +109,19 @@ class TestAssessRiskTier:
             pr.assess_risk_tier([], CONFIG, override="nonsense")
 
 
+class TestResolveRawContext:
+    """--context-file is what makes the injection defense testable without the network."""
+
+    def test_context_file_wins_over_the_mode(self, tmp_path: Path) -> None:
+        ctx = tmp_path / "body.md"
+        ctx.write_text("author's stated intent")
+        # PR mode would otherwise shell out to `gh`; the explicit flag must short-circuit it.
+        assert pr.resolve_raw_context("pr", "https://x/pull/1", ctx) == "author's stated intent"
+
+    def test_replay_without_a_context_file_falls_back_to_the_local_string(self) -> None:
+        assert "Local review" in pr.resolve_raw_context("replay", "some.diff", None)
+
+
 class TestStripBoundaryTags:
     """A PR body is attacker-controlled text. It must not be able to impersonate a turn."""
 
@@ -205,6 +218,19 @@ class TestRenderBrief:
         assert "web/theme.css" in brief
         assert "do NOT file findings against these" in brief
 
+    def test_brief_pins_the_write_path_to_append_finding(self) -> None:
+        """The deadlock fix: the ONLY write mechanism a brief may offer is the CLI.
+
+        Prose like "append as you go" left the model to improvise shell redirection,
+        which a headless subagent cannot get permission for — it parks forever.
+        """
+        brief = pr.render_brief("docs", "# Role", "r1", "lite", [], [], Path("/tmp/ws"))
+        assert f"uv run {pr.APPEND_FINDING}" in brief
+        assert pr.APPEND_FINDING.is_file(), "the brief points at a script that must exist"
+        # Nothing may invite the improvised alternatives that deadlocked the factory.
+        assert "one blob at the end" not in brief
+        assert "mkdir" not in brief
+
     def test_brief_carries_the_done_record_contract(self) -> None:
         brief = pr.render_brief("docs", "# Role", "r1", "lite", [], [], Path("/tmp/ws"))
-        assert '"type": "done"' in brief
+        assert "--role docs --done" in brief

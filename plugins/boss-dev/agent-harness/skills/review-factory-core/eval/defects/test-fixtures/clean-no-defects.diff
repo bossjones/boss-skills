@@ -1,0 +1,17 @@
+diff --git a/src/text/format.py b/src/text/format.py
+index aaa..bbb 100644
+--- a/src/text/format.py
++++ b/src/text/format.py
+@@ -1,0 +1,12 @@
+          1 | +def truncate(text: str, limit: int = 80) -> str:
+          2 | +    """Shorten text to `limit` characters, appending an ellipsis if cut."""
+          3 | +    if limit <= 0:
+          4 | +        raise ValueError("limit must be positive")
+          5 | +    if len(text) <= limit:
+          6 | +        return text
+          7 | +    return text[: limit - 1].rstrip() + "\u2026"
+          8 | +
+          9 | +
+         10 | +def titlecase(text: str) -> str:
+         11 | +    """Capitalise the first letter of each whitespace-separated word."""
+         12 | +    return " ".join(word[:1].upper() + word[1:] for word in text.split())

@@ -1,13 +1,16 @@
 # Plan: review-factory — a Cloudflare-style multi-agent code review factory
 
-> **Status:** v2 — **part record, part plan.** The shared core and both execution arms are
-> **built, tested, and green** (1114 tests, 0 lint errors, agent-harness at 0.29.0). The
-> eval suites and the bake-off run itself are **not yet done**. Every section below is
-> marked accordingly; nothing here describes work that does not exist.
+> **Status:** v3 — **part record, part plan.** The shared core, both execution arms, and **both
+> eval suites** are built. Suite 1 passes 10/10. The core is at **86 tests**; the repo at
+> **1143 passing, 0 lint errors**.
 >
-> **v1 of this document (commit `ff5788a`) was written before the design interview and
-> before any code, and is comprehensively wrong.** It survives in git if you want the
-> archaeology. Do not act on it.
+> **What v3 adds that v2 could not know:** the factory has now actually been *run*. That run
+> **proved it works** — three specialists independently returned *zero findings* on a clean diff —
+> and simultaneously **deadlocked for an hour**, exposing three defects and one bake-off-invalidating
+> confound. Those are Step 0 below. **Nothing here describes work that does not exist.**
+>
+> v1 (`ff5788a`) predates the design interview and is comprehensively wrong. v2 was accurate when
+> written but its "DO NOT REBUILD" table is now stale — see [Corrections](#corrections-to-v2).
 
 ## Context
 
@@ -18,46 +21,34 @@ patches + one shared context file on disk rather than N duplicated prompts, for 
 cache hit rate), runs a **judge pass** (dedupe → verify-uncertain-by-reading-source →
 recategorize), and applies an **approval rubric biased toward approving**.
 
-The design principles we adopted from the IndyDevDan critique: *agents + code, not agents
-alone* (a deterministic pipeline; agents only where judgment is needed), *negative-scoped
-prompts* ("What NOT to flag"), *JSONL everywhere* (crash-survivable), and *measure which
-agent pays the bills*.
+The design principles adopted from the IndyDevDan critique: *agents + code, not agents alone*
+(a deterministic pipeline; agents only where judgment is needed), *negative-scoped prompts*
+("What NOT to flag"), *JSONL everywhere* (crash-survivable), and *measure which agent pays the
+bills*.
 
-**What v1 got wrong, and why this document exists.** v1 pinned the runtime to cmux before
-testing whether the pane machinery earned its keep. Roughly 40% of its plan — heartbeat
-loops, md5 screen-diff stall probes, JSONL done-records, `--no-exec`, teardown, recovery —
-existed solely to re-implement, on top of a terminal multiplexer, primitives this harness
-already provides natively. Screen-scraping to detect "is the agent done" is the tell.
-
-So instead of guessing, we **built both substrates and will let evidence choose.**
+We **built both substrates and will let evidence choose.**
 
 ---
 
 ## Decisions
 
-Eight decisions. **Four reversed from v1**, marked ⚠.
-
-1. **Both review targets** — GitHub PR and local branch diff vs merge-base. *(Plus a third,
-   new: `--diff-file` replay mode for hermetic runs.)*
+1. **Both review targets** — GitHub PR and local branch diff vs merge-base, plus `--diff-file`
+   replay for hermetic runs.
 2. **3 risk tiers** (trivial/lite/full) size the team; security-sensitive paths force Full.
-3. ⚠ **Severity is `critical` / `moderate` / `nit`** — *not* v1's `critical/warning/suggestion`.
-   The existing `pr-review/review-payload.schema.json` enforces this vocabulary, so adopting
-   it means **zero schema change** and its validator is reused verbatim.
-4. ⚠ **A bake-off, not one skill.** v1 planned a single `cmux-review-factory`. We built a
-   shared deterministic core plus **two competing arms**; the winner is promoted, the loser
-   deleted.
+3. **Severity is `critical` / `moderate` / `nit`** — the existing
+   `pr-review/review-payload.schema.json` enforces this vocabulary, so zero schema change.
+4. **A bake-off, not one skill.** A shared deterministic core plus **two competing arms**; the
+   winner is promoted, the loser deleted.
 5. **Full-tier roster = 5 specialists**: security, code-quality, performance, docs,
-   agent-instructions. Findings may carry a `suggestion_patch`, rendered as a one-click
-   GitHub suggestion.
+   agent-instructions.
 6. **The lead is a pure JUDGE, not a dispatcher.** Every specialist gets its complete task at
-   spawn and runs independently. This deletes the #1 failure mode of past runs (idle lead →
-   stalled workers) and matches Cloudflare, whose coordinator only consumes structured findings.
-7. ⚠ **Re-review-lite deferred to v2.** It has zero bearing on which substrate wins, and it
-   was the most complex thing on the critical path to a verdict.
-8. ⚠ **The orchestrator posts, not the lead** — and only after an `AskUserQuestion` gate.
-   `github-pr-review/SKILL.md:24` *mandates* explicit human approval before any post, which a
-   headless pane cannot satisfy. It also makes double-posting impossible when running both
-   arms against the same PR.
+   spawn and runs independently.
+7. **Re-review-lite deferred.**
+8. **The orchestrator posts, not the lead** — and only after an `AskUserQuestion` gate.
+9. ⭐ **NEW (v3): specialists never improvise their write path.** Findings are appended through a
+   deterministic CLI (`append_finding.py`), not through shell redirection. See
+   [Known defects](#known-defects) — this is the fix for the deadlock, and it is what makes the
+   Workflow arm able to run headless at all.
 
 ---
 
@@ -65,22 +56,17 @@ Eight decisions. **Four reversed from v1**, marked ⚠.
 
 **Write this down or someone will undo it.**
 
-- `pyproject.toml:82` sets `exclude = [".claude/", ...]` with **`force-exclude = true`**.
-  Ruff therefore *never* lints or formats Python under `.claude/` — and `force-exclude` means
-  even naming the path explicitly will not override it.
+- `pyproject.toml:82` sets `exclude = [".claude/", ...]` with **`force-exclude = true`**. Ruff
+  therefore *never* lints or formats Python under `.claude/`.
 - Pytest's `testpaths = ["tests", "plugins"]`. Tests under `.claude/` are **never collected**.
 
-Together: **Python under `.claude/skills/` escapes every quality gate this repo mandates.**
-
-That is *why* the shared core is a plugin skill (linted, typed, tested) and only the two
-disposable **markdown** playbooks live in `.claude/skills/`. If someone later "tidies" the
-core into `.claude/` for symmetry, the tests and the linter silently stop running.
+Together: **Python under `.claude/skills/` escapes every quality gate this repo mandates.** That
+is *why* the shared core is a plugin skill (linted, typed, tested) and only the two disposable
+**markdown** playbooks live in `.claude/skills/`.
 
 ---
 
 ## As-built
-
-### Layout
 
 ```text
 plugins/boss-dev/agent-harness/skills/review-factory-core/   # SHARED, permanent, linted+tested
@@ -88,28 +74,28 @@ plugins/boss-dev/agent-harness/skills/review-factory-core/   # SHARED, permanent
 ├── assets/
 │   ├── review-tiers.json          # tiers, security globs, roster, focus globs, boundary tags
 │   ├── model-pricing.json         # USD/Mtok by model prefix + the Cloudflare baseline
-│   └── roles/                     # security, code-quality, performance, docs,
-│       └── *.md                   #   agent-instructions, generalist, judge
+│   └── roles/*.md                 # security, code-quality, performance, docs,
+│                                  #   agent-instructions, generalist, judge
 ├── scripts/
 │   ├── prepare_review.py          # the deterministic pipeline
+│   ├── append_finding.py          # ⭐ Step 0 — NOT YET BUILT — the ONLY sanctioned write path
 │   ├── validate_findings.py       # the anchor gate
 │   ├── score_run.py               # cost, cache hit rate, cost-per-finding per specialist
-│   └── tests/                     # 57 tests
-└── eval/graders/                  # check_manifest.py, check_no_injection.py
+│   └── tests/                     # 86 tests
+└── eval/
+    ├── eval.yaml + test-fixtures/ # SUITE 1 — hermetic, 10 tasks, 10/10 passing
+    ├── graders/                   # check_manifest, check_no_injection, check_findings
+    └── defects/                   # SUITE 2 — 7 seeded-defect fixtures + planted.json
 
 .claude/skills/review-factory-workflow/SKILL.md    # ARM B — Workflow-tool fan-out
 .claude/skills/review-factory-cmux/SKILL.md        # ARM A — visible cmux panes
 ```
 
-Both arms share the core, the role prompts, the judge, and the payload. **Only the substrate
-differs** — that is what makes the comparison a fair test, and it is why neither arm's prompts
-may be tuned without the other's.
-
 ### Pipeline
 
 ```text
 prepare_review.py      -> .review/<slug>/   (code: tier, roster, briefs, patches, anchors)
-   [ specialists ]     -> findings/*.jsonl  (agents: judgment)
+   [ specialists ]     -> append_finding.py -> findings/*.jsonl   (agents judge; CODE writes — Step 0)
 validate_findings.py   -> rejects bad anchors BEFORE the judge sees them
    [ judge ]           -> review-payload.json (agent: judgment)
 validate_review.py     -> schema gate (reused from pr-review, UNCHANGED)
@@ -117,68 +103,30 @@ validate_review.py     -> schema gate (reused from pr-review, UNCHANGED)
 score_run.py           -> what it cost, and which agent paid the bills
 ```
 
-### The workspace (`.review/<slug>/`)
-
-| Artifact | What it is |
-| :--- | :--- |
-| `manifest.json` | tier, roster, models, HEAD SHA, focus map, and **every valid anchor** |
-| `annotated.diff` | the full diff from `fetch-diff` — one annotator, all modes |
-| `diff/*.patch` | per-file patches; a specialist reads only what it needs |
-| `shared-context.md` | the author's intent, **boundary-tag stripped** |
-| `briefs/<role>.md` | one complete, self-contained task per agent |
-| `findings/` | each specialist writes exactly one JSONL file, and nothing else |
-
 ### Four properties the rest of the system depends on
 
-- **Risk sizes the team.** A security-sensitive path (CI workflow, auth, hooks, secrets) forces
-  Full tier no matter how small the diff. *Verified: a 1-line `.github/workflows/ci.yml` change
-  → Full.* A two-line workflow edit is exactly what a size-only heuristic waves through.
-- **Roles with nothing to review are pruned** *(new; absent from v1)*. A docs-only change does
-  not pay for a security reviewer. *Verified: on this repo's own branch, 5 specialists → 2.*
-- **Nothing big goes on a command line.** Briefs live on disk; agents launch with a one-line
-  pointer. This is what keeps prompt caching effective.
-- **Anchors are computed once** *(new; absent from v1)*. `manifest.json` records every
-  `(file, side, line)` that genuinely exists in the diff. Without this table
-  `validate_findings.py` would have nothing to check against — it is the mechanism that makes
-  anchor rejection possible at all.
+- **Risk sizes the team.** A security-sensitive path forces Full no matter how small the diff.
+  *Verified: a 2-line `.github/workflows/ci.yml` change → Full.*
+- **Roles with nothing to review are pruned.** *Verified: a docs-only diff prunes `security` and
+  `performance`.*
+- **Nothing big goes on a command line.** Briefs live on disk; agents launch with a pointer.
+- **Anchors are computed once.** `manifest.json` records every `(file, side, line)` that genuinely
+  exists in the diff. Without this table there is nothing to validate against.
 
 ### Why the anchor gate matters
 
 A hallucinated anchor is **the single most damaging thing this system can emit**: it looks
-authoritative, it survives a human skim, and posted, it lands a review comment on an unrelated
-line of someone's code. So findings are validated against the manifest before the judge is
-allowed to read them. JSONL tolerance means one malformed line does not discard the good
-findings around it — which is also why the format is JSONL and not one JSON blob: a specialist
-killed mid-write still leaves everything it had already committed.
+authoritative, survives a human skim, and lands a review comment on an unrelated line of someone's
+code. As of Step 0 the gate moves **earlier** — `append_finding.py` rejects a bad anchor *at write
+time*, so it never lands at all and the agent is told to correct itself.
 
 ### The payload contract
 
-One vocabulary end to end: `critical` / `moderate` / `nit`. The judge emits a payload
-conforming to the **existing** `pr-review/review-payload.schema.json`, validated by the
-**existing** `pr-review/scripts/validate_review.py` — both **unchanged**.
+One vocabulary end to end: `critical` / `moderate` / `nit`. `event` is `APPROVE` or `COMMENT` —
+deliberately **no `REQUEST_CHANGES`**; this factory does not block merges.
 
-`event` is `APPROVE` or `COMMENT`. There is deliberately **no `REQUEST_CHANGES`**: the schema's
-enum forbids it, this factory does not block merges, and a human decides what to do with a
-critical. Cloudflare's rubric is likewise biased toward approving.
-
-**No agent posts to GitHub.** Specialists write only their own findings file; the judge writes
-only the payload; the orchestrator shows it to the human and posts on a yes.
-
-### Concept mapping (still accurate from v1)
-
-| Cloudflare | Ours |
-| :--- | :--- |
-| GitLab CI trigger | Orchestrator invokes an arm |
-| Coordinator process | `prepare_review.py` (deterministic) + a judge agent (judgment) |
-| 7 specialists in own sessions | 1–5 specialist agents, tier-sized, sonnet |
-| `assessRiskTier()` | `assess_risk_tier()` — thresholds + security globs in config |
-| diff_directory patch scoping | `.review/<slug>/diff/*.patch` + per-role focus paths |
-| `shared-mr-context.txt` | `shared-context.md` (sanitized) |
-| Structured XML findings | JSONL findings per specialist |
-| Judge pass | dedupe → verify-uncertain-by-reading-source → recategorize → rubric |
-| Approve / unapprove | `APPROVE` / `COMMENT` (no blocking) |
-| Prompt-injection stripping | boundary-tag regex in `prepare_review.py` |
-| `break glass` override | Not needed — the human orchestrator **is** the escape hatch |
+**No agent posts to GitHub.** Specialists write only their own findings file; the judge writes only
+the payload; the orchestrator shows it to the human and posts on a yes.
 
 ### Risk tiers (data, in `assets/review-tiers.json`)
 
@@ -189,280 +137,283 @@ only the payload; the orchestrator shows it to the human and posts on a yes.
 | full | >100 lines, or >50 files, or any security-sensitive path | all 5 | opus |
 
 Assessment order (first match wins): security glob → size → trivial → lite → **otherwise full**.
-That last rule closes v1's gap: 21–50 files with few lines is a broad blast radius, and is its
-own risk signal. Specialists run on sonnet; `--tier` overrides everything.
+That last rule catches the 21–50-file, few-line case: broad blast radius is its own risk signal.
 
-### Prompt-injection defense
+### Measurement (`score_run.py`)
 
-A PR title/body/comment is written by whoever opened the PR. It is untrusted input fed to five
-agents. `prepare_review.py` strips conversational boundary tags (`<system>`,
-`<system-reminder>`, `<instructions>`, …) case-insensitively, with or without attributes,
-before any of it reaches `shared-context.md`. The prose survives; only the tags are neutralized.
+Both arms leave the same trace: every Claude session writes a transcript with per-message `usage`.
+Snapshot the project dir before the run, diff after, sum what is new.
 
-This is **code, not a prompt politely asking the model to ignore instructions** — because the
-latter is exactly what an injection defeats. The briefs additionally label the file untrusted,
-but that is the second line of defense, not the first.
-
-### Measurement (`score_run.py` — new; absent from v1)
-
-Both arms leave the same trace: every Claude session (a cmux pane is one; a Workflow subagent
-is one) writes a transcript with per-message `usage`. Snapshot the project dir before the run,
-diff it after, sum what is new. No instrumentation, works retroactively, **identical code path
-for both arms** — which is what makes the cost comparison fair.
-
-Reports the Cloudflare-parity metrics:
-
-- cost per review by tier (their baseline: $0.20 / $0.67 / $1.68)
-- **cache hit rate** (theirs: 85.7%) — the sharpest test of "context on disk, not on argv"
-- **cost-per-finding per specialist** — Cloudflare's *"which agent pays the bills."* A role that
-  repeatedly costs money and finds nothing gets cut from `review-tiers.json`. Without this,
-  roster decisions are a matter of taste; with it, they are arithmetic.
-
-LangSmith/OTEL rides along behind a `--trace` flag as an **additive** view. It is never
-load-bearing: a tracing misconfiguration must not be able to corrupt the comparison.
+Reports cost per review by tier (baseline $0.20/$0.67/$1.68), **cache hit rate** (theirs: 85.7%),
+and **cost-per-finding per specialist** — Cloudflare's *"which agent pays the bills."*
 
 ---
 
-## Divergences from v1, and why
+## Known defects
 
-| v1 said | Reality | Why |
-| :--- | :--- | :--- |
-| One skill, `skills/cmux-review-factory/` | Core + two arms | The runtime was pinned before it was tested |
-| Severities `critical/warning/suggestion` | `critical/moderate/nit` | The payload schema enforces these |
-| Rubric emits `REQUEST_CHANGES` | `APPROVE`/`COMMENT` only | The schema's `event` enum has no such value |
-| The **lead** posts to GitHub | The **orchestrator** posts, after a human gate | `github-pr-review` mandates approval; a pane has no human to ask |
-| `fetch_diff.py` reused **unchanged** | **Modified** — see below | v1 simply asserted this without checking |
-| `prepare_review.py` writes `team.json` | It does not; the cmux arm does | The core must stay backend-neutral, or the bake-off is confounded |
-| Artifacts in `.team/review/<slug>/` | `.review/<slug>/` | Backend-neutral; `.team/` is what `spawn_team.py` owns |
-| Role file `lead-judge.md` | `judge.md` | — |
-| Tests use "importlib, per repo convention" | `sys.path` shim in `conftest.py`; subprocess for CLI | The stated convention was simply wrong |
-| Re-review-lite in v1 | Deferred | No bearing on the substrate verdict |
+All three were found by actually running the factory. **All three are unfixed until Step 0 lands.**
 
-### Changes to existing skills
+### 1. 🔴 BLOCKER — the Workflow arm deadlocks on its own write path
 
-`fetch-diff` — **modified**, not reused unchanged:
+`prepare_review.py:344` renders into every specialist brief:
 
-- New local `--base <ref>` mode (`git diff --merge-base <ref> HEAD`) sharing the **same
-  annotator** as PR mode. One annotator, or a `file:line` anchor means two different things
-  depending on source, and `validate_findings.py` cannot be trusted.
-- Widened noise filter (all common lock files, minified bundles, sourcemaps, `@generated`
-  markers) — with **migrations exempt**, because a bad migration can destroy production data
-  and must always reach a reviewer.
-- **Bug fixed:** a diff's trailing newline was annotated as a phantom context line, inventing a
-  line number one past the end of the last hunk — a valid-*looking* anchor for a comment on a
-  line that does not exist. It would have been recorded in `manifest.json` as legitimate,
-  defeating the entire anchor gate. Regression-tested.
+> Append **one JSON object per line, as you go — not one blob at the end.**
 
-`boss-cmux-team` — `spawn_team.py` gains two backward-compatible extensions:
+The `Write` tool **cannot append** — it truncates. That clause therefore leaves the model exactly
+one primitive: shell redirection. It emitted `mkdir -p … && printf … > findings/security.jsonl`.
+Claude Code's Bash matcher splits on `&&` and requires **every** subcommand to match the allowlist:
+`Bash(mkdir:*)` is allowed, **`printf` is not**. The call fell through to a permission prompt — and
+a background Workflow subagent **has no UI to render a prompt on**. It parked at
+`stop_reason=tool_use` for an hour.
 
-- **`--no-exec`**: skip `execvp`. Without it, spawning would hijack the caller's shell and hang
-  the tool call the orchestrator is waiting on. *The caller is already the orchestrator.*
-- **Per-role `command` override** (`__MODEL__`/`__KICKOFF__`/`__PROMPT__`): the default launch
-  shape is pi's, and `claude` does not share it (no `--name`; `--append-system-prompt` takes an
-  inline string, not a path). Defaults unchanged; regression-tested.
+Two of three specialists hung. The third happened to reach for the `Write` tool (bare-allowlisted)
+and sailed through. **It was nondeterministic model choice, not a role difference** — which is the
+real indictment: *the write path was never pinned down, so it worked by luck.*
+
+The `mkdir` was not even necessary — `prepare_review.py:544` already creates `findings/`.
+
+### 2. 🔴 `score_run.py` could not see Workflow agents *(FIXED)*
+
+The transcript glob was `*/subagents/*.jsonl`. Workflow subagents live a level deeper, under
+`*/subagents/workflows/<run-id>/`. The scorer reported **"agents seen 0, $0.00"** for a run that
+demonstrably spawned three.
+
+cmux panes are top-level sessions and *were* counted. **So the bake-off would have handed the
+Workflow arm a $0.00 win on a glob bug.** Fixed test-first; 4 regression tests added.
+
+### 3. 🟡 `args` never reaches the Workflow script
+
+`review-factory-workflow/SKILL.md:109` does `const { workspace, roles, … } = args`. `args` arrives
+as a JSON **string**, so every field is `undefined` and the script dies on `roles.map`. The
+documented script has therefore never worked.
 
 ---
 
-## ⛔ DO NOT REBUILD — read this before touching anything
+## Bake-off confounds — read before trusting any comparison
 
-Everything in **As-built** above already exists on disk, is tested, and is green. If you are
-executing this plan (`/build`), your job is **only** the Step-by-Step Tasks below.
+**`review-factory-cmux/SKILL.md:86,92` launches every pane with
+`claude --dangerously-skip-permissions`.**
 
-**Do not** re-create, "improve", or refactor any of these — they are done:
+The cmux arm therefore *cannot* hit defect #1, and never could. The Workflow arm inherits session
+permissions and always can. Combined with defect #2 (Workflow agents costing $0.00), **any
+comparison run before v3 would have been measuring the permission model and a glob bug, not the
+substrate.**
 
-| Already exists | Do not touch it |
+This is not a reason to "fix" cmux — a visible pane you can interrupt is a legitimate design, and
+skipping permissions is part of what that design *buys* (and part of what it *costs*, in safety).
+It is a reason to (a) record the asymmetry, and (b) make both arms share **one** write path, so the
+comparison is about the substrate and nothing else.
+
+**Never edit one arm's prompts or the shared core to favour one substrate.**
+
+---
+
+## Corrections to v2
+
+v2's "⛔ DO NOT REBUILD" table asserted things that are no longer true:
+
+| v2 said | Reality |
 | :--- | :--- |
-| `skills/review-factory-core/` — SKILL.md, 3 scripts, 7 role prompts, 2 asset configs, 57 tests | ✅ done |
-| `.claude/skills/review-factory-workflow/SKILL.md` and `review-factory-cmux/SKILL.md` | ✅ done |
-| `fetch-diff` `--base` mode, widened noise filter, phantom-anchor bugfix | ✅ done |
-| `spawn_team.py` `--no-exec` + per-role `command` override | ✅ done |
-| `eval/graders/check_manifest.py`, `eval/graders/check_no_injection.py` | ✅ done |
-| `.gitignore` (`.review/`, `.team/`), `devtools/lint.py` typed paths, CHANGELOG, v0.29.0 | ✅ done |
-| `commands/review-factory-{workflow,cmux}.md`, README/docs entries | ✅ done |
+| "57 tests" (3 places) | **86** in the core; **1143** repo-wide |
+| Core scripts ✅ done, untouched | `prepare_review.py`, `score_run.py`, `check_manifest.py` were all **modified** |
+| "Do not write new graders" | Suite 2 genuinely needed one: **`check_findings.py`** |
+| Step 5: update `docs/skills.md`, `docs/commands.md` | **Neither file exists.** Phantom paths — use the plugin README + `docs/evals/README.md` |
+| README/docs entries ✅ done | Only the *plugin* README. The root README has zero mentions |
+| Both arms built and green | **Neither arm had ever been executed.** The Workflow arm is broken |
 
-**Never edit one arm's prompts or the shared core to favour one substrate.** Both arms exist to
-be a controlled comparison; tuning one invalidates the entire experiment.
-
-Baseline to preserve: **1114 tests passing, 0 lint errors.**
+Still true, and still not to be rebuilt: the role prompts, `review-tiers.json`, `model-pricing.json`,
+`validate_findings.py`, the `pr-review` payload schema and its validator, `fetch-diff`'s `--base`
+mode and phantom-anchor fix, `spawn_team.py`'s `--no-exec`, and both suites' fixtures.
 
 ---
 
 ## Step by Step Tasks
 
-IMPORTANT: Execute every step in order, top to bottom. Steps 1–3 are safe and deterministic.
-**Step 4 spawns real agents and costs real money — stop and ask the user before starting it.**
+IMPORTANT: Execute in order. **Steps 0 is free and deterministic. Steps 1–2 spend real money —
+they are approved up to ~$9. Steps 4–5 are NOT approved; stop and ask.**
 
-### 1. Build eval suite 1 — hermetic core
+### 0. Fix the blocker — free, no agents
 
-Create `plugins/boss-dev/agent-harness/skills/review-factory-core/eval/`:
+**0a. `scripts/append_finding.py`** — new PEP 723 stdlib CLI in the shared core.
 
-- `eval/test-fixtures/*.diff` — canned **annotated** diffs (the `old new | line` format that
-  `fetch_diff.py` emits; generate them by running `fetch_diff.py`, or hand-write them to match).
-- `eval/eval.yaml` — follow the contract in
-  [`run-skill-eval`](../plugins/boss-experimental/boss-experimental/skills/run-skill-eval/SKILL.md);
-  copy the shape of
-  [`claude-config-validation/eval/eval.yaml`](../plugins/boss-experimental/boss-experimental/skills/claude-config-validation/eval/eval.yaml).
-  Use `defaults: {trials: 5, threshold: 0.8}`. A task passes only if **every** grader scores 1.0.
-
-Each task replays a fixture hermetically — **no git, no network, no agents**:
+`Bash(uv run:*)` is **already** in `.claude/settings.json` `permissions.allow`, so this needs **zero
+settings changes** and can never prompt. It gives the agent *one deterministic command shape*
+instead of letting it improvise shell, and preserves the incremental-append durability this design
+prizes.
 
 ```bash
-uv run scripts/prepare_review.py --diff-file eval/test-fixtures/<name>.diff --out <workspace>
+uv run "$CORE/scripts/append_finding.py" <workspace> --role security \
+  --file src/db/queries.py --line 7 --side RIGHT --severity critical \
+  --title "SQL injection" --body "..." [--confidence high] [--suggestion-patch ...]
+
+uv run "$CORE/scripts/append_finding.py" <workspace> --role security --done
 ```
 
-then grades the resulting `manifest.json` / `shared-context.md` with the **existing** graders.
+Behaviour:
 
-Required tasks (each is a real regression guard, not a formality):
+- Appends exactly one JSON object per call to `<workspace>/findings/<role>.jsonl`.
+- **Validates the anchor against `manifest.json` at write time**, exiting non-zero on a bad one, so
+  a hallucinated anchor is rejected *before it lands* and the agent can self-correct. This is
+  strictly stronger than the after-the-fact gate.
+- Refuses a role not on the roster, and a `--file` not in the diff.
+- `--done` appends the terminal record with counts computed **from the file**, not from the agent's
+  say-so.
+- Reuses `validate_findings.py`'s `REQUIRED_FIELDS` / `SEVERITIES` / `SIDES` — do **not** duplicate
+  the vocabulary.
 
-| Task | Asserts |
-| :--- | :--- |
-| `tier-trivial` | exactly 10 changed lines → `trivial` |
-| `tier-lite` | 11 lines → `lite`; 100 lines → `lite` |
-| `tier-full-by-size` | 101 lines → `full` |
-| `tier-full-by-file-count` | 25 files, 1 line each → `full` (broad blast radius) |
-| `security-glob-forces-full` | a **2-line** `.github/workflows/ci.yml` diff → `full` |
-| `noise-filter-keeps-migrations` | `uv.lock` masked, `db/migrations/*.py` **reviewed** |
-| `scoping-security-not-css` | `security` focus includes `auth/*.py`, excludes `*.css` |
-| `roster-pruning` | a docs-only diff prunes `security` **and** `performance` from the roster |
-| `injection-stripped` | boundary tags gone from `shared-context.md`, **prose intact** |
+Tests (`scripts/tests/test_append_finding.py`, **written first**): good anchor accepted; bad anchor
+rejected non-zero; bad severity rejected; `--done` counts computed from disk; append is additive.
 
-`check_manifest.py` already supports `--tier`, `--roles-include`, `--roles-exclude`, `--reviewed`,
-`--masked`. `check_no_injection.py` supports `--must-contain`. Do not write new graders unless a
-task genuinely cannot be expressed with these.
+**0b. `prepare_review.py` → `render_brief()`** — replace the "append as you go / not one blob"
+prose with the `append_finding.py` invocation. Keep the JSONL contract and anchor rules verbatim;
+only the *mechanism* changes. **Shared by both arms — this is what keeps the bake-off fair.** Drop
+anything that invites a `mkdir`.
 
-Verify: `/run-skill-eval plugins/boss-dev/agent-harness/skills/review-factory-core`
+**0c. `review-factory-workflow/SKILL.md:109`** — fix the `args` bug:
 
-### 2. Build eval suite 2 — seeded defects
+```javascript
+const cfg = typeof args === 'string' ? JSON.parse(args) : args
+const { workspace, roles, specialist_model, lead_model } = cfg
+```
 
-Fixtures with **known planted defects**, each with the defect's exact line recorded so a grader
-can assert the finding anchors on it:
+The root cause is the *caller*: the Workflow tool passes `args` verbatim, so a stringified
+object arrives as a string. The skill must also instruct the orchestrator to pass `args` as a
+**real JSON object**, never `JSON.stringify`'d; the defensive parse stays as a belt-and-braces.
 
-- `planted-sql-injection` — f-string interpolated into `cursor.execute`
-- `planted-shell-injection` — `subprocess(..., shell=True)` with interpolated input (on-brand:
-  this repo shells out everywhere)
-- `planted-missing-authz` — an unguarded route handler
-- `planted-perf-quadratic` — an O(n²) scan in a loop
-- `planted-stale-claude-md` — a `CLAUDE.md` documenting a `make` target that no longer exists
-- `planted-skill-backtick-bug` — a `SKILL.md` using the backtick-bang pattern that GitHub #12781
-  makes **execute on skill load**. `agent-instructions` must catch this as `critical`.
-- **`clean-no-defects`** — a correct, boring diff.
+**0d. `review-factory-workflow/SKILL.md`** — bound the hang. `.catch(() => null)` at line 148
+catches *rejections*, not *hangs*; nothing bounded that hour. Add an explicit timeout to each
+`agent()` call so a stuck specialist fails loudly. `agent()` has **no timeout option** — the bound
+must be a `Promise.race` against a `setTimeout` rejection inside the Workflow script (a rejection
+timer needs no clock, so the `Date.now()` ban does not apply). **A specialist that can hang
+unbounded is a defect regardless of the write path.**
 
-> `clean-no-defects` is the **most important task in the suite**. It must produce **zero**
-> findings. It is the only task that separates a good factory from a plausible-sounding noisy
-> one — every other task rewards finding things, and a factory that flags everything would ace
-> them all.
+### 1. Re-run the smoke — ~$1
 
-Graders: a finding anchors within N lines of the planted defect **and** carries the right
-severity, plus an `llm_rubric` penalizing noise. This suite spawns agents, so `trials: 1`.
+`clean-no-defects` on the Workflow arm, end to end **through the judge**. Must reach a schema-valid
+`review-payload.json` with **zero findings**, and `score_run.py report` must show **4 agents** (the
+3 pruned specialists — security, code-quality, performance — plus the judge; not 0) at non-zero cost.
 
-### 3. Wire the scorecard into a repeatable run
+### 2. Run suite 2 — ~$5–8
 
-Confirm end-to-end on a small local diff that `score_run.py snapshot` → run → `report` produces
-the Cloudflare-parity block (cost, **cache hit rate**, **cost-per-finding per specialist**).
-Fix any `$0.00` model rows by adding the missing prefix to `assets/model-pricing.json`.
+All 7 seeded-defect fixtures on **one** arm (`review-factory-workflow`), `trials: 1`.
 
-### 4. ⚠ Run the bake-off — ASK THE USER FIRST
+| Task | Planted defect | Anchor | Expect |
+| :--- | :--- | :--- | :--- |
+| **`clean-no-defects`** | **none — the control** | — | **zero findings** |
+| `planted-sql-injection` | f-string into `cursor.execute` | `src/db/queries.py:7` | `critical` |
+| `planted-shell-injection` | `subprocess(..., shell=True)` | `scripts/deploy.py:6` | `critical` |
+| `planted-missing-authz` | `DELETE` route with no `@require_auth` | `src/api/routes.py:13` | `critical` |
+| `planted-perf-quadratic` | O(n²) scan in a loop | `src/report/aggregate.py:6` | `moderate` |
+| `planted-stale-claude-md` | documents a `make` target that no longer exists | `CLAUDE.md:9` | `moderate` |
+| `planted-skill-backtick-bug` | the GitHub #12781 backtick-bang pattern | `skills/example/SKILL.md:11` | `critical` |
 
-This spawns 6+ real agents per arm and costs real money. **Do not start it autonomously.**
+> **`clean-no-defects` is the most important task in the suite.** Every other task *rewards finding
+> things*; a factory that flagged every line would score 6/7 and be worthless. It is the only task
+> that separates a real reviewer from a plausible-sounding noisy one. **If it fails, the suite has
+> failed regardless of the other six.**
 
-Run **both** arms over suite 2 and 3–4 real PRs. Then have an opus judge synthesize a verdict
-from both scorecards, both findings sets, and the diff between the two `review-payload.json`s.
-Report to the user; **the promotion decision is theirs, not yours.**
+### 3. Land it
 
-### 5. Promote the winner (only after the user decides)
+- `make lint && make test && ./scripts/verify-structure.py`
+- Bump agent-harness **0.29.0 → 0.30.0** (minor) in `plugins/boss-dev/agent-harness/.claude-plugin/plugin.json`
+  **and** the matching `.claude-plugin/marketplace.json` entry — **lockstep**.
+- CHANGELOG `[Unreleased]`: both eval suites, `append_finding.py`, the three bug fixes.
+- Generate `docs/evals/agent-harness/review-factory-core.md` via `/skill-evals` (**never by hand** —
+  it is regenerated output) and link it from the `docs/evals/README.md` index.
+- Commit. **Do not** target `docs/skills.md` / `docs/commands.md` — they do not exist.
 
-Move the winning arm's SKILL.md into `plugins/boss-dev/agent-harness/skills/` beside the core;
-delete the loser and its `.claude/skills/` directory. Bump agent-harness (minor). Update
-`docs/skills.md`, `docs/commands.md`, the README command count, and this spec.
+### 4. ⛔ NOT APPROVED — the bake-off
 
-### Deferred — not in scope for this plan
+Both arms × suite 2 × 3–4 real PRs (~$30–60), then an opus judge synthesizing a verdict from both
+scorecards, both findings sets, and the diff between the two payloads. **Ask the user first.**
 
-Re-review-lite (`fetch-unresolved-comments`) and full incremental re-review; `--isolate`
-worktree mode; automatic roster tuning from cost/yield data; the **self-improvement loop**
-(when `agent-instructions` flags High materiality, open a follow-up PR fixing the instruction
-file rather than nagging a human — the highest-value idea in the source critique); per-role
-model failback; an adversarial validator agent.
+**The cmux arm has still never been executed.** Do not imply otherwise.
+
+### 5. ⛔ NOT APPROVED — promote the winner
+
+Only after the user decides. Move the winner beside the core, delete the loser, bump minor.
+
+### Deferred
+
+Re-review-lite; `--isolate` worktree mode; automatic roster tuning from cost/yield data; the
+**self-improvement loop** (when `agent-instructions` flags High materiality, open a follow-up PR
+fixing the instruction file rather than nagging a human); per-role model failback.
 
 ---
 
 ## Testing Strategy
 
-- **Unit (pytest):** already green at 57 tests for the core. Any new pure helper gets a test in
-  `scripts/tests/`, using the repo convention — a `sys.path` shim in `conftest.py` plus a plain
-  import; **subprocess** for CLI semantics (exit codes, flags). *Not* importlib.
-- **Eval suite 1:** hermetic, no agents, safe to run on every change. This is the CI gate.
-- **Eval suite 2:** spawns agents; run deliberately, not in CI.
-- **Regression:** `spawn_team.py` and `fetch-diff` tests must keep passing — both were modified.
+- **Unit (pytest):** 86 tests, the real CI gate. `sys.path` shim in `conftest.py` + plain import;
+  **subprocess** for CLI semantics. *Not* importlib.
+- **Suite 1:** hermetic, replays canned diffs, spawns **no specialist or judge agent**. Honest
+  caveat: the eval harness is *itself* agent-driven — a task's `instruction` is always run by an
+  agent, which here only executes a deterministic script. The literal zero-agent gate is
+  `scripts/tests/test_fixtures_replay.py`, which runs in `make test`.
+- **Suite 2:** spawns agents and costs money; run deliberately, never in CI.
+- **Regression:** `spawn_team.py` and `fetch-diff` tests must keep passing.
 
 ## Acceptance Criteria
 
-- `/run-skill-eval` on `review-factory-core` passes every suite-1 task, spawning **no agents**.
-- A 2-line `.github/workflows/` diff is forced to **Full** tier; a docs-only diff **prunes**
-  `security` and `performance` from the roster.
-- `clean-no-defects` yields **zero** findings on both arms.
-- A finding anchored to a line outside the diff is **rejected** by `validate_findings.py` before
-  the judge sees it.
-- `score_run.py report` shows cost-per-finding **per specialist** for both arms.
-- No agent posts to GitHub; only the orchestrator does, and only after explicit human approval.
-- `make lint && make test` stays at **0 errors / ≥1114 passing**; `./scripts/verify-structure.py`
-  passes; versions stay in lockstep.
-
----
+- A specialist can record a finding **with no permission prompt**, and a bad anchor is **rejected
+  non-zero at write time**.
+- The Workflow arm completes `clean-no-defects` end to end, producing a schema-valid payload with
+  **zero findings**, and never hangs.
+- `score_run.py report` shows **4 agents** (3 specialists + judge) and a cost-per-finding table
+  **per specialist**.
+- Suite 1 stays 10/10, spawning no review agents.
+- No agent posts to GitHub; only the orchestrator, after explicit human approval.
+- `make lint && make test` at **0 errors / ≥1143 passing**; `verify-structure.py` passes; versions
+  in lockstep.
 
 ## Validation commands
 
 ```bash
-# Repo gates — currently 0 lint errors, 1114 tests passing, structure valid
-make lint && make test
-./scripts/verify-structure.py
+CORE=plugins/boss-dev/agent-harness/skills/review-factory-core
 
-# The core's own tests
-uv run pytest -s plugins/boss-dev/agent-harness/skills/review-factory-core/scripts/tests/
+# The deterministic gate — zero agents, zero cost
+uv run pytest -s "$CORE/scripts/tests/"
+
+# The blocker is fixed only if this writes with NO prompt...
+uv run "$CORE/scripts/append_finding.py" <ws> --role security \
+  --file src/db/queries.py --line 7 --side RIGHT --severity critical --title t --body b
+# ...and a hallucinated anchor is REJECTED non-zero
+uv run "$CORE/scripts/append_finding.py" <ws> --role security \
+  --file src/db/queries.py --line 9999 --side RIGHT --severity critical --title t --body b
 
 # Regression: the spawner and fetch-diff must still behave
-uv run pytest -s plugins/boss-dev/agent-harness/skills/boss-cmux-team/scripts/tests/
-uv run pytest -s plugins/boss-dev/agent-harness/skills/fetch-diff/scripts/tests/
+uv run pytest -s "$CORE/../boss-cmux-team/scripts/tests/" "$CORE/../fetch-diff/scripts/tests/"
 
-# The pipeline, on this repo (writes nothing)
-CORE=plugins/boss-dev/agent-harness/skills/review-factory-core
-uv run "$CORE/scripts/prepare_review.py" --base main --dry-run
+# Repo gates — baseline 0 lint errors, 1143 tests
+make lint && make test && ./scripts/verify-structure.py
 
-# Hermetic replay — no git, no network
-uv run "$CORE/scripts/prepare_review.py" --diff-file <fixture>.diff --dry-run
-
-# Once eval suite 1 lands
-/run-skill-eval plugins/boss-dev/agent-harness/skills/review-factory-core
+# Suite 1, through the graders
+/run-skill-eval "$CORE"
 ```
 
 ## Report
 
-When this plan's tasks are complete, report:
+1. **Suite 1** — the task table, pass/fail per task, and confirmation that **no specialist or judge
+   agent was spawned** (stating plainly that the harness's own driver is agent-based).
+2. **Suite 2** — pass rate per planted defect, with **`clean-no-defects` called out on its own
+   line.** A factory that catches every plant but fires on the clean diff has **failed**.
+3. **The scorecard** — total cost, cache hit rate (baseline 85.7%), and cost-per-finding **per
+   specialist**, naming which specialist earned its keep.
+4. **The three defects** — what each was and that each is fixed, with the deadlock's root cause
+   named (not just "a permission issue").
+5. **What was NOT done, plainly** — the bake-off, promotion, and the fact that **the cmux arm has
+   still never been run.** Mislabeling unfinished work as finished is the exact failure that made
+   v1 of this document worthless. It must not happen twice.
 
-1. **Eval suite 1** — the task table with pass/fail per task, and confirmation that it ran with
-   **zero agents spawned** (that hermeticity is the point; if agents ran, the suite is wrong).
-2. **Eval suite 2** — pass rate per planted defect, and the `clean-no-defects` result called out
-   separately. A factory that catches every planted bug but also fires on the clean diff has
-   failed, not succeeded.
-3. **The scorecard**, per arm: total cost, cache hit rate (Cloudflare's baseline: 85.7%), and the
-   cost-per-finding table **per specialist** — naming which specialist earned its keep and which
-   is a candidate to cut from `review-tiers.json`.
-4. **Regression status:** `make lint && make test` (baseline 0 errors / 1114 passing) and
-   `./scripts/verify-structure.py`.
-5. **What was NOT done**, plainly. Mislabeling unfinished work as finished is the exact failure
-   that made v1 of this document worthless.
-
-Do **not** report the bake-off verdict as decided. Present the evidence; the promotion decision
-belongs to the user.
+Do **not** report a bake-off verdict. The promotion decision belongs to the user.
 
 ## Notes
 
-- Both scripts are stdlib-only PEP 723, matching `spawn_team.py`. No new dependencies.
-- `.gitignore` covers `.review/` and `.team/` (neither was ignored before this work).
-- agent-harness is at **0.29.0** (`plugin.json` + `marketplace.json` in lockstep). Promoting the
-  winning arm (Task 5) is the next bump, not this one.
+- All scripts are stdlib-only PEP 723. No new dependencies.
+- `.gitignore` covers `.review/` and `.team/`; the eval workspaces (`ws/`) are covered by nested
+  `.gitignore` files inside `eval/` and `eval/defects/` — **which only work once those files are
+  committed.**
+- agent-harness is at **0.29.0**; Step 3 bumps it to **0.30.0**.
 - The `zsh` gotcha applies to every example: quote `'opus[1m]'`.
 - **SKILL.md files must never use the backtick-bang pattern** — GitHub #12781 makes the parser
-  *execute* it, even inside a fenced code block. Use `$ command` notation. (Suite 2 plants this
-  very bug as a fixture; do not accidentally plant it in a real skill.)
-- The eval **report** (`docs/evals/agent-harness/review-factory-core.md`) is generated output —
-  produce it via `/skill-evals` after implementation, never by hand.
+  *execute* it, even inside a fenced code block. Use `$ command` notation. Suite 2 plants this very
+  bug as a `.diff` fixture; **never let it into a real `SKILL.md`.**

@@ -9,7 +9,7 @@ allowed-tools:
   - AskUserQuestion
   - Skill
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   arm: workflow
 ---
 
@@ -96,8 +96,12 @@ Call `Workflow` with a script shaped like the one below. The essential propertie
   This is what keeps the launch cheap and prompt caching effective.
 - **A `schema`** on every specialist, so findings are validated at the tool layer and
   the model retries on a malformed shape.
+- **Every `agent()` call is raced against a hard deadline.** `agent()` has no timeout
+  option and `.catch()` sees rejections, not hangs — a specialist once parked for an
+  hour on a permission prompt it had no UI to answer. A timed-out specialist counts as
+  `died`; a timed-out judge fails the run loudly, which is the correct outcome.
 - **The judge runs last**, on the manifest's `lead_model`, and only after every
-  specialist has returned.
+  specialist has returned or timed out.
 
 ```javascript
 export const meta = {
@@ -106,8 +110,22 @@ export const meta = {
   phases: [{ title: 'Review' }, { title: 'Judge' }],
 }
 
-const { workspace, roles, specialist_model, lead_model } = args
+// args should arrive as a real object; parse defensively if a caller stringified it.
+const cfg = typeof args === 'string' ? JSON.parse(args) : args
+const { workspace, roles, specialist_model, lead_model } = cfg
 
+// agent() has no timeout option, and .catch() sees rejections, not hangs. This race is
+// the only bound on a stuck agent — without it a specialist parked on an unanswerable
+// permission prompt hangs the run forever (it happened; it cost an hour).
+const withTimeout = (promise, ms, label) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 60000} min`)), ms)
+    ),
+  ])
+
+// Keep these enums in sync with append_finding.py (--severity/--side/--confidence).
 const FINDING = {
   type: 'object',
   required: ['findings'],
@@ -135,35 +153,47 @@ const FINDING = {
 phase('Review')
 const results = await parallel(
   roles.map((role) => () =>
-    agent(
-      `Read ${workspace}/briefs/${role}.md and execute it exactly. ` +
-      `Write your findings to ${workspace}/findings/${role}.jsonl, one JSON object per ` +
-      `line, ending with the done-record. Also return them via StructuredOutput.`,
-      { label: `review:${role}`, phase: 'Review', model: specialist_model, schema: FINDING }
+    withTimeout(
+      agent(
+        `Read ${workspace}/briefs/${role}.md and execute it exactly. Record each finding ` +
+        `with the append_finding.py command the brief specifies — never write the ` +
+        `findings file yourself — and finish with its --done command. Also return your ` +
+        `findings via StructuredOutput.`,
+        { label: `review:${role}`, phase: 'Review', model: specialist_model, schema: FINDING }
+      ),
+      10 * 60 * 1000,
+      `review:${role}`
     )
       .then((r) => ({ role, ...r }))
-      // A dead specialist must NOT take down the run. Without this catch, one rejection
-      // aborts parallel() and the judge never sees the findings the others already wrote
-      // to disk. A partial review, honestly labeled, beats no review.
+      // A dead or timed-out specialist must NOT take down the run. Without this catch,
+      // one rejection aborts parallel() and the judge never sees the findings the others
+      // already wrote to disk. A partial review, honestly labeled, beats no review.
       .catch(() => null)
   )
 )
 const survived = results.filter(Boolean)
 
 phase('Judge')
-const judged = await agent(
-  `Read ${workspace}/briefs/judge.md and execute it exactly. All specialists have ` +
-  `finished; their findings are in ${workspace}/findings/. Write the validated ` +
-  `payload to ${workspace}/review-payload.json.`,
-  { label: 'judge', phase: 'Judge', model: lead_model }
+const judged = await withTimeout(
+  agent(
+    `Read ${workspace}/briefs/judge.md and execute it exactly. All surviving ` +
+    `specialists have finished; their findings are in ${workspace}/findings/. Write ` +
+    `the validated payload to ${workspace}/review-payload.json.`,
+    { label: 'judge', phase: 'Judge', model: lead_model }
+  ),
+  15 * 60 * 1000,
+  'judge'
 )
 
 return { workspace, specialists: survived.length, died: roles.length - survived.length, judged }
 ```
 
-Pass `args` from the manifest — never hardcode the roster. If `died > 0`, say so plainly
-in the summary: a review missing a specialist is still a useful review, but the user must
-know which lens was absent.
+Pass `args` from the manifest — never hardcode the roster — and pass it as a **real JSON
+object** (`args: {"workspace": ..., "roles": [...], ...}`), never `JSON.stringify`'d: the
+Workflow tool delivers `args` verbatim, so a stringified object arrives as a string and
+every destructured field comes out `undefined`. If `died > 0`, say so plainly in the
+summary: a review missing a specialist is still a useful review, but the user must know
+which lens was absent.
 
 ## Step 3 — Validate the findings
 
@@ -176,7 +206,9 @@ $ uv run "$CORE/scripts/validate_findings.py" .review/<slug>
 
 This rejects findings anchored to lines that do not exist in the diff. If a role comes
 back `MISSING` or `UNFINISHED`, its agent died — re-run just that agent rather than the
-whole team.
+whole team: a second `Workflow` call with the same script and `args.roles` narrowed to
+the dead role(s) (this is still the substrate under test, not a forbidden substitute),
+then re-gate with `validate_findings.py <workspace> --role <role>`.
 
 ## Step 4 — Validate the payload
 

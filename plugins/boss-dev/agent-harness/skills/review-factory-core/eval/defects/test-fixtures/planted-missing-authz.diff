@@ -1,0 +1,20 @@
+diff --git a/src/api/routes.py b/src/api/routes.py
+index aaa..bbb 100644
+--- a/src/api/routes.py
++++ b/src/api/routes.py
+@@ -1,0 +1,15 @@
+          1 | +from flask import Blueprint, jsonify, request
+          2 | +
+          3 | +bp = Blueprint("api", __name__)
+          4 | +
+          5 | +
+          6 | +@bp.route("/projects/<pid>", methods=["GET"])
+          7 | +@require_auth
+          8 | +def get_project(pid: str):
+          9 | +    return jsonify(load_project(pid))
+         10 | +
+         11 | +
+         12 | +@bp.route("/projects/<pid>", methods=["DELETE"])
+         13 | +def delete_project(pid: str):
+         14 | +    delete_project_row(pid)
+         15 | +    return jsonify({"deleted": pid})

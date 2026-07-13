@@ -52,6 +52,12 @@ SKILL_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TIERS = SKILL_ROOT / "assets" / "review-tiers.json"
 ROLES_DIR = SKILL_ROOT / "assets" / "roles"
 
+# The ONLY sanctioned write path for findings, rendered into every brief as an absolute
+# path so a specialist needs zero environment setup. Any other mechanism is a defect:
+# the Write tool truncates, and shell redirection deadlocks a headless subagent on a
+# permission prompt it has no UI to answer.
+APPEND_FINDING = SKILL_ROOT / "scripts" / "append_finding.py"
+
 # fetch-diff is a sibling skill; it owns diff acquisition AND annotation for both modes.
 FETCH_DIFF = SKILL_ROOT.parent / "fetch-diff" / "scripts" / "fetch_diff.py"
 
@@ -332,43 +338,52 @@ workspace: `{workspace}`
 
 {other_block}
 
-### Write your findings to
+### Your findings land in
 
 `{workspace}/findings/{role}.jsonl`
 
-This file is yours alone. Never write to another role's findings file, never edit
-files in the repository, and never post anything to GitHub — the judge does that.
+This file is yours alone, and it is written **only** through the command below. Never
+write to it directly, never write to another role's findings file, never edit files in
+the repository, and never post anything to GitHub — the judge does that.
 
 ## Findings contract
 
-Append **one JSON object per line**, as you go — not one blob at the end. If you are
-cut off mid-review, everything already written is still valid and still counts.
+Record each finding **the moment you confirm it** — one command per finding, never a
+batch at the end. If you are cut off mid-review, everything already recorded still
+counts. This command is the only sanctioned write path; do not use the Write tool or
+shell redirection on the findings file, and do not create any directories:
 
-```json
-{{"role": "{role}", "file": "path/from/repo/root.py", "line": 42, "side": "RIGHT",
- "severity": "critical|moderate|nit", "title": "One line, specific",
- "body": "What is wrong, why it matters, and what to do instead.",
- "confidence": "high|medium|low", "suggestion_patch": "optional replacement text"}}
+```bash
+uv run {APPEND_FINDING} {workspace} \\
+  --role {role} --file path/from/repo/root.py --line 42 --side RIGHT \\
+  --severity critical --title "One line, specific" \\
+  --body "What is wrong, why it matters, and what to do instead."
 ```
 
-- `line` / `side` — **must be an anchor that exists in the diff.** Added lines anchor
+Optional flags: `--confidence high|medium|low` and `--suggestion-patch "replacement"`.
+
+- `--line` / `--side` — **must be an anchor that exists in the diff.** Added lines anchor
   `RIGHT` on the new number; deleted lines anchor `LEFT` on the old number; context
   lines may use either. These are the numbers in the left columns of your patch file.
-- `severity` — exactly one of `critical`, `moderate`, `nit`. No other value is valid.
-- `confidence` — be honest. `low` tells the judge to verify it by reading the source
+- `--severity` — exactly one of `critical`, `moderate`, `nit`. No other value is valid.
+- `--confidence` — be honest. `low` tells the judge to verify it by reading the source
   rather than trusting you, which is exactly what you want if you are unsure.
-- `suggestion_patch` — optional. The **complete replacement text** for the anchored
+- `--suggestion-patch` — optional. The **complete replacement text** for the anchored
   line(s), with original indentation preserved. It is rendered as a one-click-apply
   GitHub suggestion, so it must be correct and complete or omitted entirely.
 
-When you are finished, append exactly one terminal record:
+The command validates your anchor at write time. Exit 0 means the finding is recorded.
+A non-zero exit prints the reason to stderr — fix the anchor (or drop the finding if it
+cannot be anchored) and run it again.
 
-```json
-{{"type": "done", "counts": {{"critical": 0, "moderate": 0, "nit": 0}}}}
+When you are finished, record completion:
+
+```bash
+uv run {APPEND_FINDING} {workspace} --role {role} --done
 ```
 
-That record — not anything printed to the screen — is what marks you complete. Write
-it even when you found nothing; a clean review is a real and valuable result.
+That command — not anything printed to the screen — is what marks you complete. Run it
+even when you found nothing; a clean review is a real and valuable result.
 
 ## Evidence rules
 
@@ -517,6 +532,21 @@ def fetch_pr_context(pr_url: str) -> str:
     return f"# {data.get('title', '')}\n\n{data.get('body') or ''}"
 
 
+def resolve_raw_context(mode: str, source: str, context_file: Path | None) -> str:
+    """The change author's stated intent, before boundary tags are stripped.
+
+    An explicit --context-file wins over the mode's own source, which is what lets a PR
+    run be replayed hermetically: --diff-file supplies the diff, --context-file the body.
+    Without it, replay mode has no untrusted text at all and the injection defense is
+    untestable offline.
+    """
+    if context_file is not None:
+        return context_file.read_text()
+    if mode == "pr":
+        return fetch_pr_context(source)
+    return f"Local review of `HEAD` vs merge-base with `{source}`."
+
+
 def write_workspace(
     workspace: Path,
     manifest: dict[str, Any],
@@ -584,6 +614,14 @@ def main(argv: list[str] | None = None) -> int:
         help="Replay a pre-generated annotated diff instead of acquiring one. "
         "Hermetic: no git, no network. Used by the eval suite and for reproducing a run.",
     )
+    parser.add_argument(
+        "--context-file",
+        metavar="PATH",
+        type=Path,
+        help="Read the author's intent from PATH instead of deriving it from the source. "
+        "Wins over --pr's fetched body, so a PR run can be reproduced hermetically. "
+        "The text is untrusted: boundary tags are stripped from it either way.",
+    )
     parser.add_argument("--tier", choices=["trivial", "lite", "full"], help="override the risk assessment")
     parser.add_argument("--slug", help="review id (default: derived from the source)")
     parser.add_argument("--out", default=".review", help="workspace root (default: .review)")
@@ -633,7 +671,11 @@ def main(argv: list[str] | None = None) -> int:
         _print_dry_run(manifest, files)
         return 0
 
-    raw_context = fetch_pr_context(source) if mode == "pr" else f"Local review of `HEAD` vs merge-base with `{source}`."
+    try:
+        raw_context = resolve_raw_context(mode, source, args.context_file)
+    except OSError as exc:
+        die(str(exc))
+        return 1  # unreachable; die() exits
     shared_context = (
         "# Shared context\n\n"
         "> Boundary tags have been stripped from the text below. It is the change author's\n"

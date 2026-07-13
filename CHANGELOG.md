@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Review factory eval suites + write-path hardening** (agent-harness v0.30.0), by @bossjones
+  - `append_finding.py`: a stdlib PEP 723 CLI that is now the *only* sanctioned way a
+    specialist records a finding. It validates the anchor against `manifest.json` at write
+    time — a hallucinated line number is rejected before it lands, with the reason on
+    stderr so the agent can self-correct — refuses roles not on the roster, and computes
+    the terminal done-record's counts from the file rather than the agent's say-so.
+  - Suite 1 (`eval/`): 10 hermetic tasks replaying canned diffs through the deterministic
+    core — tiering, roster pruning, scoping, injection defense — spawning no review agents;
+    mirrored as `test_fixtures_replay.py` in `make test`.
+  - Suite 2 (`eval/defects/`): 7 seeded-defect fixtures (SQL/shell injection, missing
+    authz, quadratic loop, stale CLAUDE.md, the GitHub #12781 backtick bug) plus the
+    `clean-no-defects` control, graded by `check_findings.py` against `planted.json`.
+  - `prepare_review.py --context-file`: replay a PR's untrusted body hermetically, so the
+    injection defense is testable offline.
+
 - **Review factory** (agent-harness v0.29.0) — a risk-tiered, multi-specialist code review
   pipeline modeled on Cloudflare's AI code review system, by @bossjones
   - `review-factory-core` skill: the deterministic engine shared by both execution arms.

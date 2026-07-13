@@ -1,0 +1,123 @@
+version: "1"
+
+# Suite 2 — seeded defects. UNLIKE SUITE 1, THIS SPAWNS REAL AGENTS AND COSTS REAL MONEY:
+# five specialists plus a judge per fixture, roughly $0.50-1.00 each. It is deliberately in
+# its own directory so `/run-skill-eval <skill>` (which resolves eval/eval.yaml) can never
+# pick it up by accident. Run it on purpose, never in CI.
+#
+# Every task forces `--tier full` so the whole roster is hired and the specialist that owns
+# the planted defect is guaranteed to be present. Without that, a 10-line fixture lands
+# `trivial` (roster = [generalist]) and the task would be measuring the wrong reviewer.
+#
+# The arm under test comes from $REVIEW_ARM, so the same suite drives both sides of the
+# bake-off without editing a single prompt.
+#
+# trials: 1 — each trial spends money.
+
+defaults:
+    agent: claude
+    provider: local
+    trials: 1
+    timeout: 1800
+    threshold: 1.0
+
+tasks:
+    # ===== THE CONTROL — the most important task in the suite =====
+    # Every other task rewards finding things. A factory that flags everything would ace
+    # them all and still be worthless. This is the only task that catches that.
+    - name: clean-no-defects
+      instruction: |
+          Run the review factory arm named by the REVIEW_ARM environment variable
+          (default: review-factory-workflow) against a canned diff.
+
+          Prepare the workspace with, from this directory:
+            uv run ../../scripts/prepare_review.py \
+              --diff-file test-fixtures/clean-no-defects.diff --tier full --out ws
+
+          Then follow the rest of that arm's procedure against the workspace it printed:
+          snapshot, fan the specialists out, validate the findings, run the judge.
+
+          Do NOT post anything to GitHub. Do NOT edit the fixture.
+      graders:
+          - type: deterministic
+            run: uv run ../graders/check_findings.py ws/replay-clean-no-defects --expect-none
+            weight: 1.0
+
+    # ===== Security =====
+    - name: planted-sql-injection
+      instruction: |
+          Run the review factory arm named by $REVIEW_ARM (default: review-factory-workflow).
+          Prepare with, from this directory:
+            uv run ../../scripts/prepare_review.py \
+              --diff-file test-fixtures/planted-sql-injection.diff --tier full --out ws
+          Then follow that arm's remaining steps. Do NOT post to GitHub.
+      graders:
+          - type: deterministic
+            run: uv run ../graders/check_findings.py ws/replay-planted-sql-injection --anchor src/db/queries.py:7 --within 2 --severity critical
+            weight: 1.0
+
+    - name: planted-shell-injection
+      instruction: |
+          Run the review factory arm named by $REVIEW_ARM (default: review-factory-workflow).
+          Prepare with, from this directory:
+            uv run ../../scripts/prepare_review.py \
+              --diff-file test-fixtures/planted-shell-injection.diff --tier full --out ws
+          Then follow that arm's remaining steps. Do NOT post to GitHub.
+      graders:
+          - type: deterministic
+            run: uv run ../graders/check_findings.py ws/replay-planted-shell-injection --anchor scripts/deploy.py:6 --within 2 --severity critical
+            weight: 1.0
+
+    - name: planted-missing-authz
+      instruction: |
+          Run the review factory arm named by $REVIEW_ARM (default: review-factory-workflow).
+          Prepare with, from this directory:
+            uv run ../../scripts/prepare_review.py \
+              --diff-file test-fixtures/planted-missing-authz.diff --tier full --out ws
+          Then follow that arm's remaining steps. Do NOT post to GitHub.
+      graders:
+          # The DELETE route has no @require_auth, while the GET route right above it does.
+          - type: deterministic
+            run: uv run ../graders/check_findings.py ws/replay-planted-missing-authz --anchor src/api/routes.py:13 --within 3 --severity critical
+            weight: 1.0
+
+    # ===== Performance =====
+    - name: planted-perf-quadratic
+      instruction: |
+          Run the review factory arm named by $REVIEW_ARM (default: review-factory-workflow).
+          Prepare with, from this directory:
+            uv run ../../scripts/prepare_review.py \
+              --diff-file test-fixtures/planted-perf-quadratic.diff --tier full --out ws
+          Then follow that arm's remaining steps. Do NOT post to GitHub.
+      graders:
+          - type: deterministic
+            run: uv run ../graders/check_findings.py ws/replay-planted-perf-quadratic --anchor src/report/aggregate.py:6 --within 3 --severity moderate
+            weight: 1.0
+
+    # ===== Agent instructions =====
+    - name: planted-stale-claude-md
+      instruction: |
+          Run the review factory arm named by $REVIEW_ARM (default: review-factory-workflow).
+          Prepare with, from this directory:
+            uv run ../../scripts/prepare_review.py \
+              --diff-file test-fixtures/planted-stale-claude-md.diff --tier full --out ws
+          Then follow that arm's remaining steps. Do NOT post to GitHub.
+      graders:
+          # CLAUDE.md documents a `make bundle` target that does not exist.
+          - type: deterministic
+            run: uv run ../graders/check_findings.py ws/replay-planted-stale-claude-md --anchor CLAUDE.md:9 --within 3 --severity moderate
+            weight: 1.0
+
+    - name: planted-skill-backtick-bug
+      instruction: |
+          Run the review factory arm named by $REVIEW_ARM (default: review-factory-workflow).
+          Prepare with, from this directory:
+            uv run ../../scripts/prepare_review.py \
+              --diff-file test-fixtures/planted-skill-backtick-bug.diff --tier full --out ws
+          Then follow that arm's remaining steps. Do NOT post to GitHub.
+      graders:
+          # The SKILL.md uses the backtick-bang pattern that GitHub #12781 makes the parser
+          # EXECUTE on skill load — even inside a fenced code block. That is a critical.
+          - type: deterministic
+            run: uv run ../graders/check_findings.py ws/replay-planted-skill-backtick-bug --anchor skills/example/SKILL.md:11 --within 2 --severity critical
+            weight: 1.0

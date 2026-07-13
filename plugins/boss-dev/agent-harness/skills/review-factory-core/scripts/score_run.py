@@ -278,7 +278,18 @@ def project_slug(cwd: Path) -> str:
 
 
 def transcripts(project_dir: Path) -> dict[str, Path]:
-    """Every session transcript under a project: top-level sessions and subagents."""
+    """Every session transcript under a project: top-level sessions and subagents.
+
+    The three shapes, and why all three matter for a fair bake-off:
+
+      <session>.jsonl                                  a cmux pane is one of these
+      <session>/subagents/agent-X.jsonl                a plain Agent-tool subagent
+      <session>/subagents/workflows/<run>/agent-X.jsonl a Workflow-tool subagent
+
+    The last shape sits two levels deeper than the second. Missing it made every
+    Workflow-arm agent invisible, so that arm scored $0.00 and would have won the cost
+    comparison outright — on a glob, not on merit.
+    """
     found: dict[str, Path] = {}
     if not project_dir.is_dir():
         return found
@@ -286,6 +297,10 @@ def transcripts(project_dir: Path) -> dict[str, Path]:
         found[path.stem] = path
     for path in project_dir.glob("*/subagents/*.jsonl"):
         found[f"{path.parent.parent.name}/{path.stem}"] = path
+    for path in project_dir.glob("*/subagents/workflows/*/*.jsonl"):
+        if path.name == "journal.jsonl":  # workflow bookkeeping, not an agent
+            continue
+        found[f"{path.parent.parent.parent.parent.name}/{path.parent.name}/{path.stem}"] = path
     return found
 
 

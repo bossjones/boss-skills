@@ -110,3 +110,37 @@ class TestFindingsByRole:
 
     def test_missing_findings_dir_is_empty_not_an_error(self, tmp_path: Path) -> None:
         assert sr.findings_by_role(tmp_path) == {}
+
+
+class TestTranscriptDiscovery:
+    """The bake-off is only fair if both arms' agents are actually visible to the scorer.
+
+    A cmux pane is a top-level session and was always found. A Workflow subagent lives two
+    levels deeper, under subagents/workflows/<run-id>/, and was silently missed — so the
+    Workflow arm scored $0.00 and would have "won" the cost comparison on a glob bug.
+    """
+
+    def test_finds_top_level_sessions(self, tmp_path: Path) -> None:
+        (tmp_path / "sess-a.jsonl").write_text("")
+        assert "sess-a" in sr.transcripts(tmp_path)
+
+    def test_finds_plain_subagents(self, tmp_path: Path) -> None:
+        d = tmp_path / "sess-a" / "subagents"
+        d.mkdir(parents=True)
+        (d / "agent-1.jsonl").write_text("")
+        assert "sess-a/agent-1" in sr.transcripts(tmp_path)
+
+    def test_finds_workflow_subagents(self, tmp_path: Path) -> None:
+        d = tmp_path / "sess-a" / "subagents" / "workflows" / "wf_abc"
+        d.mkdir(parents=True)
+        (d / "agent-1.jsonl").write_text("")
+        found = sr.transcripts(tmp_path)
+        assert len(found) == 1, f"workflow subagent not discovered: {found}"
+
+    def test_ignores_the_workflow_journal(self, tmp_path: Path) -> None:
+        """journal.jsonl is workflow bookkeeping, not an agent. Counting it inflates `agents`."""
+        d = tmp_path / "sess-a" / "subagents" / "workflows" / "wf_abc"
+        d.mkdir(parents=True)
+        (d / "agent-1.jsonl").write_text("")
+        (d / "journal.jsonl").write_text("")
+        assert len(sr.transcripts(tmp_path)) == 1
