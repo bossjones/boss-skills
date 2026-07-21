@@ -1,0 +1,42 @@
+{
+  "review_id": "replay-security-glob-forces-full",
+  "mode": "replay",
+  "source": "test-fixtures/security-glob-forces-full.diff",
+  "head_sha": "bd8810f37a5b8c7cb4cfe297ce4e3bfad247d5a9",
+  "tier": "full",
+  "lead_model": "opus",
+  "specialist_model": "sonnet",
+  "roles": [
+    "security",
+    "code-quality"
+  ],
+  "stats": {
+    "changed_lines": 2,
+    "files_reviewed": 1,
+    "files_masked": 0
+  },
+  "files": {
+    "reviewed": [
+      ".github/workflows/ci.yml"
+    ],
+    "masked": []
+  },
+  "focus": {
+    "security": [
+      ".github/workflows/ci.yml"
+    ],
+    "code-quality": [
+      ".github/workflows/ci.yml"
+    ]
+  },
+  "anchors": {
+    ".github/workflows/ci.yml": {
+      "LEFT": [],
+      "RIGHT": [
+        1,
+        2
+      ]
+    }
+  },
+  "workspace": "/Users/bossjones/dev/bossjones/boss-skills/plugins/boss-dev/agent-harness/skills/review-factory-core/eval/ws/replay-security-glob-forces-full"
+}

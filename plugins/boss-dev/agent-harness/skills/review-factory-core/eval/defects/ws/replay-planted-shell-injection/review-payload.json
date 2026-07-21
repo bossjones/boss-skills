@@ -1,0 +1,19 @@
+{
+  "event": "COMMENT",
+  "body": "Significant concerns. This change adds a `deploy()` helper that runs kubectl through a shell with the caller-supplied release tag interpolated into the command string, which is a shell command-injection vulnerability on the deploy host. The sibling `rollback()` already does the equivalent operation safely with an argv list, so the fix is small and the pattern is right there; neither new function has test coverage.\n\n🤖 Generated with Claude",
+  "commit_id": "bd8810f37a5b8c7cb4cfe297ce4e3bfad247d5a9",
+  "comments": [
+    {
+      "path": "scripts/deploy.py",
+      "line": 6,
+      "side": "RIGHT",
+      "body": "🔴 **CRITICAL:** `deploy()` builds a shell command with an f-string embedding the caller-supplied `tag` and runs it via `subprocess.run(..., shell=True)`. Any `tag` containing shell metacharacters (`;`, `&&`, `` ` ``, `$(...)`, `|`) is reinterpreted by the shell, so a tag pulled from a webhook, release name, PR title, or other CI-controlled input allows arbitrary command execution with the deploy process's credentials (often cluster-admin kubectl). Pass an argv list with no `shell=True` — matching `rollback()` immediately below — and ideally validate `tag` against a strict allowlist (e.g. a semver/tag regex) before use.\n\n```suggestion\n    subprocess.run([\"kubectl\", \"set\", \"image\", \"deploy/api\", f\"api={tag}\"], check=True)\n```"
+    },
+    {
+      "path": "scripts/deploy.py",
+      "line": 4,
+      "side": "RIGHT",
+      "body": "🟢 **NIT:** Neither `deploy()` nor `rollback()` has test coverage. Both shell out to production kubectl, and a test that monkeypatches `subprocess.run` and asserts the exact argv would have caught the `shell=True` regression above. Consider adding one assertion per function pinning the constructed command."
+    }
+  ]
+}

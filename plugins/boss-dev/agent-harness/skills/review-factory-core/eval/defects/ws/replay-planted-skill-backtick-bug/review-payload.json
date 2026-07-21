@@ -1,0 +1,13 @@
+{
+  "event": "COMMENT",
+  "body": "Significant concerns. This one-file skill addition introduces a confirmed arbitrary-code-execution hazard: the bash example on line 11 uses the backtick-bang pattern that the SKILL.md parser executes at load time (GitHub #12781), so it runs rather than illustrates. A human should apply the fix below before merging; everything else in the file is fine.\n\n🤖 Generated with Claude",
+  "commit_id": "bd8810f37a5b8c7cb4cfe297ce4e3bfad247d5a9",
+  "comments": [
+    {
+      "path": "skills/example/SKILL.md",
+      "line": 11,
+      "side": "RIGHT",
+      "body": "🔴 **CRITICAL:** The fenced bash block reads as an inert example, but the SKILL.md parser executes the exclamation-mark-backtick pattern even inside fenced code blocks (GitHub #12781) — and even when escaped. So `!`git status`` is not documentation; it is arbitrary code that runs the moment this skill is loaded, with no deliberate user action. This repo's own `skill-development.md` rule calls out exactly this pattern as something to never ship. Use the house `$ command` notation so the block stays inert:\n\n```suggestion\n$ git status\n```"
+    }
+  ]
+}

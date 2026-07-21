@@ -1,0 +1,19 @@
+diff --git a/src/db/queries.py b/src/db/queries.py
+index aaa..bbb 100644
+--- a/src/db/queries.py
++++ b/src/db/queries.py
+@@ -1,0 +1,14 @@
+          1 | +import sqlite3
+          2 | +
+          3 | +
+          4 | +def get_user(conn: sqlite3.Connection, user_id: str):
+          5 | +    """Look up a single user by id."""
+          6 | +    cur = conn.cursor()
+          7 | +    cur.execute(f"SELECT * FROM users WHERE id = {user_id}")
+          8 | +    return cur.fetchone()
+          9 | +
+         10 | +
+         11 | +def list_active(conn: sqlite3.Connection):
+         12 | +    cur = conn.cursor()
+         13 | +    cur.execute("SELECT * FROM users WHERE active = 1")
+         14 | +    return cur.fetchall()

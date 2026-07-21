@@ -1,0 +1,13 @@
+{
+  "event": "APPROVE",
+  "body": "Approved with comments. The new `orders_for_users` helper is correct and clearly written, and the security and code-quality passes surfaced nothing. The one issue worth fixing is a quadratic scan in the aggregation path — non-blocking, but it will show up as latency as the users and orders collections grow.\n\n🤖 Generated with Claude",
+  "commit_id": "bd8810f37a5b8c7cb4cfe297ce4e3bfad247d5a9",
+  "comments": [
+    {
+      "path": "src/report/aggregate.py",
+      "line": 6,
+      "side": "RIGHT",
+      "body": "🟡 **MODERATE:** For every user, the inner loop rescans the entire `orders` list, making this O(users * orders) instead of O(users + orders). On a warm report-generation path run repeatedly over the full collections, that quadratic cost is felt as latency growth as either side grows. Build an index once by grouping orders by `user_id` in a single pass, then look each user up in O(1) amortized:\n\n```suggestion\ndef orders_for_users(users: list[dict], orders: list[dict]) -> dict:\n    \"\"\"Map each user id to their orders.\"\"\"\n    orders_by_user: dict = {}\n    for order in orders:\n        orders_by_user.setdefault(order[\"user_id\"], []).append(order)\n    return {user[\"id\"]: orders_by_user.get(user[\"id\"], []) for user in users}\n```"
+    }
+  ]
+}

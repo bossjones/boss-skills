@@ -1,0 +1,17 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index aaa..bbb 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -1,0 +1,12 @@
+          1 | +# CLAUDE.md
+          2 | +
+          3 | +## Commands
+          4 | +
+          5 | +```bash
+          6 | +make install
+          7 | +make lint
+          8 | +make test
+          9 | +make bundle    # build the distributable bundle
+         10 | +```
+         11 | +
+         12 | +Run `make bundle` before every release.
