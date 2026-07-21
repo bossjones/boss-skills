@@ -10,7 +10,7 @@ Upstream source (already staged in-repo, no external clone needed):
 
 - **Snapshot:** [ai_docs/bowser-upstream/](../ai_docs/bowser-upstream/) — pinned to `https://github.com/disler/bowser` commit `26541acddc0626e97e8f4398e47b288e97f97ebd` (2026-02-22), author IndyDevDan (disler). Upstream `.claude/` is staged as `dot-claude/` and upstream `README.md` as `UPSTREAM-README.md` (see the snapshot's `README.md` for provenance).
 - **Design docs:** `ai_docs/my-4-layer-claude-code-playwright-cli-skill-agentic-browser-automation-{summary.md,transcript.txt}` — the video that explains the architecture (https://www.youtube.com/watch?v=efctPj6bjCY).
-- **cmux command surface:** https://cmux.com/docs/browser-automation, plus the repo's existing `plugins/boss-dev/agent-harness/skills/boss-cmux/` references and the globally installed `cmux-browser` skill (`~/.claude/skills/cmux-browser/SKILL.md`) for battle-tested cmux browser conventions (surface targeting, snapshot/ref loop, `js_error` fallbacks).
+- **cmux command surface:** https://cmux.com/docs/browser-automation, plus the repo's existing `plugins/boss-dev/agent-harness/skills/boss-cmux/` references and the globally installed `cmux-browser` skill (`~/.claude/skills/cmux-browser/SKILL.md`, a symlink → `~/.agents/skills/cmux-browser/`; presence verified in Step 0) for battle-tested cmux browser conventions (surface targeting, snapshot/ref loop, `js_error` fallbacks).
 
 The 4 layers (upstream `UPSTREAM-README.md`):
 
@@ -63,6 +63,55 @@ Copy-and-normalize per the repo's established vendoring pattern (exemplar: `plug
 - Record provenance in each vendored skill's `references/attribution.md` (upstream URL, pinned tag/sha, author, MIT license text, "## Local modifications" list) + a one-line provenance note at the top of each vendored `SKILL.md`/agent/command body.
 - Preserve upstream's layered entry points: each layer independently invocable (skill directly, agent via `@`-mention, command via slash, justfile recipe wrapping all of it).
 
+## Pre-Implementation Verification (Step 0)
+
+This spec references live resources (a docs website, a globally-installed skill, an installed CLI, in-repo exemplars, version numbers) that can drift between authoring and execution. **Run every check below before building anything** (all checks are read-only), and apply the per-check failure action. Baselines in parentheses reflect what was verified on disk at spec-authoring time (2026-07-21).
+
+### A. Upstream snapshot intact (the vendoring source)
+
+- `test -d ai_docs/bowser-upstream/dot-claude` and confirm the expected members exist:
+  - `dot-claude/skills/{claude-bowser,just,playwright-bowser}/SKILL.md`
+  - `dot-claude/agents/{bowser-qa-agent,claude-bowser-agent,playwright-bowser-agent}.md`
+  - `dot-claude/commands/ui-review.md` and `dot-claude/commands/bowser/`
+  - `justfile`, `UPSTREAM-README.md`, `TOOLS.md`, `ai_review/user_stories/*.yaml`
+- Confirm the pinned commit `26541acddc0626e97e8f4398e47b288e97f97ebd` in the snapshot's `README.md` provenance note.
+- **If missing → STOP.** The vendoring source is gone; do not silently re-clone upstream (the `dot-claude/` rename is load-bearing — see Notes).
+
+### B. cmux-browser skill present (cmux verb conventions source)
+
+- `test -f ~/.claude/skills/cmux-browser/SKILL.md` — note this is a **symlink** resolving into `~/.agents/skills/cmux-browser/` (check with `readlink -f`); it is NOT in this repo.
+- Read the SKILL.md and confirm it still documents the verbs the `cmux-bowser` port relies on: `browser open`, `snapshot --interactive`, `click`/`fill`/`type`/`press`, `wait --load-state`, `screenshot --out`, `state save`/`state load`, and the `js_error` fallback chain.
+- **If absent → degrade, don't stop:** fall back to `plugins/boss-dev/agent-harness/skills/boss-cmux/` references plus the cmux docs URL (check D), and note the gap in the port's `references/attribution.md`.
+
+### C. cmux CLI + live command surface (ground truth for the installed version)
+
+- `which cmux && cmux --version` (baseline: `0.64.17`).
+- `cmux browser --help` — and `cmux identify --json` if the app is running — and confirm every verb used in the `cmux-bowser` workflow (see New Files) exists in the installed CLI. Flag any renamed/removed flags and adapt the skill text to the installed surface.
+- **If the CLI is missing → STOP for the cmux port pieces** (`cmux-bowser` skill, `cmux-bowser-agent`, `demo-shop-add-to-cart`); the playwright/just vendoring (Phase 1) can still proceed.
+
+### D. cmux browser docs website (documented conventions)
+
+- WebFetch `https://cmux.com/docs/browser-automation` and cross-check the same verb set as B/C.
+- On any conflict, **local `--help` output wins** (it reflects the installed version); record doc/CLI discrepancies in the ported SKILL.md.
+- **If unreachable → non-fatal**; rely on checks B and C.
+
+### E. In-repo exemplars and targets
+
+- `test -f plugins/boss-dev/agent-harness/skills/github-pr-review/references/attribution.md` (attribution template)
+- `test -f plugins/boss-dev/agent-harness/skills/boss-cmux/SKILL.md` (cmux CLI conventions)
+- `test -f plugins/boss-dev/agent-harness/docs/skills.md && test -f plugins/boss-dev/agent-harness/docs/commands.md` (indexes to update in step 6)
+- `test -f scripts/verify-structure.py`
+- **If an exemplar moved → locate the replacement with Glob before proceeding.**
+
+### F. Version baseline still true
+
+- Read `plugins/boss-dev/agent-harness/.claude-plugin/plugin.json` and the agent-harness entry in `.claude-plugin/marketplace.json`; confirm both say `0.28.0`.
+- **If drifted** (another PR landed a bump) → recompute the target as `current + minor` and substitute it everywhere this spec says `0.29.0`. Parity between the two files remains the hard invariant.
+
+### G. Playwright CLI package name
+
+- `npm view @playwright/cli version` (or WebSearch) to confirm the package name — upstream's README says `@playwright/cli` while linking `microsoft/playwright-cli`. Use whichever name npm actually resolves in the prerequisites doc (step 6) and `bowser.just`.
+
 ## Relevant Files
 
 Existing files to read or modify:
@@ -70,7 +119,7 @@ Existing files to read or modify:
 - `ai_docs/bowser-upstream/dot-claude/**` — vendoring source (skills, agents, commands), `ai_docs/bowser-upstream/{justfile,UPSTREAM-README.md,TOOLS.md}`, `ai_docs/bowser-upstream/ai_review/user_stories/*.yaml`
 - `plugins/boss-dev/agent-harness/skills/github-pr-review/references/attribution.md` — the attribution template to imitate
 - `plugins/boss-dev/agent-harness/skills/boss-cmux/SKILL.md` + `references/` — cmux CLI conventions (surface refs, identify, topology targeting)
-- `~/.claude/skills/cmux-browser/SKILL.md` — cmux browser verb reference (snapshot/ref loop, wait patterns, `js_error` recovery); do not copy wholesale, cite the doc URL
+- `~/.claude/skills/cmux-browser/SKILL.md` — cmux browser verb reference (snapshot/ref loop, wait patterns, `js_error` recovery); a symlink → `~/.agents/skills/cmux-browser/`, verified in Step 0; do not copy wholesale, cite the doc URL
 - `plugins/boss-dev/agent-harness/.claude-plugin/plugin.json` — version bump `0.28.0 → 0.29.0`
 - `.claude-plugin/marketplace.json` — matching agent-harness `plugins[].version` bump (parity is a hard invariant)
 - `plugins/boss-dev/agent-harness/docs/skills.md` and `docs/commands.md` — add the new entries if these indexes enumerate skills/commands
@@ -125,6 +174,11 @@ The cmux port: `cmux-bowser` skill, then Layer 2 agents (`bowser-qa-agent`, `pla
 Layer 4 (`skills/just/examples/bowser.just`), plugin docs, attribution completeness pass, version bump, validation suite, smoke tests.
 
 ## Step by Step Tasks
+
+### 0. Run the Pre-Implementation Verification
+
+- Execute every check in **Pre-Implementation Verification (Step 0)** above; record a short pass/fail note per check
+- Apply the per-check failure actions (STOP / degrade / substitute) before touching any other step
 
 ### 1. Vendor the playwright-bowser skill
 
@@ -181,6 +235,7 @@ Layer 4 (`skills/just/examples/bowser.just`), plugin docs, attribution completen
 
 ## Acceptance Criteria
 
+- [ ] Pre-Implementation Verification (Step 0) was run; every check passed or its documented fallback was applied
 - [ ] Skills `playwright-bowser`, `cmux-bowser`, `just` exist under `plugins/boss-dev/agent-harness/skills/`, each with `references/attribution.md` pinning commit `26541acddc0626e97e8f4398e47b288e97f97ebd`
 - [ ] `cmux-bowser` contains zero references to `mcp__claude_in_chrome__*` or `--chrome`; documents parallel surfaces, `state save/load` auth, WKWebView limits, `js_error` fallback
 - [ ] Agents `bowser-qa-agent`, `playwright-bowser-agent`, `cmux-bowser-agent` exist; `cmux-bowser-agent` advertises parallel support
@@ -202,7 +257,7 @@ Layer 4 (`skills/just/examples/bowser.just`), plugin docs, attribution completen
 
 ## Notes
 
-- **Prerequisites** (document, don't install): `npm install -g @playwright/cli@latest` (Node 18+; upstream README says `@playwright/cli` while linking `microsoft/playwright-cli` — verify the package name at implementation time), `brew install just`, cmux app + CLI on PATH.
+- **Prerequisites** (document, don't install): `npm install -g @playwright/cli@latest` (Node 18+; package name confirmed by Step 0 check G), `brew install just`, cmux app + CLI on PATH.
 - Upstream ships **no permissions block** (relies on `--dangerously-skip-permissions` in its justfile). The vendored skills instead carry least-privilege `allowed-tools` (`Bash(playwright-cli:*)`, `Bash(cmux:*)`); keep the `--dangerously-skip-permissions` flags only inside `bowser.just` recipe examples, matching upstream behavior at the layer users explicitly opt into.
 - The snapshot's `dot-claude/` rename exists specifically so Claude Code does not auto-discover upstream's stale skills; never rename it back.
 - `ui-review` depends on experimental agent teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`); if teams are unavailable, the command should degrade to plain parallel Task fan-out — note this in the command body.
