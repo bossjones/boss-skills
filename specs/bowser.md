@@ -112,6 +112,12 @@ This spec references live resources (a docs website, a globally-installed skill,
 
 - `npm view @playwright/cli version` (or WebSearch) to confirm the package name — upstream's README says `@playwright/cli` while linking `microsoft/playwright-cli`. Use whichever name npm actually resolves in the prerequisites doc (step 6) and `bowser.just`.
 
+### H. Permission flag surface on the installed CLI
+
+- `claude --version` (baseline `2.1.216`) and `claude --help | grep -A2 -- '--permission-mode'`; confirm `auto` is still among the accepted modes.
+- `claude --help | grep -- '--enable-auto-mode'` — expected to return **nothing** on 2.1.216. If a future version *does* ship it as the ergonomic alias, prefer it in `bowser.just` and note the substitution in `docs/bowser.md`.
+- **If `auto` is gone from `--permission-mode` → degrade:** default `perm` to `--permission-mode acceptEdits` and record why in `docs/bowser.md`. Never silently fall back to `--dangerously-skip-permissions`.
+
 ## Relevant Files
 
 Existing files to read or modify:
@@ -139,7 +145,21 @@ All under `plugins/boss-dev/agent-harness/` unless noted:
 - `skills/cmux-bowser/references/attribution.md` — notes this is a *port* (claude-bowser rewritten for cmux), not a copy
 - `skills/just/SKILL.md` — vendored generic just skill
 - `skills/just/examples/{bun-typescript,multi-module,node-docker,python-venv,uv-python}.just` — upstream templates
-- `skills/just/examples/bowser.just` — **new**: upstream `justfile` recipes adapted — playwright recipes kept as-is; `--chrome` recipes (`test-chrome-skill`, `test-chrome-agent`, `hop`, `automate-amazon`) become cmux-skill invocations with the `--chrome` flag removed (`/cmux-bowser`, `@cmux-bowser-agent`, `/agent-harness:bowser:hop-automate <workflow> ... cmux`), `automate-amazon` → `automate-demo-shop`; keep `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` on the `hop` recipe; users copy this into their project
+- `skills/just/examples/bowser.just` — **new**: upstream `justfile` recipes adapted — playwright recipes kept as-is; `--chrome` recipes (`test-chrome-skill`, `test-chrome-agent`, `hop`, `automate-amazon`) become cmux-skill invocations with the `--chrome` flag removed (`/cmux-bowser`, `@cmux-bowser-agent`, `/agent-harness:bowser:hop-automate <workflow> ... cmux`), `automate-amazon` → `automate-demo-shop`; keep `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` on the `hop` recipe; users copy this into their project.
+
+  **Permission flag is a variable, not a hardcoded literal.** Upstream hardcodes `--dangerously-skip-permissions` on all 8 recipes; the vendored file defaults to auto mode and lets callers opt back in:
+
+  ```just
+  # Permission posture. Default: auto mode (classifier-gated).
+  # Override per-invocation, e.g. `just perm="--dangerously-skip-permissions" test-qa`.
+  perm := "--permission-mode auto"
+
+  test-playwright-skill headed="true" prompt=default_prompt:
+      claude {{perm}} --model opus "/playwright-bowser (headed: {{headed}}) {{prompt}}"
+  ```
+
+  **Every** recipe interpolates `{{perm}}`; no recipe hardcodes a permission flag. The `hop` recipe keeps its `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` export and gains `{{perm}}` like the rest.
+
 - `skills/just/references/attribution.md`
 
 **Agents**
@@ -149,6 +169,15 @@ All under `plugins/boss-dev/agent-harness/` unless noted:
 - `agents/cmux-bowser-agent.md` — port of `claude-bowser-agent`: thin wrapper over `cmux-bowser`; description updated to **"Supports parallel instances — each instance opens its own cmux surface"** (upstream said "Cannot run in parallel"); report `result` + `surface` ref back to caller
 
 **Commands**
+
+Every vendored command carries `description` + `argument-hint` frontmatter, matching `plugins/boss-dev/agent-harness/commands/plan.md`:
+
+| Command | `argument-hint` |
+|---|---|
+| `commands/ui-review.md` | `[headed\|headless] [story-filter] [flags]` |
+| `commands/bowser/hop-automate.md` | `<workflow> <prompt> [playwright-bowser\|cmux-bowser] [headed\|headless]` |
+| `commands/bowser/demo-shop-add-to-cart.md` | `<item description>` |
+| `commands/bowser/blog-summarizer.md` | `<blog url>` |
 
 - `commands/ui-review.md` — vendored orchestrator: discover `ai_review/user_stories/*.yaml` in the target project, TeamCreate/TaskCreate fan-out of one `bowser-qa-agent` per story (all Task calls in one message = parallel), per-story `SCREENSHOT_PATH`, collect `RESULT: {PASS|FAIL} | Steps: x/y` lines, TeamDelete, aggregate summary table. Keep resilience rules (skip unparseable YAML with warning; timeout/crash → FAIL with partial output; `subagent_type` exactly `bowser-qa-agent`). Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` — say so in the command body.
 - `commands/bowser/hop-automate.md` — vendored higher-order prompt with SKILL keyword values changed: `playwright` → `playwright-bowser` (default), **`cmux` → `cmux-bowser`** (replaces upstream's `claude` keyword). Workflow-file glob rewritten from `.claude/commands/bowser/` to the plugin's `commands/bowser/` directory (resolve via `${CLAUDE_PLUGIN_ROOT}` if available to commands, else instruct Glob over both plugin and project `commands/bowser/` paths — implementer verifies which resolves at runtime).
@@ -204,6 +233,7 @@ Layer 4 (`skills/just/examples/bowser.just`), plugin docs, attribution completen
 
 ### 5. Vendor/port the commands
 
+- For each command below, write frontmatter with both `description` and `argument-hint` (values in the New Files table); `scripts/verify-structure.py` enforces only `description`, but the plugin's existing commands all carry both
 - `commands/ui-review.md`: copy + normalize; keep team-orchestration workflow and resilience rules; document the `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` requirement
 - `commands/bowser/hop-automate.md`: copy; change SKILL keyword map (`playwright`→`playwright-bowser` default, `cmux`→`cmux-bowser`); fix workflow-file resolution for plugin context (test whether `${CLAUDE_PLUGIN_ROOT}` expands in command bodies; otherwise Glob both plugin + project `commands/bowser/`)
 - `commands/bowser/demo-shop-add-to-cart.md`: author the saucedemo.com workflow (12-step shape, STOP before "Finish")
@@ -213,6 +243,7 @@ Layer 4 (`skills/just/examples/bowser.just`), plugin docs, attribution completen
 
 - Author `skills/just/examples/bowser.just` (adapted recipes per New Files)
 - Author `plugins/boss-dev/agent-harness/docs/bowser.md`; add entries to `docs/skills.md` / `docs/commands.md` if those indexes exist
+- `docs/bowser.md` gains a short "Permissions" section: the `perm` variable, its default, the `--dangerously-skip-permissions` override, and why the default differs from upstream
 
 ### 7. Version bump + changelog hygiene
 
@@ -242,6 +273,8 @@ Layer 4 (`skills/just/examples/bowser.just`), plugin docs, attribution completen
 - [ ] Commands `ui-review`, `bowser/hop-automate` (with `cmux` keyword), `bowser/demo-shop-add-to-cart` (saucedemo, stop-before-Finish), `bowser/blog-summarizer` exist with `description` frontmatter
 - [ ] No `amazon-add-to-cart` command is shipped; no vendored `build`/`prime`/`list-tools` duplicates
 - [ ] `skills/just/examples/bowser.just` exists with cmux-adapted recipes
+- [ ] `skills/just/examples/bowser.just` defines `perm := "--permission-mode auto"` and every recipe interpolates `{{perm}}`; no recipe hardcodes `--dangerously-skip-permissions`
+- [ ] All four vendored commands carry both `description` and `argument-hint` frontmatter
 - [ ] agent-harness version is `0.29.0` in BOTH plugin.json and marketplace.json
 - [ ] All Validation Commands pass
 
@@ -253,12 +286,15 @@ Layer 4 (`skills/just/examples/bowser.just`), plugin docs, attribution completen
 - `make link-check` — verifies links in new docs (attribution URLs, cmux docs URL)
 - `rg -l "mcp__claude_in_chrome|--chrome" plugins/boss-dev/agent-harness/` — MUST return nothing
 - `rg -l "amazon" plugins/boss-dev/agent-harness/commands/` — MUST return nothing
+- `rg -n -- '--dangerously-skip-permissions' plugins/boss-dev/agent-harness/` — only allowed hits are comment/doc lines in `bowser.just` and `docs/bowser.md`; **no recipe body may contain it**
+- `rg -L -- 'argument-hint' plugins/boss-dev/agent-harness/commands/ui-review.md plugins/boss-dev/agent-harness/commands/bowser/*.md` — MUST return nothing (i.e. every one of those files has the key)
 - `python3 -c "import json; p=json.load(open('plugins/boss-dev/agent-harness/.claude-plugin/plugin.json')); m=json.load(open('.claude-plugin/marketplace.json')); e=[x for x in m['plugins'] if x['name']=='agent-harness'][0]; assert p['version']==e['version']=='0.29.0', (p['version'], e['version'])"` — version parity
 
 ## Notes
 
 - **Prerequisites** (document, don't install): `npm install -g @playwright/cli@latest` (Node 18+; package name confirmed by Step 0 check G), `brew install just`, cmux app + CLI on PATH.
-- Upstream ships **no permissions block** (relies on `--dangerously-skip-permissions` in its justfile). The vendored skills instead carry least-privilege `allowed-tools` (`Bash(playwright-cli:*)`, `Bash(cmux:*)`); keep the `--dangerously-skip-permissions` flags only inside `bowser.just` recipe examples, matching upstream behavior at the layer users explicitly opt into.
+- **Permissions posture.** Upstream runs every justfile recipe with `--dangerously-skip-permissions` (see `ai_docs/bowser-upstream/justfile`). The vendored `bowser.just` does **not**: it defaults to auto mode via a `perm := "--permission-mode auto"` variable, so browser-driving recipes get classifier-gated permissions instead of a blanket bypass. Users who want upstream's behavior override per-invocation: `just perm="--dangerously-skip-permissions" test-playwright-skill`. Independently, the vendored *skills* carry least-privilege `allowed-tools` (`Bash(playwright-cli:*)`, `Bash(cmux:*)`) — upstream ships no permissions block at all.
+- **Flag-name caveat (verified 2026-07-21, claude 2.1.216):** there is no `--enable-auto-mode` flag; auto mode is `--permission-mode auto` (choices: `acceptEdits`, `auto`, `bypassPermissions`, `manual`, `dontAsk`, `plan`). Step 0 check H re-verifies this against the CLI at implementation time.
 - The snapshot's `dot-claude/` rename exists specifically so Claude Code does not auto-discover upstream's stale skills; never rename it back.
 - `ui-review` depends on experimental agent teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`); if teams are unavailable, the command should degrade to plain parallel Task fan-out — note this in the command body.
 - Upstream `images/four-layer-stack.gif` was intentionally not snapshotted (binary asset); link the video/README instead.
