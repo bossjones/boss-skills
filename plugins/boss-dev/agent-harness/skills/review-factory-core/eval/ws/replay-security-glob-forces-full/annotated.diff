@@ -1,7 +1,0 @@
-diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
-index aaa..bbb 100644
---- a/.github/workflows/ci.yml
-+++ b/.github/workflows/ci.yml
-@@ -1,0 +1,2 @@
-          1 | +      - run: echo deploy
-          2 | +        if: github.ref == 'refs/heads/main'

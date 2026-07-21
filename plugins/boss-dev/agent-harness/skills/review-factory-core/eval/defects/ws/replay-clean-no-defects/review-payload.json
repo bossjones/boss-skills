@@ -1,6 +1,0 @@
-{
-  "event": "APPROVE",
-  "body": "Approved. All three specialists (security, code-quality, performance) reviewed the change to src/text/format.py and reported no findings, and the branch head still matches the reviewed commit. This small, focused change is clean.\n\n🤖 Generated with Claude",
-  "commit_id": "bd8810f37a5b8c7cb4cfe297ce4e3bfad247d5a9",
-  "comments": []
-}

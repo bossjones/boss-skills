@@ -1,7 +1,0 @@
-diff --git a/styles/app.css b/styles/app.css
-index aaa..bbb 100644
---- a/styles/app.css
-+++ b/styles/app.css
-@@ -1,0 +1,2 @@
-          1 | +.login-form { padding: 1rem; }
-          2 | +.login-form input { width: 100%; }

@@ -1,6 +1,0 @@
-diff --git a/src/mod16.py b/src/mod16.py
-index aaa..bbb 100644
---- a/src/mod16.py
-+++ b/src/mod16.py
-@@ -1,0 +1,1 @@
-          1 | +touched 16
