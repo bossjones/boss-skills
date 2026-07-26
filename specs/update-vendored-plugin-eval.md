@@ -377,7 +377,8 @@ current, un-re-vendored copy).
   where the runner's upstream source-spec is
   `plugin-eval[llm] @ git+file:///Users/bossjones/dev/wshobson/agents@1d5175f#subdirectory=plugins/plugin-eval`
   (extras name per Task 1's preflight), executed with `ANTHROPIC_API_KEY` stripped from the
-  child environment.
+  child environment. This is the same scrub Task 9 lifts into `child_env()` for every `max`
+  run (`ANTHROPIC_API_KEY` + `ANTHROPIC_AUTH_TOKEN`), so keep the two in sync.
 - Record the verdict. The result JSON must name the chosen branch:
   `"patch_decision": "retire"` (H4 PASS) or `"patch_decision": "reimplement"` (H4 FAIL).
 - If FAIL: capture stderr/JSON evidence in the result file — it becomes the repro motivating
@@ -450,6 +451,16 @@ current, un-re-vendored copy).
   - **Fix `resolve_source()` extras** to exactly what the re-vendored pyproject declares:
     `[llm]` only on the retire branch; `[llm,api-equivalent]` on the reimplement branch
     (names from Task 1/8).
+  - **Scrub keyed credentials from the `max` child env (silent-billing fix).** In
+    `child_env()`, when the effective auth is `max`, remove `ANTHROPIC_API_KEY` **and**
+    `ANTHROPIC_AUTH_TOKEN` from the returned env so the Claude Agent SDK authenticates from the
+    Max session (Claude Code's credential-precedence chain puts those keys *above*
+    `CLAUDE_CODE_OAUTH_TOKEN`, so a stray key would otherwise bill the metered API silently).
+    This makes the general path match what the H4 gate runner already does (Task 6 / H4) and
+    guarantees the scoring regime the spec records is the regime that actually ran. The
+    `api-key` path is unchanged: it still maps `BOSS_SKILL_ANTHROPIC_API_KEY` →
+    `ANTHROPIC_API_KEY`. Cover it with a unit test in `tests/test_eval_skills.py`: `child_env()`
+    under auth=`max` drops both keys; under auth=`api-key` the dedicated-key mapping still holds.
   - Preserve every existing flag and default (see Hard constraints).
 - Do not change `Makefile` targets or `.claude/skills/skill-evals/SKILL.md` command lines in
   this task (AUTH=max keeps working as a no-op).
