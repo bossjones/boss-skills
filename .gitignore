@@ -255,7 +255,8 @@ outputs/
 
 extras/
 
-# Claude Code data
+# Legacy Claude Code data from pre-migration agent-harness installs; retain so
+# old runtime state remains ignored.
 .claude/data/
 # nested (hook-generated) .claude/data anywhere in the tree
 **/.claude/data/
@@ -269,7 +270,10 @@ apps/task-manager/data/
 
 
 
-# Logs
+# Agent-harness runtime root for this repository.
+.boss-skills/
+
+# Legacy pre-migration agent-harness logs; retain so old output remains ignored.
 logs/
 *.log
 npm-debug.log*

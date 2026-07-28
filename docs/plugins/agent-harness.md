@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · v0.28.0 · [plugin source](../../plugins/boss-dev/agent-harness/)
+> `boss-dev` · v0.29.0 · [plugin source](../../plugins/boss-dev/agent-harness/)
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that
 build and operate agentic dev workflows. The plugin ships three families of skills — a
@@ -23,7 +23,7 @@ lifecycle hooks, output styles, and status lines.
 | Commands | 13 | Yes |
 | Agents | 6 | Yes |
 | Output styles | 8 | Yes |
-| Hooks | 13 | Manual wiring |
+| Hooks | 20 events | Yes |
 | Status lines | 10 | Manual wiring |
 
 ## Skills
@@ -209,14 +209,19 @@ Generate release notes for the commits since v0.1.0.
 `release-notes-generator` categorizes the commits and emits a `CHANGELOG.md` section, a PR
 body, and a Slack announcement.
 
-## Manual wiring
+## Hooks and status lines
 
-Hooks and status lines ship as a library. Enable a hook by adding an entry to
-`hooks/hooks.json` (or an inline `hooks` key in `plugin.json`) that points at the script
-with `${CLAUDE_PLUGIN_ROOT}`; enable a status line by setting `statusLine` to one of the
-scripts under `status_lines/`. See the
-[plugin README](../../plugins/boss-dev/agent-harness/README.md#manual-wiring) for copy-paste
-snippets.
+All 20 hook events are enabled on install through `hooks/hooks.json`; they use a universal,
+fail-open logger that appends redacted JSONL records at
+`.{repo-slug}/logs/<session>/<Event>.jsonl`. The same project-local root contains live session
+`data/` and regenerable `cache/`. `MessageDisplay` is intentionally deferred pending a measured
+logger cold-start p95 and is not enabled. See the
+[hooks reference](../../plugins/boss-dev/agent-harness/docs/hooks.md) for the event list,
+retention, configuration, and deferred-event decisions.
+
+Status lines remain opt-in: set `statusLine` to a script under `status_lines/`. Status lines and
+`/agent-harness:update_status_line` read session state from
+`.{repo-slug}/data/sessions/<session>.json`.
 
 ## See also
 

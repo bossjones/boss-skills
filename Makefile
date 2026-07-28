@@ -20,7 +20,7 @@ DEPTH ?= standard
 CONCURRENCY ?= 4
 AUTH ?= max
 
-.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict snyk-scan snyk-scan-script test-twitter-downloader test-twitter-reel test-agent-harness ci smoke smoke-debug smoke-help logs eval eval-ci eval-skill eval-certify eval-llm-judge eval-monte-carlo changelog changelog-preview
+.PHONY: default install lint test check open-coverage upgrade build clean agent-rules help monkeytype-create monkeytype-apply autotype markdown-lint markdown-fix intelligent-lint intelligent-lint-dry-run link-check link-check-verbose pre-commit test-plugins verify-structure verify-structure-strict snyk-scan snyk-scan-script test-twitter-downloader test-twitter-reel test-agent-harness ci smoke smoke-debug smoke-help logs logs-session doctor eval eval-ci eval-skill eval-certify eval-llm-judge eval-monte-carlo changelog changelog-preview
 
 default: agent-rules install lint test ## Run agent-rules, install, lint, and test
 
@@ -311,8 +311,20 @@ smoke-help: ## Show smoke test usage
 	@echo "  make smoke SMOKE_URL='https://x.com/user/status/123'"
 
 .PHONY: logs
-logs: ## Tail logs/*.json and show notification_type and message via jq
-	tail -f logs/*.json | ccze -A
+logs: ## Tail event files from the newest harness log session
+	@python3 -c 'import os, re, sys; from pathlib import Path; project = Path(sys.argv[1]).resolve(); configured = os.environ.get("CLAUDE_HARNESS_DIR"); slug = re.sub(r"[^a-z0-9]+", "-", project.name.lower()).strip(".-") or "agent-harness"; root = (Path(configured) if Path(configured).is_absolute() else project / configured) if configured else project / ("." + slug); logs = root / "logs"; sessions = [path for path in logs.iterdir() if path.is_dir() and not path.is_symlink()] if logs.is_dir() else []; session = max(sessions, key=lambda path: path.stat().st_mtime, default=None); session or sys.exit("No harness log sessions found. Run make doctor for the resolved root."); files = sorted(path for path in session.glob("*.jsonl") if path.is_file() and not path.is_symlink()); files or sys.exit(f"No event files found in {session}."); os.execvp("tail", ["tail", "-f", *map(str, files)])' "$(CURDIR)"
+
+.PHONY: logs-session
+logs-session: ## Tail event files for SESSION=<id>
+	@if [ -z "$(SESSION)" ] || [ "$(SESSION)" = "." ] || [ "$(SESSION)" = ".." ] || printf '%s' "$(SESSION)" | grep -Eq '[^A-Za-z0-9._-]'; then \
+		echo "usage: make logs-session SESSION=<session-id>"; \
+		exit 2; \
+	fi
+	@python3 -c 'import os, re, sys; from pathlib import Path; project = Path(sys.argv[1]).resolve(); session_id = sys.argv[2]; configured = os.environ.get("CLAUDE_HARNESS_DIR"); slug = re.sub(r"[^a-z0-9]+", "-", project.name.lower()).strip(".-") or "agent-harness"; root = (Path(configured) if Path(configured).is_absolute() else project / configured) if configured else project / ("." + slug); session = root / "logs" / session_id; files = sorted(path for path in session.glob("*.jsonl") if path.is_file() and not path.is_symlink()) if session.is_dir() and not session.is_symlink() else []; files or sys.exit(f"No event files found for session {session_id}."); os.execvp("tail", ["tail", "-f", *map(str, files)])' "$(CURDIR)" "$(SESSION)"
+
+.PHONY: doctor
+doctor: ## Report agent-harness environment and runtime-storage health
+	@uv run plugins/boss-dev/agent-harness/skills/harness-doctor/scripts/harness_doctor.py --repo-root "$(CURDIR)"
 
 # git-cliff resolves PR numbers / @usernames / first-time contributors via the
 # GitHub API; pass a token (env, then `gh auth token`) to avoid rate limits.

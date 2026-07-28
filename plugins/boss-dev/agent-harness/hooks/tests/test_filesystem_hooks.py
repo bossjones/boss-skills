@@ -1,7 +1,7 @@
 """Tests for the filesystem / subprocess helper logic across lifecycle hooks.
 
 Grouped one class per module. Git and dependency probes are faked with
-``fake_process``; anything that writes relative paths runs under ``in_tmp_cwd``.
+``fake_process``; artifact writers run under ``in_tmp_cwd``.
 """
 
 from __future__ import annotations
@@ -26,23 +26,24 @@ class TestPreCompactBackupTranscript:
         transcript = in_tmp_cwd / "session-abc.jsonl"
         transcript.write_text('{"type":"user"}\n')
 
-        backup_path = pre_compact.backup_transcript(str(transcript), "manual")
+        backup_path = pre_compact.backup_transcript("session-abc", str(transcript), "manual")
 
         assert backup_path is not None
         backup = Path(backup_path)
-        assert backup.exists()  # relative to the (tmp) CWD
-        assert backup.parent == Path("logs") / "transcript_backups"
+        assert backup.exists()
+        assert backup.parent == pre_compact.session_log_dir("session-abc") / "transcript_backups"
+        assert not (in_tmp_cwd / "logs").exists()
         assert backup.name.startswith("session-abc_pre_compact_manual_")
         assert backup.suffix == ".jsonl"
 
     def test_missing_transcript_returns_none(self, in_tmp_cwd: Path) -> None:
-        assert pre_compact.backup_transcript(str(in_tmp_cwd / "gone.jsonl"), "auto") is None
+        assert pre_compact.backup_transcript("session-abc", str(in_tmp_cwd / "gone.jsonl"), "auto") is None
 
 
 class TestSessionEndCleanup:
     def test_removes_tmp_files_and_stale_chat(self, in_tmp_cwd: Path) -> None:
-        logs = in_tmp_cwd / "logs"
-        logs.mkdir()
+        logs = session_end.session_log_dir("session-abc")
+        logs.mkdir(parents=True)
         (logs / "scratch.tmp").write_text("x")
         chat = logs / "chat.json"
         chat.write_text("[]")
@@ -51,7 +52,7 @@ class TestSessionEndCleanup:
 
         os.utime(chat, (old, old))
 
-        actions = session_end.perform_cleanup()
+        actions = session_end.perform_cleanup("session-abc")
 
         assert (logs / "scratch.tmp").exists() is False
         assert chat.exists() is False
@@ -59,16 +60,16 @@ class TestSessionEndCleanup:
         assert any("chat.json" in a for a in actions)
 
     def test_recent_chat_is_preserved(self, in_tmp_cwd: Path) -> None:
-        logs = in_tmp_cwd / "logs"
-        logs.mkdir()
+        logs = session_end.session_log_dir("session-abc")
+        logs.mkdir(parents=True)
         (logs / "chat.json").write_text("[]")
 
-        session_end.perform_cleanup()
+        session_end.perform_cleanup("session-abc")
 
         assert (logs / "chat.json").exists() is True
 
     def test_no_logs_dir_returns_empty(self, in_tmp_cwd: Path) -> None:
-        assert session_end.perform_cleanup() == []
+        assert session_end.perform_cleanup("session-abc") == []
 
 
 class TestSessionStartGitStatus:

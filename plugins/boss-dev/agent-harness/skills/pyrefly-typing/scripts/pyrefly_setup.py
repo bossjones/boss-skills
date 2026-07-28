@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import importlib.util
 import json
 import os
 import re
@@ -44,6 +45,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import tomllib
@@ -301,9 +303,20 @@ def load_pyproject(path: Path) -> tuple[str, dict[str, Any]]:
 
 
 def check_env() -> dict[str, Any]:
-    """Report (never block) on whether ``uv`` is available."""
-    uv_ok = shutil.which("uv") is not None
-    return {"uv": {"ok": uv_ok, "hint": None if uv_ok else "install uv: https://docs.astral.sh/uv/"}}
+    """Return the historic Pyrefly env shape via the shared preflight."""
+    module_name = "_agent_harness_preflight"
+    cached = sys.modules.get(module_name)
+    if isinstance(cached, ModuleType):
+        module = cached
+    else:
+        path = Path(__file__).resolve().parents[3] / "hooks" / "utils" / "preflight.py"
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load shared preflight helper: {path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+    return {"uv": module.check_env()["uv"]}
 
 
 # --- IO-driving apply steps ---------------------------------------------------

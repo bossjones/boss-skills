@@ -8,6 +8,9 @@ that is the signal we want.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 from hook_loader import load_hook
 
@@ -27,3 +30,11 @@ def test_validate_prompt_accepts_everything(prompt: str) -> None:
     is_valid, reason = user_prompt_submit.validate_prompt(prompt)
     assert is_valid is True
     assert reason is None
+
+
+def test_session_state_uses_harness_data_dir_without_creating_legacy_state(in_tmp_cwd: Path) -> None:
+    user_prompt_submit.manage_session_data("session-abc", "Build the auth system")
+
+    session_file = user_prompt_submit.data_dir() / "sessions" / "session-abc.json"
+    assert json.loads(session_file.read_text())["prompts"] == ["Build the auth system"]
+    assert not (in_tmp_cwd / ".claude" / "data").exists()

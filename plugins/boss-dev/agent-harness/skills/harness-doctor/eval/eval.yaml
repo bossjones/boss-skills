@@ -1,0 +1,30 @@
+version: "1"
+defaults:
+  agent: claude
+  provider: local
+  trials: 5
+  timeout: 300
+  threshold: 0.8
+tasks:
+  - name: clean-project
+    instruction: >-
+      Read the harness-doctor SKILL.md, run its doctor script against the
+      clean-project fixture, and write the JSON report to output.md.
+    workspace:
+      - src: test-fixtures/clean-project
+        dest: clean-project
+    graders:
+      - type: deterministic
+        weight: 1
+        run: node graders/check-doctor-report.js output.md clean
+  - name: stale-artifacts
+    instruction: >-
+      Read the harness-doctor SKILL.md, run its doctor script against the
+      stale-artifacts fixture, and write the JSON report to output.md.
+    workspace:
+      - src: test-fixtures/stale-artifacts
+        dest: stale-artifacts
+    graders:
+      - type: deterministic
+        weight: 1
+        run: node graders/check-doctor-report.js output.md stale

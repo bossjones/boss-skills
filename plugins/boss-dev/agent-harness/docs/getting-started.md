@@ -13,7 +13,7 @@ your first command.
 - [Step 4 — Verify it loaded](#step-4--verify-it-loaded)
 - [Step 5 — Run your first command](#step-5--run-your-first-command)
 - [Running autonomous commands (Plan mode + Opus)](#running-autonomous-commands-plan-mode--opus)
-- [Configuring TTS and desktop notifications](#configuring-tts-and-desktop-notifications)
+- [Configuring runtime storage, TTS, and desktop notifications](#configuring-runtime-storage-tts-and-desktop-notifications)
 - [Dependency & prerequisite matrix](#dependency--prerequisite-matrix)
 - [Second brain (obsidian-wiki) environment](#second-brain-obsidian-wiki-environment)
 - [Troubleshooting](#troubleshooting)
@@ -74,9 +74,9 @@ can also point at a local checkout:
 ```
 
 This auto-discovers and activates the plugin's **commands**, **agents**, **skills**, **output
-styles**, and **hooks**. (Hooks ship pre-wired via `hooks/hooks.json` — see
-[hooks.md](./hooks.md).) Status lines ship as a library and are opt-in — see
-[status-lines.md](./status-lines.md).
+styles**, and **20 hook events**. Hooks are pre-wired through `hooks/hooks.json`; a universal,
+fail-open logger writes redacted JSONL under `.{repo-slug}/logs/<session>/<Event>.jsonl`. Status
+lines ship as a library and are opt-in — see [status-lines.md](./status-lines.md).
 
 ## Step 4 — Verify it loaded
 
@@ -140,7 +140,32 @@ plan is approved into auto mode, a background classifier reviews each action and
 ones (production deploys, force-push, `curl | bash`), so you keep guardrails while skipping routine
 prompts.
 
-## Configuring TTS and desktop notifications
+## Configuring runtime storage, TTS, and desktop notifications
+
+Hook logs, session state, and cache are stored under one project-local root:
+
+```text
+.{repo-slug}/
+├── logs/<session_id>/<Event>.jsonl
+├── data/sessions/<session_id>.json
+└── cache/
+```
+
+The root is derived from the project name by default. Configure these options in `/plugin` →
+**Configure** when a project needs a different location or retention policy:
+
+| Option | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `HARNESS_DIR` | string | _(empty)_ | Optional project-relative or absolute root; empty uses `.{repo-slug}`. |
+| `HOOKS_LOG_RETENTION_DAYS` | number | `7` | Retain log directories and cache entries for this many days. |
+| `HOOKS_LOG_RETENTION_MAX_MB` | number | `100` | Combined log/cache limit; oldest entries are evicted first. |
+
+Retention runs at `SessionEnd`. It does not age-prune live session data while the corresponding log
+directory exists. `CLAUDE_HOOKS_LOG_DIR` remains a legacy override for `logs/` only; it does not
+move `data/` or `cache/`. There is no automatic migration of old `logs/` or `.claude/data/`
+directories—run the read-only `harness-doctor` skill to identify stale artifacts before deleting
+them. `MessageDisplay` is intentionally not enabled pending a measured logger cold-start p95 against
+its 10-second budget.
 
 Several hooks and the [`work-completion-summary`](./agents.md#work-completion-summary) agent can
 speak status updates aloud. The TTS backend is **offline `pyttsx3`** — it needs **no API key**. Two
@@ -184,7 +209,7 @@ needs so you only install what you'll use.
 | Skill — `release-notes-generator` | `git`, `gh` | Reads commits + PR metadata |
 | Skills — `stop-slop`, `unicode-hygiene` | Nothing (uv for the unicode scanner) | Prose hygiene / supply-chain scan |
 | Skill — `setup-second-brain` | `uv` (stdlib-only script); `node` ≥ 22 + `npm` for the optional QMD step | Installs obsidian-wiki; QMD degrades to Grep without Node — see [Second brain environment](#second-brain-obsidian-wiki-environment) |
-| Hooks — logging / guards / auto-format | `uv`; `ruff` on `PATH` or `uvx` (format hook only) | Active on install via `hooks/hooks.json`; format hook runs only in projects with a ruff config |
+| Hooks — logging / guards / auto-format | `uv`; `ruff` on `PATH` or `uvx` (format hook only) | 20 events active on install via `hooks/hooks.json`; format hook runs only in projects with a ruff config |
 | Hooks — LLM agent naming / summaries | `ANTHROPIC_API_KEY` **or** `OPENAI_API_KEY` (or local Ollama) | Optional; degrades gracefully if unset |
 | Hooks / agents — TTS announcements | offline `pyttsx3` (no key), or `OPENAI_API_KEY`, or ElevenLabs | Optional; toggle with `ENABLE_TTS` via `/plugin` → Configure |
 | Hooks — tmux desktop notifications | `tmux` + `terminal-notifier` (macOS) / `notify-send` (Linux) | Off by default; enable `tmux_notifications` |
@@ -238,7 +263,7 @@ back to Grep silently when they are unset. The `setup-second-brain` skill writes
 | [commands.md](./commands.md) | All 13 slash commands with args, when-to-use, and examples |
 | [agents.md](./agents.md) | The 6 subagents and how the builder/validator team works |
 | [skills.md](./skills.md) | The 13 model- and explicitly-invoked skills |
-| [hooks.md](./hooks.md) | The 14 lifecycle hook events and how to enable/disable them |
+| [hooks.md](./hooks.md) | The 20 enabled lifecycle events, storage, retention, and deferred-event decisions |
 | [output-styles.md](./output-styles.md) | The 8 response output styles |
 | [status-lines.md](./status-lines.md) | The 10 status-line variants and how to wire one up |
 | [workflows.md](./workflows.md) | End-to-end recipes that chain the pieces together |

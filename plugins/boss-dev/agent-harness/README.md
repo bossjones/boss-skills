@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.28.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.29.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
@@ -23,11 +23,11 @@ of lifecycle hooks, output styles, and status lines.
 | [Commands](#commands) | 17 | ✅ Yes | `/agent-harness:<name>` |
 | [Agents](#agents) | 6 | ✅ Yes | Dispatched via the `Agent`/`Task` tool |
 | [Output styles](#output-styles) | 8 | ✅ Yes | `/output-style` |
-| [Hooks](#hooks) | 13 | ⚙️ Manual wiring | Lifecycle events (see [Manual wiring](#manual-wiring)) |
+| [Hooks](#hooks) | 20 events | ✅ Yes | Lifecycle events and JSONL audit logs |
 | [Status lines](#status-lines) | 10 | ⚙️ Manual wiring | `statusLine` setting |
 
-Skills, commands, agents, and output styles are discovered and active immediately after
-`/plugin install`. Hooks and status lines ship as a **library** and require a one-time
+Skills, commands, agents, output styles, and hooks are discovered and active immediately after
+`/plugin install`. Status lines ship as a library and require a one-time
 [manual wiring](#manual-wiring) step before they take effect.
 
 ## Skills
@@ -189,9 +189,23 @@ uv run "${CLAUDE_SKILL_DIR}/scripts/fetch_diff.py" --help
 
 ## Hooks
 
-`hooks/` ships a **library** of lifecycle hook scripts (PEP 723, run via `uv`). They are **not
-active on install** — Claude Code only registers plugin hooks declared in `hooks/hooks.json` (or an
-inline `hooks` key in `plugin.json`). See [Manual wiring](#manual-wiring) to enable them.
+`hooks/hooks.json` enables **20 lifecycle events** on install. Each event includes the universal,
+fail-open `log_event.py` through `uv-guard.sh`; it appends one redacted, schema-versioned JSONL
+record without blocking Claude. Behavior hooks run separately for guards, notifications, formatting,
+and other opt-in behavior.
+
+Event records are project-scoped rather than cwd-scoped:
+
+```text
+<project>/.{repo-slug}/
+├── logs/<session_id>/<Event>.jsonl
+├── data/sessions/<session_id>.json
+└── cache/
+```
+
+`data/` holds live state that status lines and `/agent-harness:update_status_line` read back;
+`cache/` is regenerable. Use the [hooks reference](./docs/hooks.md) for the event matrix, JSONL
+schema, redaction, path overrides, retention, and deferred-event rationale.
 
 | Script | Event | Purpose |
 | --- | --- | --- |
@@ -224,7 +238,12 @@ Supporting modules:
 - `hooks/utils/snyk.py` — shared Snyk agent-scan helper (target resolution, scan invocation,
   severity parsing) used by both `snyk_agent_scan.py` and the repo's pre-commit hook.
 
-Hook runs write structured JSON to `logs/` for auditing and debugging.
+The currently enabled events are `SessionStart`, `SessionEnd`, `Setup`, `UserPromptSubmit`,
+`PreToolUse`, `PermissionRequest`, `PostToolUse`, `PostToolUseFailure`, `SubagentStart`,
+`SubagentStop`, `Stop`, `StopFailure`, `PreCompact`, `Notification`, `PostCompact`,
+`UserPromptExpansion`, `PermissionDenied`, `PostToolBatch`, `TaskCreated`, and `TaskCompleted`.
+`MessageDisplay` is intentionally deferred pending a measured `log_event.py` cold-start p95 against
+its 10-second budget; it is **not enabled**.
 
 ### tmux desktop notifications (opt-in)
 
@@ -341,27 +360,8 @@ setting at one to use it.
 
 ## Manual wiring
 
-Hooks and status lines ship as a library — opt in by editing your settings.
-
-**Enable a hook** — add an entry to `hooks/hooks.json` (or an inline `hooks` key in `plugin.json`)
-that points at the script with `${CLAUDE_PLUGIN_ROOT}`:
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash|Write|Edit",
-        "hooks": [
-          { "type": "command", "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre_tool_use.py" }
-        ]
-      }
-    ]
-  }
-}
-```
-
-**Enable a status line** — point your `statusLine` setting at one of the scripts:
+Hooks are already wired by `hooks/hooks.json`. Status lines are the opt-in component: point your
+`statusLine` setting at one of the scripts:
 
 ```json
 {
@@ -374,10 +374,8 @@ that points at the script with `${CLAUDE_PLUGIN_ROOT}`:
 
 ## Status
 
-Plugin version **v0.28.0**. Skills, commands, agents, and output styles are auto-discovered and
-active on `/plugin install`. The hook scripts and status lines ship as a library and require manual
-wiring — a `hooks/hooks.json` entry for hooks, a `statusLine` setting for status lines — before they
-take effect.
+Plugin version **v0.29.0**. Skills, commands, agents, output styles, and all 20 hook events are
+auto-discovered and active on `/plugin install`. Status lines require a `statusLine` setting.
 
 ## See also
 

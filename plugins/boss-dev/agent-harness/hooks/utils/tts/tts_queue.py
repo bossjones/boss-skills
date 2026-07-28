@@ -20,36 +20,50 @@ Functions:
 import fcntl
 import json
 import os
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
-# Lock dir is project-root-relative (CWD), shared across all agent processes
-_LOCK_DIR = Path(".claude") / "data" / "tts_queue"
-_LOCK_FILE = _LOCK_DIR / "tts.lock"
+HOOKS_DIR = Path(__file__).resolve().parents[2]
+if str(HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOKS_DIR))
+
+from utils.harness_paths import data_dir
 
 # Global file handle for the lock (must persist while lock is held)
 _lock_file_handle: int | None = None
 
 
+def _lock_dir() -> Path:
+    """Return the project-scoped TTS lock directory."""
+    return data_dir() / "tts_queue"
+
+
+def _lock_file() -> Path:
+    """Return the project-scoped TTS lock file."""
+    return _lock_dir() / "tts.lock"
+
+
 def _ensure_lock_dir() -> None:
     """Ensure the lock directory exists."""
-    _LOCK_DIR.mkdir(parents=True, exist_ok=True)
+    _lock_dir().mkdir(parents=True, exist_ok=True)
 
 
 def _write_lock_info(agent_id: str) -> None:
     """Write lock metadata to the lock file."""
     lock_info = {"agent_id": agent_id, "timestamp": datetime.now().isoformat(), "pid": os.getpid()}
-    with open(_LOCK_FILE, "w") as f:
+    with _lock_file().open("w") as f:
         json.dump(lock_info, f)
 
 
 def _read_lock_info() -> dict | None:
     """Read lock metadata from the lock file."""
-    if not _LOCK_FILE.exists():
+    lock_file = _lock_file()
+    if not lock_file.exists():
         return None
     try:
-        with open(_LOCK_FILE) as f:
+        with lock_file.open() as f:
             content = f.read().strip()
             if not content:
                 return None
@@ -84,7 +98,7 @@ def acquire_tts_lock(agent_id: str, timeout: int = 30) -> bool:
 
         try:
             # Open file for writing (create if needed)
-            fd = os.open(str(_LOCK_FILE), os.O_RDWR | os.O_CREAT, 0o644)
+            fd = os.open(str(_lock_file()), os.O_RDWR | os.O_CREAT, 0o644)
 
             try:
                 # Try to acquire exclusive lock (non-blocking)
@@ -149,11 +163,12 @@ def is_tts_locked() -> bool:
     """
     _ensure_lock_dir()
 
-    if not _LOCK_FILE.exists():
+    lock_file = _lock_file()
+    if not lock_file.exists():
         return False
 
     try:
-        fd = os.open(str(_LOCK_FILE), os.O_RDWR | os.O_CREAT, 0o644)
+        fd = os.open(str(lock_file), os.O_RDWR | os.O_CREAT, 0o644)
         try:
             # Try non-blocking lock
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -180,7 +195,8 @@ def cleanup_stale_locks(max_age_seconds: int = 60) -> None:
     Args:
         max_age_seconds: Maximum age in seconds before lock is considered stale
     """
-    if not _LOCK_FILE.exists():
+    lock_file = _lock_file()
+    if not lock_file.exists():
         return
 
     try:
@@ -193,10 +209,10 @@ def cleanup_stale_locks(max_age_seconds: int = 60) -> None:
                 age = (datetime.now() - lock_time).total_seconds()
             except (ValueError, TypeError):
                 # Invalid timestamp, use file mtime
-                age = time.time() - _LOCK_FILE.stat().st_mtime
+                age = time.time() - lock_file.stat().st_mtime
         else:
             # No valid lock info, use file modification time
-            age = time.time() - _LOCK_FILE.stat().st_mtime
+            age = time.time() - lock_file.stat().st_mtime
 
         if age > max_age_seconds:
             # Check if the PID is still running
@@ -213,7 +229,7 @@ def cleanup_stale_locks(max_age_seconds: int = 60) -> None:
 
             # Remove stale lock file
             try:
-                _LOCK_FILE.unlink()
+                lock_file.unlink()
             except OSError:
                 pass
 

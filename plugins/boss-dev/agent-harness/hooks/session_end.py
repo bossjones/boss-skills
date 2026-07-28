@@ -20,40 +20,18 @@ except ImportError:
     pass  # dotenv is optional
 
 
-def log_session_end(input_data):
-    """Log session end event to logs directory."""
-    # Ensure logs directory exists
-    log_dir = Path("logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "session_end.json"
+HOOKS_DIR = Path(__file__).resolve().parent
+if str(HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOKS_DIR))
 
-    # Read existing log data or initialize empty list
-    if log_file.exists():
-        with open(log_file) as f:
-            try:
-                log_data = json.load(f)
-            except (json.JSONDecodeError, ValueError):
-                log_data = []
-    else:
-        log_data = []
-
-    # Add timestamp to the input data
-    input_data["logged_at"] = datetime.now().isoformat()
-
-    # Append the entire input data
-    log_data.append(input_data)
-
-    # Write back to file with formatting
-    with open(log_file, "w") as f:
-        json.dump(log_data, f, indent=2)
+from utils.harness_paths import session_log_dir
 
 
-def perform_cleanup():
+def perform_cleanup(session_id):
     """Perform optional cleanup tasks at session end."""
     cleanup_actions = []
 
-    # Example cleanup: Remove temporary files from logs directory
-    log_dir = Path("logs")
+    log_dir = session_log_dir(session_id)
     if log_dir.exists():
         # Clean up any .tmp files
         for tmp_file in log_dir.glob("*.tmp"):
@@ -63,7 +41,6 @@ def perform_cleanup():
             except Exception:
                 pass
 
-    # Example cleanup: Clean up old chat.json if it exists and is stale
     chat_file = log_dir / "chat.json" if log_dir.exists() else None
     if chat_file and chat_file.exists():
         try:
@@ -88,39 +65,12 @@ def main():
         # Read JSON input from stdin
         input_data = json.loads(sys.stdin.read())
 
-        # Extract session_id for cleanup logging
+        # Extract session_id for session-scoped cleanup
         session_id = input_data.get("session_id", "unknown")
-
-        # Log the session end event
-        log_session_end(input_data)
 
         # Perform cleanup if requested
         if args.cleanup:
-            cleanup_actions = perform_cleanup()
-            if cleanup_actions:
-                # Log cleanup actions
-                cleanup_log = {
-                    "session_id": session_id,
-                    "cleanup_at": datetime.now().isoformat(),
-                    "actions": cleanup_actions,
-                }
-                log_dir = Path("logs")
-                cleanup_file = log_dir / "cleanup.json"
-
-                # Read existing cleanup log
-                if cleanup_file.exists():
-                    with open(cleanup_file) as f:
-                        try:
-                            cleanup_data = json.load(f)
-                        except (json.JSONDecodeError, ValueError):
-                            cleanup_data = []
-                else:
-                    cleanup_data = []
-
-                cleanup_data.append(cleanup_log)
-
-                with open(cleanup_file, "w") as f:
-                    json.dump(cleanup_data, f, indent=2)
+            perform_cleanup(session_id)
 
         # Success
         sys.exit(0)

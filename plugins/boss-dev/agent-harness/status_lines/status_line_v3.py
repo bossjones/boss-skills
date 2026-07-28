@@ -7,8 +7,8 @@
 # ///
 
 import json
+import os
 import sys
-from datetime import datetime
 from pathlib import Path
 
 try:
@@ -19,45 +19,22 @@ except ImportError:
     pass  # dotenv is optional
 
 
-def log_status_line(input_data, status_line_output, error_message=None):
-    """Log status line event to logs directory."""
-    # Ensure logs directory exists
-    log_dir = Path("logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "status_line.json"
+HOOKS_DIR = Path(__file__).resolve().parent.parent / "hooks"
+if str(HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOKS_DIR))
 
-    # Read existing log data or initialize empty list
-    if log_file.exists():
-        with open(log_file, "r") as f:
-            try:
-                log_data = json.load(f)
-            except (json.JSONDecodeError, ValueError):
-                log_data = []
-    else:
-        log_data = []
-
-    # Create log entry with input data and generated output
-    log_entry = {
-        "timestamp": datetime.now().isoformat(),
-        "version": "v3",
-        "input_data": input_data,
-        "status_line_output": status_line_output,
-    }
-
-    if error_message:
-        log_entry["error"] = error_message
-
-    # Append the log entry
-    log_data.append(log_entry)
-
-    # Write back to file with formatting
-    with open(log_file, "w") as f:
-        json.dump(log_data, f, indent=2)
+from utils.harness_paths import data_dir
 
 
-def get_session_data(session_id):
+def _project_dir(input_data):
+    """Return the project anchor supplied by the status-line payload."""
+    workspace = input_data.get("workspace", {}) or {}
+    return workspace.get("project_dir") or workspace.get("current_dir") or input_data.get("cwd") or os.getcwd()
+
+
+def get_session_data(session_id, project_dir):
     """Get session data including agent name and prompts."""
-    session_file = Path(f".claude/data/sessions/{session_id}.json")
+    session_file = data_dir(project_dir) / "sessions" / f"{session_id}.json"
 
     if not session_file.exists():
         return None, f"Session file {session_file} does not exist"
@@ -106,11 +83,9 @@ def generate_status_line(input_data):
     model_name = model_info.get("display_name", "Claude")
 
     # Get session data
-    session_data, error = get_session_data(session_id)
+    session_data, error = get_session_data(session_id, _project_dir(input_data))
 
     if error:
-        # Log the error but show a default message
-        log_status_line(input_data, f"[{model_name}] 💭 No session data", error)
         return f"\033[36m[{model_name}]\033[0m \033[90m💭 No session data\033[0m"
 
     # Extract agent name and prompts
@@ -161,9 +136,6 @@ def main():
 
         # Generate status line
         status_line = generate_status_line(input_data)
-
-        # Log the status line event (without error since it's successful)
-        log_status_line(input_data, status_line)
 
         # Output the status line (first line of stdout becomes the status line)
         print(status_line)

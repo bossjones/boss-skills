@@ -39,10 +39,12 @@ make link-check
 ### Claude Code Skills (`/.claude/skills/`)
 
 Skills are self-contained features with:
+
 - `SKILL.md` - Main definition (name, description, instructions)
 - `scripts/` - Python scripts using PEP 723 inline metadata
 
 Current skills:
+
 - **twitter-media-downloader**: Downloads media from X/Twitter using gallery-dl
 - **twitter-to-reel**: Converts tweets to Instagram Reels format (9:16 vertical)
 - **doc-generator**: Generates markdown docs from Python codebases
@@ -55,6 +57,22 @@ Current skills:
 ### Development Tools (`/devtools/`)
 
 - `lint.py` (`make lint`): codespell + `ruff check --fix` + `ruff format` on `devtools/`, `scripts/`, `plugins/`; `basedpyright` on `devtools/`, `scripts/` (plus select agent-harness scripts). Does NOT cover `tests/` or `.claude/` (ruff excludes `.claude/`).
+
+### Agent-harness hook logging
+
+The agent-harness plugin enables 20 lifecycle events through
+`plugins/boss-dev/agent-harness/hooks/hooks.json`. Every event includes the universal, fail-open
+`hooks/log_event.py`; behavior hooks run separately and must not duplicate event logging.
+The logger appends redacted, schema-versioned JSONL at
+`.{repo-slug}/logs/<session_id>/<Event>.jsonl`, with sibling `data/` (live session state) and
+`cache/` (regenerable data) under the same project-derived root.
+
+Resolve that root through `hooks/utils/harness_paths.py`; do not create cwd-relative `logs/` or
+`.claude/data/` paths. `CLAUDE_HARNESS_DIR` takes precedence, followed by the `HARNESS_DIR` plugin
+option; `CLAUDE_HOOKS_LOG_DIR` is a legacy override for `logs/` only. Retention runs at
+`SessionEnd` (default 7 days / 100 MB) and is configurable with
+`HOOKS_LOG_RETENTION_DAYS` and `HOOKS_LOG_RETENTION_MAX_MB`. Do not migrate old `logs/` or
+`.claude/data/` automatically: `harness-doctor` reports them as stale artifacts for user review.
 
 ## Code Standards
 
@@ -71,6 +89,7 @@ Current skills:
 ### PEP 723 Scripts
 
 Standalone scripts use inline metadata:
+
 ```python
 #!/usr/bin/env -S uv run
 # /// script

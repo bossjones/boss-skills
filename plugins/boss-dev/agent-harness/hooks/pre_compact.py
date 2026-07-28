@@ -21,39 +21,21 @@ except ImportError:
     pass  # dotenv is optional
 
 
-def log_pre_compact(input_data):
-    """Log pre-compact event to logs directory."""
-    # Ensure logs directory exists
-    log_dir = Path("logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "pre_compact.json"
+HOOKS_DIR = Path(__file__).resolve().parent
+if str(HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOKS_DIR))
 
-    # Read existing log data or initialize empty list
-    if log_file.exists():
-        with open(log_file) as f:
-            try:
-                log_data = json.load(f)
-            except (json.JSONDecodeError, ValueError):
-                log_data = []
-    else:
-        log_data = []
-
-    # Append the entire input data
-    log_data.append(input_data)
-
-    # Write back to file with formatting
-    with open(log_file, "w") as f:
-        json.dump(log_data, f, indent=2)
+from utils.harness_paths import session_log_dir
 
 
-def backup_transcript(transcript_path, trigger):
+def backup_transcript(session_id, transcript_path, trigger):
     """Create a backup of the transcript before compaction."""
     try:
         if not os.path.exists(transcript_path):
             return
 
         # Create backup directory
-        backup_dir = Path("logs") / "transcript_backups"
+        backup_dir = session_log_dir(session_id) / "transcript_backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate backup filename with timestamp and trigger type
@@ -89,13 +71,10 @@ def main():
         trigger = input_data.get("trigger", "unknown")  # "manual" or "auto"
         custom_instructions = input_data.get("custom_instructions", "")
 
-        # Log the pre-compact event
-        log_pre_compact(input_data)
-
         # Create backup if requested
         backup_path = None
         if args.backup and transcript_path:
-            backup_path = backup_transcript(transcript_path, trigger)
+            backup_path = backup_transcript(session_id, transcript_path, trigger)
 
         # Provide feedback based on trigger type
         if args.verbose:

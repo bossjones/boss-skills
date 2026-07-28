@@ -23,14 +23,13 @@ except ImportError:
     pass  # dotenv is optional
 
 
-def debug_log(message: str) -> None:
-    """Write debug message to logs/subagent_debug.log"""
+def debug_log(message: str, session_id: str) -> None:
+    """Write a subagent-specific debug message."""
     try:
-        log_dir = os.path.join(os.getcwd(), "logs")
-        os.makedirs(log_dir, exist_ok=True)
-        debug_path = os.path.join(log_dir, "subagent_debug.log")
+        debug_path = session_log_dir(session_id) / "subagent_debug.log"
+        debug_path.parent.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().isoformat()
-        with open(debug_path, "a") as f:
+        with debug_path.open("a") as f:
             f.write(f"[{timestamp}] {message}\n")
     except Exception:
         pass
@@ -38,6 +37,8 @@ def debug_log(message: str) -> None:
 
 # Add hooks directory to path for local imports
 sys.path.insert(0, str(Path(__file__).parent))
+
+from utils.harness_paths import session_log_dir
 
 try:
     from utils.tts.tts_queue import acquire_tts_lock, cleanup_stale_locks, release_tts_lock
@@ -57,7 +58,9 @@ try:
     from utils.llm.task_summarizer import summarize_subagent_task
 except ImportError:
     # Fallback if imports fail
-    def summarize_subagent_task(task_description: str, agent_name: str | None = None) -> str:
+    def summarize_subagent_task(
+        task_description: str, agent_name: str | None = None, session_id: str | None = None
+    ) -> str:
         return "Subagent Complete"
 
 
@@ -211,31 +214,8 @@ def main() -> None:
         # Read JSON input from stdin
         input_data = json.load(sys.stdin)
 
-        # Extract required fields (used for logging context)
-        _ = input_data.get("session_id", "")
-        _ = input_data.get("stop_hook_active", False)
-
-        # Ensure log directory exists
-        log_dir = os.path.join(os.getcwd(), "logs")
-        os.makedirs(log_dir, exist_ok=True)
-        log_path = os.path.join(log_dir, "subagent_stop.json")
-
-        # Read existing log data or initialize empty list
-        if os.path.exists(log_path):
-            with open(log_path) as f:
-                try:
-                    log_data = json.load(f)
-                except (json.JSONDecodeError, ValueError):
-                    log_data = []
-        else:
-            log_data = []
-
-        # Append new data
-        log_data.append(input_data)
-
-        # Write back to file with formatting
-        with open(log_path, "w") as f:
-            json.dump(log_data, f, indent=2)
+        session_id = input_data.get("session_id", "unknown")
+        agent_id = input_data.get("agent_id", "unknown")
 
         # Handle --chat switch (same as stop.py)
         if args.chat and "transcript_path" in input_data:
@@ -253,19 +233,18 @@ def main() -> None:
                                 except json.JSONDecodeError:
                                     pass  # Skip invalid lines
 
-                    # Write to logs/chat.json
-                    chat_file = os.path.join(log_dir, "chat.json")
-                    with open(chat_file, "w") as f:
+                    chat_file = session_log_dir(session_id) / "agents" / agent_id / "chat.json"
+                    chat_file.parent.mkdir(parents=True, exist_ok=True)
+                    with chat_file.open("w") as f:
                         json.dump(chat_data, f, indent=2)
                 except Exception:
                     pass  # Fail silently
 
         # Announce subagent completion via TTS (only if --notify flag is set)
         if args.notify:
-            agent_id = input_data.get("agent_id", "unknown")
-            debug_log(f"=== SubagentStop for agent: {agent_id} ===")
-            debug_log(f"agent_transcript_path: {input_data.get('agent_transcript_path', 'NOT FOUND')}")
-            debug_log(f"ANTHROPIC_API_KEY present: {bool(os.getenv('ANTHROPIC_API_KEY'))}")
+            debug_log(f"=== SubagentStop for agent: {agent_id} ===", session_id)
+            debug_log(f"agent_transcript_path: {input_data.get('agent_transcript_path', 'NOT FOUND')}", session_id)
+            debug_log(f"ANTHROPIC_API_KEY present: {bool(os.getenv('ANTHROPIC_API_KEY'))}", session_id)
 
             # Clean up any stale locks first
             cleanup_stale_locks(max_age_seconds=60)
@@ -273,24 +252,24 @@ def main() -> None:
             # Generate summary message
             if args.summarize:
                 task_context = extract_task_context(input_data)
-                debug_log(f"Extracted task_context: {task_context[:100]}...")
-                summary_message = summarize_subagent_task(task_context, agent_name=agent_id)
-                debug_log(f"Generated summary_message: {summary_message}")
+                debug_log(f"Extracted task_context: {task_context[:100]}...", session_id)
+                summary_message = summarize_subagent_task(task_context, agent_name=agent_id, session_id=session_id)
+                debug_log(f"Generated summary_message: {summary_message}", session_id)
             else:
                 summary_message = "Subagent Complete"
-                debug_log("Summarize disabled, using default message")
+                debug_log("Summarize disabled, using default message", session_id)
 
             # Acquire lock before speaking (blocks until available or timeout)
             if acquire_tts_lock(agent_id, timeout=30):
                 try:
-                    debug_log(f"Lock acquired, announcing: {summary_message}")
+                    debug_log(f"Lock acquired, announcing: {summary_message}", session_id)
                     announce_subagent_completion(summary_message)
                 finally:
                     release_tts_lock(agent_id)
-                    debug_log("Lock released")
+                    debug_log("Lock released", session_id)
             else:
                 # Timeout - still announce but log warning
-                debug_log(f"Lock timeout, announcing anyway: {summary_message}")
+                debug_log(f"Lock timeout, announcing anyway: {summary_message}", session_id)
                 announce_subagent_completion(summary_message)
 
         sys.exit(0)

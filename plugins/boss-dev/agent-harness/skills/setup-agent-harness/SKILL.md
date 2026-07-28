@@ -1,6 +1,6 @@
 ---
 name: setup-agent-harness
-description: Make a repo "agent-harness ready" by safely updating .gitignore and .claude/settings.local.json. Use when setting up or onboarding a repo to the agent-harness plugin, ensuring .gitignore covers the plugin's hook artifacts (logs/, .claude/data/) and optionally configuring the statusLine and an outputStyle in the per-user settings.local.json. Every file is backed up before any change.
+description: Make a repo "agent-harness ready" by safely updating .gitignore and .claude/settings.local.json. Use when setting up or onboarding a repo to the agent-harness plugin, ensuring .gitignore covers the repository-derived harness runtime root and optionally configuring the statusLine and an outputStyle in the per-user settings.local.json. Every file is backed up before any change.
 disable-model-invocation: true
 allowed-tools:
   - Bash(uv run:*)
@@ -15,10 +15,10 @@ Prepares a repository to use the agent-harness plugin without risking committed
 hook output or hand-edited JSON. It does two things, each preceded by a
 timestamped backup:
 
-1. Adds a managed block to `.gitignore` covering the runtime artifacts the
-   plugin's hooks write (`logs/`, `.claude/data/`, `*.log`, plus the backups
-   this skill creates). Only patterns not already present are added — the update
-   is additive and idempotent.
+1. Adds or refreshes a managed block in `.gitignore` covering the repository's
+   derived harness root (for example, `.my-repo/`), `*.log`, and the backups this
+   skill creates. Existing managed blocks are rewritten in place so obsolete
+   `logs/` and `.claude/data/` entries do not persist. The update is idempotent.
 2. Merges `$schema`, an optional `statusLine`, an optional `outputStyle`, and the
    `enabledPlugins` entry into `.claude/settings.local.json` — the **per-user,
    git-ignored** settings file, so nothing is forced on the team.
@@ -64,8 +64,8 @@ Ask only for what `detect` shows is undecided:
 - **enable plugin** — if `plugin_enabled` is false, offer to enable
   `agent-harness@boss-skills`.
 
-The `.gitignore` update is always safe to apply (additive), so include
-`--gitignore` whenever any pattern is missing.
+The `.gitignore` update is always safe to apply, so include `--gitignore`
+whenever a pattern is missing or the managed block needs refreshing.
 
 ### 4. Preview the diff with `--dry-run`
 
@@ -105,8 +105,8 @@ and confirm the written `settings.local.json` re-parsed successfully.
 
 - `--dry-run` writes nothing and returns a unified `diff` per changed file, so you
   can show the user exactly what `apply` would do before running it for real.
-- Nothing is written without a backup first; `.gitignore` changes are additive
-  and idempotent (re-running produces no diff and no new backup).
+- Nothing is written without a backup first; `.gitignore` changes are
+  idempotent (re-running produces no diff and no new backup).
 - The target is `.claude/settings.local.json` only — this skill never touches the
   team-shared `.claude/settings.json`.
 - If `settings.local.json` contains invalid JSON, `apply` aborts and leaves the

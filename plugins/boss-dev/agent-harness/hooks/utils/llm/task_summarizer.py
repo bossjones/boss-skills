@@ -24,30 +24,36 @@ from dotenv import load_dotenv
 # Resolve ENGINEER_NAME via the plugin user-config (CLAUDE_PLUGIN_OPTION_ENGINEER_NAME,
 # bare-env fallback) using the shared hooks/utils/config.py. Keep an inline fallback so
 # the script still runs standalone if utils/config.py is ever missing.
-sys.path.insert(0, str(Path(__file__).parent.parent))
+HOOKS_DIR = Path(__file__).resolve().parents[2]
+if str(HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOKS_DIR))
+
 try:
-    from config import engineer_name as _resolve_engineer_name
+    from utils.config import engineer_name as _resolve_engineer_name
+    from utils.harness_paths import session_log_dir
 except Exception:
 
     def _resolve_engineer_name() -> str:
         val = os.environ.get("CLAUDE_PLUGIN_OPTION_ENGINEER_NAME") or os.environ.get("ENGINEER_NAME")
         return (val or "").strip()
 
+    def session_log_dir(session_id: str) -> Path:
+        raise RuntimeError("utils.harness_paths unavailable")
 
-def debug_log(message: str) -> None:
-    """Write debug message to logs/subagent_debug.log"""
+
+def debug_log(message: str, session_id: str | None = None) -> None:
+    """Write a subagent-specific debug message."""
     try:
-        log_dir = os.path.join(os.getcwd(), "logs")
-        os.makedirs(log_dir, exist_ok=True)
-        debug_path = os.path.join(log_dir, "subagent_debug.log")
+        debug_path = session_log_dir(session_id or "unknown") / "subagent_debug.log"
+        debug_path.parent.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().isoformat()
-        with open(debug_path, "a") as f:
+        with debug_path.open("a") as f:
             f.write(f"[{timestamp}] [SUMMARIZER] {message}\n")
     except Exception:
         pass
 
 
-def summarize_subagent_task(task_description: str, agent_name: str | None = None) -> str:
+def summarize_subagent_task(task_description: str, agent_name: str | None = None, session_id: str | None = None) -> str:
     """
     Generate a natural language summary of a completed subagent task.
 
@@ -59,14 +65,14 @@ def summarize_subagent_task(task_description: str, agent_name: str | None = None
         str: A conversational summary suitable for TTS announcement
     """
     load_dotenv()
-    debug_log(f"summarize_subagent_task called with: {task_description[:50]}...")
+    debug_log(f"summarize_subagent_task called with: {task_description[:50]}...", session_id)
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        debug_log("ERROR: ANTHROPIC_API_KEY not found!")
+        debug_log("ERROR: ANTHROPIC_API_KEY not found!", session_id)
         return "Subagent task completed"
 
-    debug_log(f"API key found (length: {len(api_key)})")
+    debug_log(f"API key found (length: {len(api_key)})", session_id)
 
     # Address the user by name only if configured; otherwise stay generic
     user_name = _resolve_engineer_name()
@@ -109,36 +115,36 @@ Generate ONE summary:"""
     try:
         import anthropic
 
-        debug_log("Anthropic module imported successfully")
+        debug_log("Anthropic module imported successfully", session_id)
 
         client = anthropic.Anthropic(api_key=api_key)
-        debug_log("Anthropic client created")
+        debug_log("Anthropic client created", session_id)
 
-        debug_log("Calling Haiku API...")
+        debug_log("Calling Haiku API...", session_id)
         message = client.messages.create(
             model="claude-haiku-4-5-20251001",  # Haiku 4.5 - fast and cost-effective
             max_tokens=100,
             temperature=0.7,
             messages=[{"role": "user", "content": prompt}],
         )
-        debug_log("API call completed")
+        debug_log("API call completed", session_id)
 
         response = message.content[0].text.strip()
-        debug_log(f"Raw response: {response}")
+        debug_log(f"Raw response: {response}", session_id)
 
         # Clean up response - remove quotes and extra formatting
         if response:
             response = response.strip().strip('"').strip("'").strip()
             # Take first line if multiple lines
             response = response.split("\n")[0].strip()
-            debug_log(f"Cleaned response: {response}")
+            debug_log(f"Cleaned response: {response}", session_id)
             return response
 
-        debug_log("Response was empty, returning fallback")
+        debug_log("Response was empty, returning fallback", session_id)
         return "Subagent task completed"
 
     except Exception as e:
-        debug_log(f"EXCEPTION: {type(e).__name__}: {str(e)}")
+        debug_log(f"EXCEPTION: {type(e).__name__}: {str(e)}", session_id)
         return "Subagent task completed"
 
 
