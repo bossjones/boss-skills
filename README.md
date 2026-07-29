@@ -27,7 +27,7 @@ Full per-plugin documentation — components, install commands, and usage exampl
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.14.0 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
+| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.29.0 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
 | [basedpyright-lsp](#boss-devbasedpyright-lsp) | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [↗](docs/plugins/basedpyright-lsp.md) |
 | python-dev | `boss-dev` | 0.1.1 | Debug GitHub Actions CI and ship conventional-commit PRs | [↗](docs/plugins/python-dev.md) |
 | [github-pr-review](#boss-devgithub-pr-review) | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [↗](docs/plugins/github-pr-review.md) |
@@ -53,7 +53,7 @@ subagents.
 | Commands | 13 | Yes |
 | Agents | 6 | Yes |
 | Output styles | 8 | Yes |
-| Hooks | 13 | Manual wiring |
+| Hooks | 20 events | Yes |
 | Status lines | 10 | Manual wiring |
 
 The planning and shipping commands chain into a single isolated feature loop:
@@ -75,8 +75,12 @@ flowchart LR
 /agent-harness:autobuild specs/add-json-flag.md   # run inside a git worktree
 ```
 
-See [`plugins/boss-dev/agent-harness/README.md`](plugins/boss-dev/agent-harness/README.md) or the
-[expanded docs](docs/plugins/agent-harness.md) for the full component reference.
+The 20 enabled hook events use a universal, fail-open JSONL logger. Runtime artifacts are scoped to
+`.{repo-slug}/` in the project (`logs/`, `data/`, and `cache/`), rather than a shared cwd-relative
+directory. `MessageDisplay` is intentionally deferred pending a measured logger cold-start p95; it
+is not enabled. See [`plugins/boss-dev/agent-harness/README.md`](plugins/boss-dev/agent-harness/README.md)
+or the [expanded docs](docs/plugins/agent-harness.md) for configuration, retention, and the full
+component reference.
 
 ### boss-dev/basedpyright-lsp
 

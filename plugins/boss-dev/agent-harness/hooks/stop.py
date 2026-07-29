@@ -32,6 +32,9 @@ except ImportError:
         return os.getenv("ENABLE_TTS", "1").strip().lower() not in {"0", "false", "no", "off"}
 
 
+from utils.harness_paths import session_log_dir
+
+
 def get_completion_messages():
     """Return list of friendly completion messages."""
     return [
@@ -161,31 +164,7 @@ def main():
         # Read JSON input from stdin
         input_data = json.load(sys.stdin)
 
-        # Extract required fields
-        session_id = input_data.get("session_id", "")
-        stop_hook_active = input_data.get("stop_hook_active", False)
-
-        # Ensure log directory exists
-        log_dir = os.path.join(os.getcwd(), "logs")
-        os.makedirs(log_dir, exist_ok=True)
-        log_path = os.path.join(log_dir, "stop.json")
-
-        # Read existing log data or initialize empty list
-        if os.path.exists(log_path):
-            with open(log_path) as f:
-                try:
-                    log_data = json.load(f)
-                except (json.JSONDecodeError, ValueError):
-                    log_data = []
-        else:
-            log_data = []
-
-        # Append new data
-        log_data.append(input_data)
-
-        # Write back to file with formatting
-        with open(log_path, "w") as f:
-            json.dump(log_data, f, indent=2)
+        session_id = input_data.get("session_id", "unknown")
 
         # Handle --chat switch
         if args.chat and "transcript_path" in input_data:
@@ -203,9 +182,9 @@ def main():
                                 except json.JSONDecodeError:
                                     pass  # Skip invalid lines
 
-                    # Write to logs/chat.json
-                    chat_file = os.path.join(log_dir, "chat.json")
-                    with open(chat_file, "w") as f:
+                    chat_file = session_log_dir(session_id) / "chat.json"
+                    chat_file.parent.mkdir(parents=True, exist_ok=True)
+                    with chat_file.open("w") as f:
                         json.dump(chat_data, f, indent=2)
                 except Exception:
                     pass  # Fail silently

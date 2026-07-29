@@ -49,6 +49,11 @@ def load_hook(rel_path: str) -> ModuleType:
     saved_path = list(sys.path)
     pre_existing = set(sys.modules)
     try:
+        # Utility modules use the same absolute ``utils`` imports as hook
+        # scripts. Make the hooks root available only while loading so those
+        # sibling imports work without leaking a top-level namespace package.
+        if str(HOOKS_DIR) not in sys.path:
+            sys.path.insert(0, str(HOOKS_DIR))
         spec.loader.exec_module(module)
     finally:
         # Undo any sys.path entry the hook self-inserted, and drop top-level

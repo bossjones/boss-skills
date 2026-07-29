@@ -10,8 +10,6 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
-from pathlib import Path
 
 try:
     from dotenv import load_dotenv
@@ -19,38 +17,6 @@ try:
     load_dotenv()
 except ImportError:
     pass  # dotenv is optional
-
-
-def log_status_line(input_data, status_line_output):
-    """Log status line event to logs directory."""
-    # Ensure logs directory exists
-    log_dir = Path("logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "status_line.json"
-
-    # Read existing log data or initialize empty list
-    if log_file.exists():
-        with open(log_file, "r") as f:
-            try:
-                log_data = json.load(f)
-            except (json.JSONDecodeError, ValueError):
-                log_data = []
-    else:
-        log_data = []
-
-    # Create log entry with input data and generated output
-    log_entry = {
-        "timestamp": datetime.now().isoformat(),
-        "input_data": input_data,
-        "status_line_output": status_line_output,
-    }
-
-    # Append the log entry
-    log_data.append(log_entry)
-
-    # Write back to file with formatting
-    with open(log_file, "w") as f:
-        json.dump(log_data, f, indent=2)
 
 
 def get_git_branch():
@@ -119,9 +85,6 @@ def main():
 
         # Generate status line
         status_line = generate_status_line(input_data)
-
-        # Log the status line event
-        log_status_line(input_data, status_line)
 
         # Output the status line (first line of stdout becomes the status line)
         print(status_line)

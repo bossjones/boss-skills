@@ -13,6 +13,7 @@ Track session start time, show elapsed duration
 """
 
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -37,20 +38,31 @@ MAGENTA = "\033[35m"
 RESET = "\033[0m"
 
 
-# Session tracking file
-SESSION_TIMES_FILE = Path.home() / ".claude" / "session_times.json"
+HOOKS_DIR = Path(__file__).resolve().parent.parent / "hooks"
+if str(HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOKS_DIR))
+
+from utils.harness_paths import data_dir
 
 
-def get_session_start_time(session_id):
+def _project_dir(input_data):
+    """Return the project anchor supplied by the status-line payload."""
+    workspace = input_data.get("workspace", {}) or {}
+    return workspace.get("project_dir") or workspace.get("current_dir") or input_data.get("cwd") or os.getcwd()
+
+
+def get_session_start_time(session_id, project_dir):
     """Get or create the session start time."""
+    session_times_file = data_dir(project_dir) / "session_times.json"
+
     # Ensure directory exists
-    SESSION_TIMES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    session_times_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Load existing session times
     session_times = {}
-    if SESSION_TIMES_FILE.exists():
+    if session_times_file.exists():
         try:
-            with open(SESSION_TIMES_FILE, "r") as f:
+            with session_times_file.open("r") as f:
                 session_times = json.load(f)
         except (json.JSONDecodeError, ValueError):
             session_times = {}
@@ -71,7 +83,7 @@ def get_session_start_time(session_id):
 
     # Save back to file
     try:
-        with open(SESSION_TIMES_FILE, "w") as f:
+        with session_times_file.open("w") as f:
             json.dump(session_times, f, indent=2)
     except Exception:
         pass  # Ignore write errors
@@ -126,7 +138,7 @@ def generate_status_line(input_data):
     session_id = input_data.get("session_id", "default")
 
     # Get session start time
-    start_time = get_session_start_time(session_id)
+    start_time = get_session_start_time(session_id, _project_dir(input_data))
 
     # Format times
     elapsed_str = format_elapsed_time(start_time)

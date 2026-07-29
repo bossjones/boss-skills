@@ -51,9 +51,11 @@ script on stdin; the script prints the status line to stdout.
 ## Custom fields via `update_status_line`
 
 The [`/agent-harness:update_status_line`](./commands.md#update_status_line) command writes arbitrary
-key/value pairs into a session's data file (`.claude/data/sessions/{session_id}.json`, under an
-`extras` object). A status line that reads `extras` (such as `status_line_v4.py`) can then display
-custom fields — project name, current status, ticket number — that you set on the fly:
+key/value pairs into a session's data file
+(`.{repo-slug}/data/sessions/{session_id}.json`, under an `extras` object). A status line that reads
+`extras` (such as `status_line_v4.py`) can then display custom fields — project name, current
+status, ticket number — that you set on the fly. The root is derived from the project directory, so
+the data remains associated with the project even if a session changes its working directory:
 
 ```text
 /agent-harness:update_status_line <session_id> status debugging

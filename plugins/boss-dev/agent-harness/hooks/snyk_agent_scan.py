@@ -28,6 +28,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).parent))
 try:
     from utils.config import snyk_enabled, snyk_token
+    from utils.harness_paths import cache_dir
     from utils.snyk import ScanStatus, resolve_targets, run_scan, summarize
 except ImportError:
     # utils/ is missing or broken — fail closed rather than crash the session.
@@ -52,15 +53,18 @@ except ImportError:
     def snyk_token() -> str:  # type: ignore[misc]
         return ""
 
+    def cache_dir(project_dir: Path) -> Path:  # type: ignore[misc]
+        raise RuntimeError("utils.harness_paths unavailable")
+
 
 THROTTLE_SECONDS = 6 * 3600
 
 
 def _cache_path(project_root: Path) -> Path:
-    cache_dir = Path(__file__).resolve().parent.parent / "logs" / "snyk-scan-cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    scan_cache_dir = cache_dir(project_root) / "snyk"
+    scan_cache_dir.mkdir(parents=True, exist_ok=True)
     key = hashlib.sha256(str(project_root.resolve()).encode()).hexdigest()[:16]
-    return cache_dir / f"{key}.json"
+    return scan_cache_dir / f"{key}.json"
 
 
 def _throttled(cache_file: Path) -> bool:

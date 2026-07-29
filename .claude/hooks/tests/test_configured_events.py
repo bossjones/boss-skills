@@ -1,0 +1,1 @@
+../../../plugins/boss-dev/agent-harness/hooks/tests/test_configured_events.py

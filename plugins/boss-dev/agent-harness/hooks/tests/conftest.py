@@ -4,7 +4,7 @@ Mirrors the skill test suites under
 ``plugins/boss-dev/agent-harness/skills/*/scripts/tests/``: the sibling source
 directory is placed on ``sys.path`` so the modules under test import without
 packaging. Shared fixtures isolate the working directory (hooks write to
-``./logs`` and ``./.claude/data``) and scrub LLM credentials from the env.
+the project-local harness root) and scrub LLM credentials from the env.
 """
 
 from __future__ import annotations
@@ -26,14 +26,21 @@ if str(TESTS_DIR) not in sys.path:
 
 
 @pytest.fixture
-def in_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+def project_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Use the temporary directory as the explicit Claude project root."""
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+    return tmp_path
+
+
+@pytest.fixture
+def in_tmp_cwd(project_dir: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """Run the test with the current working directory set to an isolated tmp dir.
 
-    Required for any hook that writes to ``./logs`` or ``./.claude/data`` (relative
-    paths) and to ensure ``load_dotenv()`` finds no stray ``.env``.
+    Required for hooks that resolve runtime artifacts and to ensure
+    ``load_dotenv()`` finds no stray ``.env``.
     """
-    monkeypatch.chdir(tmp_path)
-    yield tmp_path
+    monkeypatch.chdir(project_dir)
+    yield project_dir
 
 
 @pytest.fixture

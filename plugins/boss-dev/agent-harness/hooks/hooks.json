@@ -7,7 +7,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre_tool_use.py"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type PreToolUse"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre_tool_use.py"
           }
         ]
       }
@@ -18,7 +27,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/post_tool_use.py"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type PostToolUse"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/post_tool_use.py"
           }
         ]
       },
@@ -27,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/ruff_autoformat.py"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/ruff_autoformat.py"
           }
         ]
       }
@@ -38,7 +56,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/notification.py --notify"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type Notification"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/notification.py --notify"
           }
         ]
       },
@@ -47,7 +74,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event notification"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event notification"
           }
         ]
       }
@@ -58,7 +85,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/stop.py --chat"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type Stop"
           }
         ]
       },
@@ -67,7 +94,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event stop"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/stop.py --chat"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event stop"
           }
         ]
       }
@@ -78,7 +114,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event stopfailure"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type StopFailure"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/tmux_notify.py --event stopfailure"
           }
         ]
       }
@@ -89,17 +134,35 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/subagent_stop.py --notify"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type SubagentStop"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/subagent_stop.py --notify"
           }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
+        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/user_prompt_submit.py --log-only --store-last-prompt --name-agent"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type UserPromptSubmit"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/user_prompt_submit.py --log-only --store-last-prompt --name-agent"
           }
         ]
       }
@@ -110,7 +173,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre_compact.py"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type PreCompact"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre_compact.py"
           }
         ]
       }
@@ -121,7 +193,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/session_start.py"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type SessionStart"
           }
         ]
       },
@@ -130,7 +202,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/snyk_agent_scan.py"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/session_start.py"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/snyk_agent_scan.py"
           }
         ]
       }
@@ -141,7 +222,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/session_end.py"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type SessionEnd --prune"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/session_end.py"
           }
         ]
       }
@@ -152,7 +242,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/permission_request.py --log-only"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type PermissionRequest"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/permission_request.py --log-only"
           }
         ]
       }
@@ -163,7 +262,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/post_tool_use_failure.py"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type PostToolUseFailure"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/post_tool_use_failure.py"
           }
         ]
       }
@@ -174,7 +282,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/subagent_start.py"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type SubagentStart"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/subagent_start.py"
           }
         ]
       }
@@ -185,7 +302,82 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/setup.py"
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type Setup"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/setup.py"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type PostCompact"
+          }
+        ]
+      }
+    ],
+    "UserPromptExpansion": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type UserPromptExpansion"
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type PermissionDenied"
+          }
+        ]
+      }
+    ],
+    "PostToolBatch": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type PostToolBatch"
+          }
+        ]
+      }
+    ],
+    "TaskCreated": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type TaskCreated"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}\"/hooks/uv-guard.sh run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/log_event.py --event-type TaskCompleted"
           }
         ]
       }

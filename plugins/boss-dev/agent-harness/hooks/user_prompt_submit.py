@@ -19,32 +19,11 @@ except ImportError:
     pass  # dotenv is optional
 
 
-def log_user_prompt(session_id, input_data):
-    """Log user prompt to logs directory."""
-    # Ensure logs directory exists
-    log_dir = Path("logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "user_prompt_submit.json"
+HOOKS_DIR = Path(__file__).resolve().parent
+if str(HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOKS_DIR))
 
-    # Read existing log data or initialize empty list
-    if log_file.exists():
-        with open(log_file) as f:
-            try:
-                log_data = json.load(f)
-            except (json.JSONDecodeError, ValueError):
-                log_data = []
-    else:
-        log_data = []
-
-    # Append the entire input data
-    log_data.append(input_data)
-
-    # Write back to file with formatting
-    with open(log_file, "w") as f:
-        json.dump(log_data, f, indent=2)
-
-
-# Legacy function removed - now handled by manage_session_data
+from utils.harness_paths import data_dir
 
 
 def manage_session_data(session_id, prompt, name_agent=False):
@@ -55,7 +34,7 @@ def manage_session_data(session_id, prompt, name_agent=False):
     llm_dir = Path(__file__).parent / "utils" / "llm"
 
     # Ensure sessions directory exists
-    sessions_dir = Path(".claude/data/sessions")
+    sessions_dir = data_dir() / "sessions"
     sessions_dir.mkdir(parents=True, exist_ok=True)
 
     # Load or create session file
@@ -159,9 +138,6 @@ def main():
         # Extract session_id and prompt
         session_id = input_data.get("session_id", "unknown")
         prompt = input_data.get("prompt", "")
-
-        # Log the user prompt
-        log_user_prompt(session_id, input_data)
 
         # Manage session data with JSON structure
         if args.store_last_prompt or args.name_agent:

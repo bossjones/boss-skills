@@ -324,9 +324,10 @@ fails.
 - **Arguments:** `<session_id> <key> <value>`.
 - **When to use:** You want a custom field (project name, current status, ticket) to show up in a
   status line that renders the `extras` object.
-- **What it does:** Loads `.claude/data/sessions/{session_id}.json`, creates an `extras` object if
-  needed, upserts `extras[key] = value`, and writes it back — then reports old/new values and the
-  file path.
+- **What it does:** Loads
+  `.{repo-slug}/data/sessions/{session_id}.json`, creates an `extras` object if needed, upserts
+  `extras[key] = value`, and writes it back — then reports old/new values and the file path. The
+  harness root is project-derived (or configured with `HARNESS_DIR`), not cwd-relative.
 - **Example:**
 
   ```text

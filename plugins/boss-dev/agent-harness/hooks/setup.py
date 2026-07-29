@@ -11,7 +11,6 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
 from pathlib import Path
 
 try:
@@ -22,30 +21,11 @@ except ImportError:
     pass  # dotenv is optional
 
 
-def log_setup(input_data):
-    """Log setup event to logs directory."""
-    # Ensure logs directory exists
-    log_dir = Path("logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "setup.json"
+HOOKS_DIR = Path(__file__).resolve().parent
+if str(HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOKS_DIR))
 
-    # Read existing log data or initialize empty list
-    if log_file.exists():
-        with open(log_file) as f:
-            try:
-                log_data = json.load(f)
-            except (json.JSONDecodeError, ValueError):
-                log_data = []
-    else:
-        log_data = []
-
-    # Append the entire input data with timestamp
-    entry = {"timestamp": datetime.now().isoformat(), **input_data}
-    log_data.append(entry)
-
-    # Write back to file with formatting
-    with open(log_file, "w") as f:
-        json.dump(log_data, f, indent=2)
+from utils.harness_paths import logs_root
 
 
 def persist_env_variable(name, value):
@@ -196,8 +176,8 @@ def run_maintenance_tasks(cwd):
     """Run periodic maintenance tasks."""
     tasks_completed = []
 
-    # Check disk usage of logs directory
-    logs_dir = Path(cwd, "logs")
+    # Check disk usage of agent-harness logs
+    logs_dir = logs_root(cwd)
     if logs_dir.exists():
         try:
             total_size = sum(f.stat().st_size for f in logs_dir.rglob("*") if f.is_file())
@@ -238,9 +218,6 @@ def main():
         _permission_mode = input_data.get("permission_mode", "default")  # noqa: F841
         _hook_event_name = input_data.get("hook_event_name", "Setup")  # noqa: F841
         trigger = input_data.get("trigger", "init")  # "init" or "maintenance"
-
-        # Log the setup event
-        log_setup(input_data)
 
         # Build context information
         context_parts = []

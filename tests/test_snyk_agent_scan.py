@@ -439,6 +439,8 @@ def test_sessionstart_throttles_repeat_scans(tmp_path: Path) -> None:
     first = _run_sessionstart(tmp_path, **env)
     assert first.returncode == 0
     assert sentinel.exists()  # scanner really ran the first time
+    assert list(tmp_path.glob(".*/cache/snyk/*.json"))
+    assert not (tmp_path / "logs").exists()
 
     sentinel.unlink()
     second = _run_sessionstart(tmp_path, **env)

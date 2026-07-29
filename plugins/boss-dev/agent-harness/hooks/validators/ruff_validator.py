@@ -19,9 +19,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Logging setup - log file next to this script
-SCRIPT_DIR = Path(__file__).parent
-LOG_FILE = SCRIPT_DIR / "ruff_validator.log"
+HOOKS_DIR = Path(__file__).resolve().parents[1]
+if str(HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOKS_DIR))
+
+from utils.harness_paths import logs_root
+
+LOG_FILE = logs_root() / "validators" / "ruff_validator.log"
+LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,

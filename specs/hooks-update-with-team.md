@@ -1,10 +1,17 @@
 # Plan: Update Claude Code Hooks Mastery Codebase
 
+> [!WARNING]
+> **Superseded.** Use [hooks-improved.md](./hooks-improved.md), which defines the project-scoped
+> JSONL logging architecture, retention, redaction, and current event coverage.
+
 ## Task Description
+
 Update the claude-code-hooks-mastery codebase to support all the latest Claude Code hooks, update Python implementations to include latest versions and input fields, add 5 new status line versions, and update documentation. The update includes creating new hooks for `SessionEnd`, `PermissionRequest`, `PostToolUseFailure`, `SubagentStart`, and `Setup`, while ensuring all existing hooks are updated with the latest JSON input fields. Validation will be performed using `claude -p '<prompt>'` commands with log file verification.
 
 ## Objective
+
 Bring the hooks codebase to full parity with the latest Claude Code hooks documentation, including:
+
 1. All hook types implemented with latest input schemas
 2. 5 new creative status line implementations
 3. Updated settings.json with all hook configurations
@@ -12,7 +19,9 @@ Bring the hooks codebase to full parity with the latest Claude Code hooks docume
 5. Validated hooks through automated testing
 
 ## Problem Statement
+
 The current codebase is missing several hook types documented in the latest Claude Code hooks specification:
+
 - **SessionEnd** - Fires when session terminates
 - **PermissionRequest** - Fires when permission dialog appears
 - **PostToolUseFailure** - Fires after tool fails
@@ -22,17 +31,21 @@ The current codebase is missing several hook types documented in the latest Clau
 Additionally, existing hooks may not include all the latest input fields from the documentation.
 
 ## Solution Approach
+
 Deploy specialized builder/validator agent pairs for each hook type, plus dedicated agents for status lines and documentation. Each pair follows a build-then-validate pattern to ensure quality.
 
 ## Relevant Files
+
 Use these files to complete the task:
 
 ### Documentation (Read for Reference)
+
 - `ai_docs/claude_code_hooks_docs.md` - Complete hooks reference documentation
 - `ai_docs/claude_code_hooks_getting_started.md` - Hooks quickstart guide
 - `ai_docs/claude_code_status_lines_docs.md` - Status line configuration docs
 
 ### Existing Hooks (Update)
+
 - `.claude/hooks/pre_tool_use.py` - PreToolUse hook implementation
 - `.claude/hooks/post_tool_use.py` - PostToolUse hook implementation
 - `.claude/hooks/stop.py` - Stop hook implementation
@@ -43,6 +56,7 @@ Use these files to complete the task:
 - `.claude/hooks/pre_compact.py` - PreCompact hook implementation
 
 ### New Files to Create
+
 - `.claude/hooks/session_end.py` - NEW: SessionEnd hook
 - `.claude/hooks/permission_request.py` - NEW: PermissionRequest hook
 - `.claude/hooks/post_tool_use_failure.py` - NEW: PostToolUseFailure hook
@@ -55,27 +69,35 @@ Use these files to complete the task:
 - `.claude/status_lines/status_line_v9.py` - NEW: Minimal powerline-style status line
 
 ### Configuration
+
 - `.claude/settings.json` - Hook configuration (update with all hooks)
 
 ### Documentation (Update)
+
 - `README.md` - Main documentation (update with all hooks and new status lines)
 
 ## Implementation Phases
 
 ### Phase 1: Foundation
+
 Build all missing hook implementations:
+
 - SessionEnd, PermissionRequest, PostToolUseFailure, SubagentStart, Setup
 - Ensure consistent structure with existing hooks
 - Follow uv single-file script pattern
 
 ### Phase 2: Core Implementation
+
 Update existing hooks and create new status lines:
+
 - Update all existing hooks with latest input fields
 - Create 5 new status line versions
 - Update settings.json with all hook configurations
 
 ### Phase 3: Integration & Polish
+
 Validation and documentation:
+
 - Validate all hooks using `claude -p` commands
 - Update README.md with comprehensive documentation
 - Ensure all log files are properly generated
@@ -177,6 +199,7 @@ Validation and documentation:
 - Before you start, run `TaskCreate` to create the initial task list that all team members can see and execute.
 
 ### 1. Build SessionEnd Hook
+
 - **Task ID**: build-session-end
 - **Depends On**: none
 - **Assigned To**: session-end-builder
@@ -188,6 +211,7 @@ Validation and documentation:
 - Include optional cleanup tasks capability
 
 ### 2. Build PermissionRequest Hook
+
 - **Task ID**: build-permission-request
 - **Depends On**: none
 - **Assigned To**: permission-request-builder
@@ -199,6 +223,7 @@ Validation and documentation:
 - Log all permission requests to `logs/permission_request.json`
 
 ### 3. Build PostToolUseFailure Hook
+
 - **Task ID**: build-post-tool-failure
 - **Depends On**: none
 - **Assigned To**: post-tool-failure-builder
@@ -209,6 +234,7 @@ Validation and documentation:
 - Include tool_name, tool_input, and error information
 
 ### 4. Build SubagentStart Hook
+
 - **Task ID**: build-subagent-start
 - **Depends On**: none
 - **Assigned To**: subagent-start-builder
@@ -219,6 +245,7 @@ Validation and documentation:
 - Optional TTS announcement of subagent start
 
 ### 5. Build Setup Hook
+
 - **Task ID**: build-setup
 - **Depends On**: none
 - **Assigned To**: setup-builder
@@ -230,6 +257,7 @@ Validation and documentation:
 - Log setup events to `logs/setup.json`
 
 ### 6. Build Status Lines v5-v9
+
 - **Task ID**: build-status-lines
 - **Depends On**: none
 - **Assigned To**: status-lines-builder
@@ -242,6 +270,7 @@ Validation and documentation:
 - Create `status_line_v9.py` - Minimal powerline-style with Unicode separators
 
 ### 7. Validate SessionEnd Hook
+
 - **Task ID**: validate-session-end
 - **Depends On**: build-session-end
 - **Assigned To**: session-end-validator
@@ -252,6 +281,7 @@ Validation and documentation:
 - Test hook is triggered correctly (SessionEnd fires on exit)
 
 ### 8. Validate PermissionRequest Hook
+
 - **Task ID**: validate-permission-request
 - **Depends On**: build-permission-request
 - **Assigned To**: permission-request-validator
@@ -262,6 +292,7 @@ Validation and documentation:
 - Verify JSON output structure matches documentation
 
 ### 9. Validate PostToolUseFailure Hook
+
 - **Task ID**: validate-post-tool-failure
 - **Depends On**: build-post-tool-failure
 - **Assigned To**: post-tool-failure-validator
@@ -271,6 +302,7 @@ Validation and documentation:
 - Run `uv run python -m py_compile .claude/hooks/post_tool_use_failure.py`
 
 ### 10. Validate SubagentStart Hook
+
 - **Task ID**: validate-subagent-start
 - **Depends On**: build-subagent-start
 - **Assigned To**: subagent-start-validator
@@ -280,6 +312,7 @@ Validation and documentation:
 - Run `uv run python -m py_compile .claude/hooks/subagent_start.py`
 
 ### 11. Validate Setup Hook
+
 - **Task ID**: validate-setup
 - **Depends On**: build-setup
 - **Assigned To**: setup-validator
@@ -289,6 +322,7 @@ Validation and documentation:
 - Run `uv run python -m py_compile .claude/hooks/setup.py`
 
 ### 12. Validate Status Lines
+
 - **Task ID**: validate-status-lines
 - **Depends On**: build-status-lines
 - **Assigned To**: status-lines-validator
@@ -299,6 +333,7 @@ Validation and documentation:
 - Test each status line with mock JSON input
 
 ### 13. Update Settings.json
+
 - **Task ID**: update-settings
 - **Depends On**: validate-session-end, validate-permission-request, validate-post-tool-failure, validate-subagent-start, validate-setup
 - **Assigned To**: session-end-builder
@@ -312,6 +347,7 @@ Validation and documentation:
 - Ensure all matchers are properly configured
 
 ### 14. Integration Test All Hooks
+
 - **Task ID**: integration-test
 - **Depends On**: update-settings
 - **Assigned To**: setup-validator
@@ -322,6 +358,7 @@ Validation and documentation:
 - Check log file contents for proper JSON structure
 
 ### 15. Update README Documentation
+
 - **Task ID**: update-readme
 - **Depends On**: integration-test, validate-status-lines
 - **Assigned To**: docs-builder
@@ -334,6 +371,7 @@ Validation and documentation:
 - Update Features Demonstrated section
 
 ### 16. Final Validation
+
 - **Task ID**: validate-all
 - **Depends On**: update-readme
 - **Assigned To**: setup-validator
@@ -355,6 +393,7 @@ Validation and documentation:
 7. **Consistent code style**: All hooks follow existing uv single-file script pattern
 
 ## Validation Commands
+
 Execute these commands to validate the task is complete:
 
 - `uv run python -m py_compile .claude/hooks/session_end.py` - Compile new SessionEnd hook

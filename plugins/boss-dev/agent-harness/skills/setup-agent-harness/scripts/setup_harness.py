@@ -30,13 +30,15 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import importlib.util
 import json
 import os
+import re
 import shutil
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from types import ModuleType
 
 # --- Managed .gitignore block -------------------------------------------------
 
@@ -44,21 +46,29 @@ MANAGED_BLOCK_START = "# >>> agent-harness managed (do not edit) >>>"
 MANAGED_BLOCK_END = "# <<< agent-harness managed <<<"
 
 # Runtime artifacts written by agent-harness hooks, plus the backups this script
-# creates. The last two patterns ignore `<file>.backup.<timestamp>` files: settings
-# backups live under `.claude/`, and `.gitignore` backups are written beside
-# `.gitignore` at the repo root.
-GITIGNORE_PATTERNS = [
-    "logs/",
-    ".claude/data/",
-    "*.log",
-    ".claude/*.backup.*",
-    ".gitignore.backup.*",
-]
+# creates. The root is derived at install time so this standalone script writes
+# the same concrete root as the hook path helper without relying on a package
+# import from the installed plugin.
+_NON_ALPHANUMERIC = re.compile(r"[^a-z0-9]+")
 
 # --- settings.local.json shape ------------------------------------------------
 
 SCHEMA_URL = "https://json.schemastore.org/claude-code-settings.json"
-PLUGIN_ID = "agent-harness@boss-skills"
+_PLUGIN_NAME = "agent-harness"
+
+
+def _plugin_id() -> str:
+    """Resolve the installed marketplace identity, defaulting to this repo's own."""
+    plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT", "")
+    parts = Path(plugin_root).parts
+    try:
+        marketplace = parts[parts.index("marketplaces") + 1]
+    except (ValueError, IndexError):
+        marketplace = os.environ.get("CLAUDE_PLUGIN_MARKETPLACE", "").strip() or "boss-skills"
+    return f"{_PLUGIN_NAME}@{marketplace}"
+
+
+PLUGIN_ID = _plugin_id()
 
 # The plugin ships `status_lines/status_line_v10.py` at its root; ${CLAUDE_PLUGIN_ROOT}
 # is left literal so Claude Code interpolates it at runtime.
@@ -127,10 +137,26 @@ def _non_comment_lines(text: str) -> set[str]:
     return out
 
 
-def missing_patterns(text: str) -> list[str]:
+def harness_slug(value: str) -> str:
+    """Return the filesystem-safe harness root suffix for a repository name."""
+    normalized = _NON_ALPHANUMERIC.sub("-", value.lower()).strip(".-")
+    return normalized or "agent-harness"
+
+
+def gitignore_patterns(repo_root: Path) -> list[str]:
+    """Return managed ignores for this repository's harness runtime artifacts."""
+    return [
+        f".{harness_slug(repo_root.name)}/",
+        "*.log",
+        ".claude/*.backup.*",
+        ".gitignore.backup.*",
+    ]
+
+
+def missing_patterns(text: str, patterns: list[str]) -> list[str]:
     """Return managed patterns not already present as an exact line in ``text``."""
     present = _non_comment_lines(text)
-    return [p for p in GITIGNORE_PATTERNS if p not in present]
+    return [pattern for pattern in patterns if pattern not in present]
 
 
 def _render_managed_block(patterns: list[str]) -> str:
@@ -145,12 +171,16 @@ def apply_gitignore(repo_root: Path, dry_run: bool) -> dict[str, object]:
     """
     path = repo_root / ".gitignore"
     text = path.read_text(encoding="utf-8") if path.exists() else ""
-    missing = missing_patterns(text)
+    patterns = gitignore_patterns(repo_root)
+    missing = missing_patterns(text, patterns)
+    has_managed_block = MANAGED_BLOCK_START in text
 
-    if not missing:
+    if not missing and not has_managed_block:
         return {"changed": False, "added": [], "backup": None}
 
-    new_text = _merge_managed_block(text, missing)
+    new_text = _merge_managed_block(text, patterns if has_managed_block else missing)
+    if new_text == text:
+        return {"changed": False, "added": [], "backup": None}
 
     if dry_run:
         return {
@@ -170,8 +200,8 @@ def apply_gitignore(repo_root: Path, dry_run: bool) -> dict[str, object]:
     }
 
 
-def _merge_managed_block(text: str, missing: list[str]) -> str:
-    """Insert/refresh the managed block, appending only ``missing`` patterns."""
+def _merge_managed_block(text: str, patterns: list[str]) -> str:
+    """Insert a managed block or replace an existing block with ``patterns``."""
     lines = text.splitlines()
     try:
         start = lines.index(MANAGED_BLOCK_START)
@@ -186,10 +216,7 @@ def _merge_managed_block(text: str, missing: list[str]) -> str:
             end = lines.index(MANAGED_BLOCK_END, start + 1)
         except ValueError:
             end = len(lines)
-        body = [ln for ln in lines[start + 1 : end] if ln not in (MANAGED_BLOCK_START, MANAGED_BLOCK_END)]
-        existing = _non_comment_lines("\n".join(body))
-        to_add = [p for p in missing if p not in existing]
-        new_block = [MANAGED_BLOCK_START, *body, *to_add, MANAGED_BLOCK_END]
+        new_block = [MANAGED_BLOCK_START, *patterns, MANAGED_BLOCK_END]
         merged = lines[:start] + new_block + lines[end + 1 :]
         return "\n".join(merged) + "\n"
 
@@ -199,7 +226,7 @@ def _merge_managed_block(text: str, missing: list[str]) -> str:
         prefix += "\n"
     if prefix and not prefix.endswith("\n\n"):
         prefix += "\n"
-    return prefix + _render_managed_block(missing) + "\n"
+    return prefix + _render_managed_block(patterns) + "\n"
 
 
 # --- settings.local.json merge ------------------------------------------------
@@ -319,46 +346,27 @@ def apply_settings(
 # --- environment readiness ----------------------------------------------------
 
 
-def _which(name: str) -> bool:
-    return shutil.which(name) is not None
+def _shared_preflight() -> dict[str, object]:
+    """Load the shared stdlib helper by path for standalone-skill compatibility."""
+    module_name = "_agent_harness_preflight"
+    cached = sys.modules.get(module_name)
+    if isinstance(cached, ModuleType):
+        module = cached
+    else:
+        path = Path(__file__).resolve().parents[3] / "hooks" / "utils" / "preflight.py"
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load shared preflight helper: {path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+    return module.check_env()
 
 
 def check_env() -> dict[str, object]:
-    """Report (never block) on tools the harness expects: uv, python, gh."""
-    results: dict[str, object] = {}
-
-    results["uv"] = {
-        "ok": _which("uv"),
-        "hint": None if _which("uv") else "install uv: https://docs.astral.sh/uv/",
-    }
-    results["python3"] = {
-        "ok": _which("python3"),
-        "hint": None if _which("python3") else "install Python 3.11+",
-    }
-
-    gh_installed = _which("gh")
-    gh_auth_ok = False
-    if gh_installed:
-        try:
-            proc = subprocess.run(
-                ["gh", "auth", "status"],
-                capture_output=True,
-                text=True,
-                timeout=15,
-                check=False,
-            )
-            gh_auth_ok = proc.returncode == 0
-        except (OSError, subprocess.SubprocessError):
-            gh_auth_ok = False
-    if not gh_installed:
-        gh_hint: str | None = "install GitHub CLI: https://cli.github.com/"
-    elif not gh_auth_ok:
-        gh_hint = "run `gh auth login` to authenticate"
-    else:
-        gh_hint = None
-    results["gh"] = {"installed": gh_installed, "authenticated": gh_auth_ok, "hint": gh_hint}
-
-    return results
+    """Return the historic setup-harness env shape via the shared preflight."""
+    shared = _shared_preflight()
+    return {name: shared[name] for name in ("uv", "python3", "gh")}
 
 
 # --- detect / apply commands --------------------------------------------------
@@ -393,7 +401,7 @@ def cmd_detect(repo_root: Path) -> int:
         "has_output_style": None if settings_error else "outputStyle" in settings,
         "output_style": None if settings_error else settings.get("outputStyle"),
         "plugin_enabled": None if settings_error else _plugin_enabled(settings),
-        "gitignore_missing": missing_patterns(gitignore_text),
+        "gitignore_missing": missing_patterns(gitignore_text, gitignore_patterns(repo_root)),
         "output_styles": OUTPUT_STYLES,
         "env": check_env(),
     }

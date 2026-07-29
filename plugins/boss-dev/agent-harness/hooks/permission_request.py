@@ -40,7 +40,6 @@ import argparse
 import json
 import re
 import sys
-from pathlib import Path
 
 try:
     from dotenv import load_dotenv
@@ -199,34 +198,6 @@ def create_deny_response(message: str, interrupt: bool = False) -> dict:
     }
 
 
-def log_permission_request(input_data: dict, log_dir: Path):
-    """
-    Log the permission request to a JSON file.
-
-    Args:
-        input_data: The input data from the hook
-        log_dir: Path to the logs directory
-    """
-    log_path = log_dir / "permission_request.json"
-
-    # Read existing log data or initialize empty list
-    if log_path.exists():
-        with open(log_path) as f:
-            try:
-                log_data = json.load(f)
-            except (json.JSONDecodeError, ValueError):
-                log_data = []
-    else:
-        log_data = []
-
-    # Append new data
-    log_data.append(input_data)
-
-    # Write back to file with formatting
-    with open(log_path, "w") as f:
-        json.dump(log_data, f, indent=2)
-
-
 def main():
     try:
         # Parse command line arguments
@@ -255,13 +226,6 @@ def main():
         if hook_event_name != "PermissionRequest":
             # Not a PermissionRequest event, exit gracefully
             sys.exit(0)
-
-        # Ensure log directory exists
-        log_dir = Path.cwd() / "logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
-
-        # Log the permission request
-        log_permission_request(input_data, log_dir)
 
         # If log-only mode, exit without making a decision
         if args.log_only:

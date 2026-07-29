@@ -11,30 +11,37 @@ import setup_harness as sh
 # --- .gitignore ---------------------------------------------------------------
 
 
-def test_missing_patterns_empty_file() -> None:
-    assert sh.missing_patterns("") == sh.GITIGNORE_PATTERNS
+def _patterns(repo: Path) -> list[str]:
+    return sh.gitignore_patterns(repo)
 
 
-def test_missing_patterns_skips_existing() -> None:
-    text = "logs/\n*.log\n"
-    missing = sh.missing_patterns(text)
-    assert "logs/" not in missing
+def test_missing_patterns_empty_file(tmp_path: Path) -> None:
+    assert sh.missing_patterns("", _patterns(tmp_path)) == _patterns(tmp_path)
+
+
+def test_missing_patterns_skips_existing(tmp_path: Path) -> None:
+    root_pattern = _patterns(tmp_path)[0]
+    text = f"{root_pattern}\n*.log\n"
+    missing = sh.missing_patterns(text, _patterns(tmp_path))
+    assert root_pattern not in missing
     assert "*.log" not in missing
-    assert ".claude/data/" in missing
     assert ".claude/*.backup.*" in missing
 
 
-def test_gitignore_patterns_ignore_root_backups() -> None:
+def test_gitignore_patterns_ignore_derived_harness_root_and_backups(tmp_path: Path) -> None:
     # backup() writes `.gitignore.backup.<ts>` at the repo root, so the managed
     # block must ignore those root backups, not just `.claude/` ones.
-    assert ".gitignore.backup.*" in sh.GITIGNORE_PATTERNS
-    assert ".gitignore.backup.*" in sh.missing_patterns("")
+    patterns = _patterns(tmp_path)
+    assert patterns[0] == f".{sh.harness_slug(tmp_path.name)}/"
+    assert ".gitignore.backup.*" in patterns
+    assert ".gitignore.backup.*" in sh.missing_patterns("", patterns)
 
 
-def test_missing_patterns_ignores_commented_lines() -> None:
+def test_missing_patterns_ignores_commented_lines(tmp_path: Path) -> None:
     # A commented-out pattern does not count as "present".
-    text = "# logs/\n"
-    assert "logs/" in sh.missing_patterns(text)
+    root_pattern = _patterns(tmp_path)[0]
+    text = f"# {root_pattern}\n"
+    assert root_pattern in sh.missing_patterns(text, _patterns(tmp_path))
 
 
 def test_apply_gitignore_creates_block(tmp_path: Path) -> None:
@@ -43,18 +50,20 @@ def test_apply_gitignore_creates_block(tmp_path: Path) -> None:
     content = (tmp_path / ".gitignore").read_text()
     assert sh.MANAGED_BLOCK_START in content
     assert sh.MANAGED_BLOCK_END in content
-    for pat in sh.GITIGNORE_PATTERNS:
+    for pat in _patterns(tmp_path):
         assert pat in content
+    assert "logs/" not in content
+    assert ".claude/data/" not in content
 
 
 def test_apply_gitignore_no_dup_existing(tmp_path: Path) -> None:
     gi = tmp_path / ".gitignore"
-    gi.write_text("logs/\n*.log\n")
+    root_pattern = _patterns(tmp_path)[0]
+    gi.write_text(f"{root_pattern}\n*.log\n")
     sh.apply_gitignore(tmp_path, dry_run=False)
     content = gi.read_text()
-    # `logs/` appears exactly once (the pre-existing line, not re-added).
-    assert content.count("logs/") == 1
-    assert ".claude/data/" in content
+    # The pre-existing root pattern is not duplicated.
+    assert content.count(root_pattern) == 1
 
 
 def test_apply_gitignore_backs_up_existing(tmp_path: Path) -> None:
@@ -90,8 +99,8 @@ def test_apply_gitignore_repairs_block_missing_end_marker(tmp_path: Path) -> Non
 
     assert content.count(sh.MANAGED_BLOCK_START) == 1
     assert content.count(sh.MANAGED_BLOCK_END) == 1
-    assert content.count("logs/") == 1
-    for pat in sh.GITIGNORE_PATTERNS:
+    assert "logs/" not in content
+    for pat in _patterns(tmp_path):
         assert pat in content
 
 
@@ -103,20 +112,20 @@ def test_apply_gitignore_dry_run_writes_nothing(tmp_path: Path) -> None:
 
 def test_apply_gitignore_dry_run_shows_diff(tmp_path: Path) -> None:
     gi = tmp_path / ".gitignore"
-    gi.write_text("logs/\n")
+    gi.write_text("existing-ignore/\n")
     result = sh.apply_gitignore(tmp_path, dry_run=True)
     diff = str(result["diff"])
     # Unified-diff header plus the added managed block, nothing written.
     assert "--- a/.gitignore" in diff
     assert "+++ b/.gitignore" in diff
     assert "+" + sh.MANAGED_BLOCK_START in diff
-    assert "+.claude/data/" in diff
-    assert gi.read_text() == "logs/\n"
+    assert "+" + _patterns(tmp_path)[0] in diff
+    assert gi.read_text() == "existing-ignore/\n"
 
 
 def test_apply_gitignore_all_present_is_full_noop(tmp_path: Path) -> None:
     gi = tmp_path / ".gitignore"
-    original = "\n".join(sh.GITIGNORE_PATTERNS) + "\n"
+    original = "\n".join(_patterns(tmp_path)) + "\n"
     gi.write_text(original)
 
     result = sh.apply_gitignore(tmp_path, dry_run=False)
@@ -131,7 +140,8 @@ def test_apply_gitignore_all_present_is_full_noop(tmp_path: Path) -> None:
 def test_apply_gitignore_existing_block_subset_no_dup(tmp_path: Path) -> None:
     gi = tmp_path / ".gitignore"
     # A managed block that already holds two of the managed patterns.
-    seeded = f"{sh.MANAGED_BLOCK_START}\nlogs/\n*.log\n{sh.MANAGED_BLOCK_END}\n"
+    root_pattern = _patterns(tmp_path)[0]
+    seeded = f"{sh.MANAGED_BLOCK_START}\n{root_pattern}\n*.log\n{sh.MANAGED_BLOCK_END}\n"
     gi.write_text(seeded)
 
     result = sh.apply_gitignore(tmp_path, dry_run=False)
@@ -139,16 +149,48 @@ def test_apply_gitignore_existing_block_subset_no_dup(tmp_path: Path) -> None:
 
     assert result["changed"] is True
     # Only the genuinely missing patterns were added.
-    assert set(result["added"]) == set(sh.GITIGNORE_PATTERNS) - {"logs/", "*.log"}
+    assert set(result["added"]) == set(_patterns(tmp_path)) - {root_pattern, "*.log"}
     # Existing patterns are not duplicated.
-    assert content.count("logs/") == 1
+    assert content.count(root_pattern) == 1
     assert content.count("*.log") == 1
     # Block markers appear exactly once each.
     assert content.count(sh.MANAGED_BLOCK_START) == 1
     assert content.count(sh.MANAGED_BLOCK_END) == 1
-    # All four patterns are present inside the single block.
-    for pat in sh.GITIGNORE_PATTERNS:
+    # All managed patterns are present inside the single block.
+    for pat in _patterns(tmp_path):
         assert pat in content
+
+
+def test_apply_gitignore_rewrites_legacy_managed_block(tmp_path: Path) -> None:
+    gi = tmp_path / ".gitignore"
+    gi.write_text(f"{sh.MANAGED_BLOCK_START}\nlogs/\n.claude/data/\n*.log\n{sh.MANAGED_BLOCK_END}\n")
+
+    result = sh.apply_gitignore(tmp_path, dry_run=False)
+    content = gi.read_text()
+
+    assert result["changed"] is True
+    assert "logs/" not in content
+    assert ".claude/data/" not in content
+    for pattern in _patterns(tmp_path):
+        assert pattern in content
+
+
+def test_plugin_id_falls_back_to_boss_skills_marketplace(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
+    monkeypatch.delenv("CLAUDE_PLUGIN_MARKETPLACE", raising=False)
+    assert sh._plugin_id() == "agent-harness@boss-skills"
+
+
+def test_plugin_id_prefers_marketplaces_path_segment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", "/home/user/.claude/marketplaces/some-fork/plugins/agent-harness")
+    monkeypatch.delenv("CLAUDE_PLUGIN_MARKETPLACE", raising=False)
+    assert sh._plugin_id() == "agent-harness@some-fork"
+
+
+def test_plugin_id_falls_back_to_env_marketplace(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
+    monkeypatch.setenv("CLAUDE_PLUGIN_MARKETPLACE", "another-fork")
+    assert sh._plugin_id() == "agent-harness@another-fork"
 
 
 # --- settings.local.json ------------------------------------------------------
@@ -464,7 +506,7 @@ def test_detect_emits_stable_json(tmp_path: Path, capsys: pytest.CaptureFixture[
     }
     assert expected_keys <= set(out)
     assert out["settings_exists"] is False
-    assert out["gitignore_missing"] == sh.GITIGNORE_PATTERNS
+    assert out["gitignore_missing"] == _patterns(tmp_path)
 
 
 def test_detect_reports_null_fields_on_invalid_settings(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
