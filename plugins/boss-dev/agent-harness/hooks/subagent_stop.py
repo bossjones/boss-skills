@@ -38,7 +38,7 @@ def debug_log(message: str, session_id: str) -> None:
 # Add hooks directory to path for local imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from utils.harness_paths import session_log_dir
+from utils.harness_paths import agent_log_dir, session_log_dir
 
 try:
     from utils.tts.tts_queue import acquire_tts_lock, cleanup_stale_locks, release_tts_lock
@@ -233,7 +233,7 @@ def main() -> None:
                                 except json.JSONDecodeError:
                                     pass  # Skip invalid lines
 
-                    chat_file = session_log_dir(session_id) / "agents" / agent_id / "chat.json"
+                    chat_file = agent_log_dir(session_id, agent_id) / "chat.json"
                     chat_file.parent.mkdir(parents=True, exist_ok=True)
                     with chat_file.open("w") as f:
                         json.dump(chat_data, f, indent=2)

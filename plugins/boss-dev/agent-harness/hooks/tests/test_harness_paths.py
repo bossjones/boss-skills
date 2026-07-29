@@ -104,3 +104,19 @@ def test_artifact_paths_are_side_effect_free_and_log_override_is_narrow(
     assert harness_paths.session_log_dir("session-1") == project_dir / "compat-logs" / "session-1"
     assert not root.exists()
     assert not (project_dir / "compat-logs").exists()
+
+
+@pytest.mark.parametrize("bad_session_id", ["../../etc", "..", ".", "", "a/b", "a\\b"])
+def test_session_log_dir_rejects_path_traversal(bad_session_id: str, tmp_path: Path) -> None:
+    assert harness_paths.session_log_dir(bad_session_id, tmp_path) == harness_paths.logs_root(tmp_path) / "unknown"
+
+
+@pytest.mark.parametrize("bad_agent_id", ["../../etc", "..", ".", "", "a/b", "a\\b"])
+def test_agent_log_dir_rejects_path_traversal_in_agent_id(bad_agent_id: str, tmp_path: Path) -> None:
+    expected = harness_paths.session_log_dir("session-1", tmp_path) / "agents" / "unknown"
+    assert harness_paths.agent_log_dir("session-1", bad_agent_id, tmp_path) == expected
+
+
+def test_agent_log_dir_rejects_path_traversal_in_session_id(tmp_path: Path) -> None:
+    expected = harness_paths.logs_root(tmp_path) / "unknown" / "agents" / "agent-1"
+    assert harness_paths.agent_log_dir("../../etc", "agent-1", tmp_path) == expected

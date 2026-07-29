@@ -58,14 +58,14 @@ _PLUGIN_NAME = "agent-harness"
 
 
 def _plugin_id() -> str:
-    """Resolve the installed marketplace identity without baking in one fork."""
+    """Resolve the installed marketplace identity, defaulting to this repo's own."""
     plugin_root = os.environ.get("CLAUDE_PLUGIN_ROOT", "")
     parts = Path(plugin_root).parts
     try:
         marketplace = parts[parts.index("marketplaces") + 1]
     except (ValueError, IndexError):
-        marketplace = os.environ.get("CLAUDE_PLUGIN_MARKETPLACE", "").strip()
-    return f"{_PLUGIN_NAME}@{marketplace}" if marketplace else _PLUGIN_NAME
+        marketplace = os.environ.get("CLAUDE_PLUGIN_MARKETPLACE", "").strip() or "boss-skills"
+    return f"{_PLUGIN_NAME}@{marketplace}"
 
 
 PLUGIN_ID = _plugin_id()

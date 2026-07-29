@@ -897,25 +897,31 @@ grep -rn 'Path("logs")\|Path.cwd() / "logs"\|getcwd(), "logs"\|\.claude/data' \
   | grep -v '/tests/'
 
 # Acceptance #2 (docs/commands) — no stale .claude/data references left behind
-grep -rn '\.claude/data' plugins/boss-dev/agent-harness/ --include='*.md' | grep -v CHANGELOG
+grep -rn '\.claude/data' plugins/boss-dev/agent-harness/ --include='*.md' | grep -v CHANGELOG \
+  | grep -v -E 'harness-doctor/SKILL\.md|setup-agent-harness/SKILL\.md|docs/hooks\.md|docs/getting-started\.md'
 
 # Acceptance #3 — the default appears exactly once (must print 1)
 grep -rn "'\.agent-harness'\|\"\.agent-harness\"" plugins/ --include='*.py' | wc -l
 
 # Backport portability — plugin code must never hardcode this repo's name (must print nothing)
-grep -rn 'boss-skills' plugins/boss-dev/agent-harness/ --include='*.py' | grep -v '/tests/'
+# setup_harness.py's `_plugin_id()` fallback (`or "boss-skills"`) is intentional: it's the
+# last-resort marketplace name when neither the marketplaces/ path segment nor
+# CLAUDE_PLUGIN_MARKETPLACE is set, matching this repo's own settings.local.json entry. Excluded
+# by content, not by file, so any *other* hardcode in that file still fails the check.
+grep -rn 'boss-skills' plugins/boss-dev/agent-harness/ --include='*.py' | grep -v '/tests/' \
+  | grep -v 'or "boss-skills"'
 
-# Acceptance #8 — uv-guard silently no-ops
-echo '{}' | env PATH=/nonexistent sh \
+# Acceptance #10 — uv-guard silently no-ops
+echo '{}' | env PATH=/nonexistent /bin/sh \
   plugins/boss-dev/agent-harness/hooks/uv-guard.sh run \
   plugins/boss-dev/agent-harness/hooks/log_event.py --event-type Stop
 echo "exit=$?   # must be 0, with no output above"
 
-# Acceptance #9 — nothing is committable
+# Acceptance #11 — nothing is committable
 git status --porcelain | grep -E '^\?\?.*\.boss-skills' && echo "FAIL: not ignored" || echo "OK"
 git check-ignore -v .boss-skills/logs/
 
-# Acceptance #10 — version parity (the two values must match)
+# Acceptance #12 — version parity (the two values must match)
 jq -r .version plugins/boss-dev/agent-harness/.claude-plugin/plugin.json
 jq -r '.plugins[] | select(.name=="agent-harness") | .version' .claude-plugin/marketplace.json
 

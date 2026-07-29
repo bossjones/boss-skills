@@ -175,6 +175,24 @@ def test_apply_gitignore_rewrites_legacy_managed_block(tmp_path: Path) -> None:
         assert pattern in content
 
 
+def test_plugin_id_falls_back_to_boss_skills_marketplace(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
+    monkeypatch.delenv("CLAUDE_PLUGIN_MARKETPLACE", raising=False)
+    assert sh._plugin_id() == "agent-harness@boss-skills"
+
+
+def test_plugin_id_prefers_marketplaces_path_segment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", "/home/user/.claude/marketplaces/some-fork/plugins/agent-harness")
+    monkeypatch.delenv("CLAUDE_PLUGIN_MARKETPLACE", raising=False)
+    assert sh._plugin_id() == "agent-harness@some-fork"
+
+
+def test_plugin_id_falls_back_to_env_marketplace(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
+    monkeypatch.setenv("CLAUDE_PLUGIN_MARKETPLACE", "another-fork")
+    assert sh._plugin_id() == "agent-harness@another-fork"
+
+
 # --- settings.local.json ------------------------------------------------------
 
 

@@ -51,7 +51,8 @@ _TOKEN_PREFIXES: tuple[str, ...] = (
     "******",
 )
 _EMBEDDED_TOKEN_PATTERN = re.compile(
-    r"(?<![A-Za-z0-9_-])(?:sk-|ghp_|gho_|ghu_|ghs_|ghv_|xoxb-|xoxp-|xoxa-|xoxr-|xoxs-)[A-Za-z0-9_-]+",
+    r"(?<![A-Za-z0-9_-])(?:sk-|ghp_|gho_|ghu_|ghs_|ghv_|xoxb-|xoxp-|xoxa-|xoxr-|xoxs-)[A-Za-z0-9_-]+"
+    r"|(?<![A-Za-z0-9_-])bearer\s+[^\s'\"]+",
     re.IGNORECASE,
 )
 

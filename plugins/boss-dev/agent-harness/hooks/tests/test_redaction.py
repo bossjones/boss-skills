@@ -39,3 +39,12 @@ def test_redact_payload_removes_token_values_embedded_in_command_text() -> None:
 
     assert "sk-abc123" not in redacted["tool_input"]["command"]
     assert log_writer.REDACTED_VALUE in redacted["tool_input"]["command"]
+
+
+def test_redact_payload_removes_bearer_tokens_embedded_in_command_text() -> None:
+    payload = {"tool_input": {"command": "curl -H 'Authorization: Bearer abc123' https://api.example.com"}}
+
+    redacted = log_writer.redact_payload(payload)
+
+    assert "abc123" not in redacted["tool_input"]["command"]
+    assert log_writer.REDACTED_VALUE in redacted["tool_input"]["command"]

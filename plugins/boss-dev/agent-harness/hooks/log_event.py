@@ -52,10 +52,13 @@ def main(argv: list[str] | None = None) -> int:
         from utils.log_writer import append_jsonl, build_record
 
         payload = json.loads(sys.stdin.read())
-        if arguments.prune:
-            prune_sessions()
         record = build_record(arguments.event_type, payload)
         append_jsonl(session_log_dir(_session_id(payload)) / f"{arguments.event_type}.jsonl", record)
+        if arguments.prune:
+            try:
+                prune_sessions()
+            except Exception:
+                pass
     except Exception:
         pass
     return 0

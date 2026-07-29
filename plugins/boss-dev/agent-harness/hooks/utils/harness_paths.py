@@ -81,6 +81,18 @@ def cache_dir(project_dir: Path | str | None = None) -> Path:
     return resolve_harness_root(project_dir) / "cache"
 
 
+def _safe_id(value: str) -> str:
+    """Return a path-traversal-safe directory name, falling back to ``unknown``."""
+    if not value or "/" in value or "\\" in value or value in {".", ".."}:
+        return "unknown"
+    return value
+
+
 def session_log_dir(session_id: str, project_dir: Path | str | None = None) -> Path:
     """Return the directory for a single session's event logs."""
-    return logs_root(project_dir) / session_id
+    return logs_root(project_dir) / _safe_id(session_id)
+
+
+def agent_log_dir(session_id: str, agent_id: str, project_dir: Path | str | None = None) -> Path:
+    """Return the directory for a single subagent's artifacts within its session."""
+    return session_log_dir(session_id, project_dir) / "agents" / _safe_id(agent_id)
