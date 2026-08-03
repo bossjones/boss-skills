@@ -373,7 +373,7 @@ Specifically verify, because the plan depends on each:
 Reference links to keep at hand:
 [hooks reference](https://code.claude.com/docs/en/hooks) ·
 [hooks guide](https://code.claude.com/docs/en/hooks-guide) ·
-[plugin reference](https://code.claude.com/docs/en/plugin-reference) ·
+[plugins reference](https://code.claude.com/docs/en/plugins-reference) ·
 [settings](https://code.claude.com/docs/en/settings) ·
 [PEP 723](https://peps.python.org/pep-0723/) ·
 [uv scripts](https://docs.astral.sh/uv/guides/scripts/) ·
