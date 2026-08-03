@@ -68,8 +68,12 @@ method = "get"
 # This is common in documentation tools that cross-reference files without extensions.
 fallback_extensions = ["md", "html"]
 
-# Enable the checking of fragments in links.
-include_fragments = true
+# Enable the checking of fragments in links, both anchor fragments (`#section`) and
+# text fragments (`#:~:text=example`).
+# NOTE: this takes an enum, not a boolean — "none" | "anchor-only" | "text-only" | "full".
+# It was a bool in older lychee; a bare `true` fails to parse on >= 0.24 with
+# "wanted string or table". "full" matches the bare `--include-fragments` CLI default.
+include_fragments = "full"
 
 #############################  Exclusions  ##########################
 
