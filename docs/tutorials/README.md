@@ -23,6 +23,7 @@ into a numbered series with bundled screenshots over time.
 | [python-dev](python-dev/README.md) | [Get a red CI run green, then ship the fix](python-dev/README.md) | Debug a failed GitHub Actions run and open a conventional-commit PR |
 | [twitter-tools](twitter-tools/README.md) | [From tweet to Instagram Reel](twitter-tools/README.md) | Download tweet media and compose a 9:16 vertical Reel |
 | [proxmox-infra](proxmox-infra/README.md) | [Provision a Proxmox VM from a cloud-init template](proxmox-infra/README.md) | Clone a template into a running VM, then verify cluster health |
+| *(external tooling)* | [Stack Headroom on top of rtk](headroom/README.md) | Wire up [Headroom](https://github.com/headroomlabs-ai/headroom) next to the [rtk](https://github.com/rtk-ai/rtk) hook, resolve the `--no-rtk` overlap, and measure both layers |
 
 ## Adding a tutorial
 
@@ -37,6 +38,8 @@ docs/tutorials/
     └── assets/               # optional: screenshots and sample files
 ```
 
+- A tutorial about **external tooling** rather than a marketplace plugin (e.g. `headroom/`) uses the
+  same layout — one kebab-case folder named after the tool.
 - Use kebab-case folder and file names, matching the
   [documentation conventions](../../.claude/rules/documentation.md).
 - Cross-link the tutorial to its [reference page](../plugins/README.md) and back.
