@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.30.2** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.31.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
@@ -198,15 +198,17 @@ and other opt-in behavior.
 Event records are project-scoped rather than cwd-scoped:
 
 ```text
-<project>/.{repo-slug}/
+<project>/.{plugin-repo}/
 ├── logs/<session_id>/<Event>.jsonl
 ├── data/sessions/<session_id>.json
 └── cache/
 ```
 
-`data/` holds live state that status lines and `/agent-harness:update_status_line` read back;
-`cache/` is regenerable. Use the [hooks reference](./docs/hooks.md) for the event matrix, JSONL
-schema, redaction, path overrides, retention, and deferred-event rationale.
+The root is named for the marketplace repository shipping this plugin (`.boss-skills/` when
+installed from the `boss-skills` marketplace), so the same directory name appears in every project
+and worktree. `data/` holds live state that status lines and `/agent-harness:update_status_line`
+read back; `cache/` is regenerable. Use the [hooks reference](./docs/hooks.md) for the event
+matrix, JSONL schema, redaction, path overrides, retention, and deferred-event rationale.
 
 | Script | Event | Purpose |
 | --- | --- | --- |
@@ -375,7 +377,7 @@ Hooks are already wired by `hooks/hooks.json`. Status lines are the opt-in compo
 
 ## Status
 
-Plugin version **v0.30.2**. Skills, commands, agents, output styles, and all 20 hook events are
+Plugin version **v0.31.0**. Skills, commands, agents, output styles, and all 20 hook events are
 auto-discovered and active on `/plugin install`. Status lines require a `statusLine` setting.
 
 ## See also

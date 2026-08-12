@@ -8,6 +8,9 @@ import pytest
 from hook_loader import load_hook
 
 harness_paths = load_hook("utils/harness_paths.py")
+plugin_namespace = load_hook("utils/plugin_namespace.py")
+
+NAMESPACED_ROOT = f".{plugin_namespace.plugin_namespace()}"
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +50,33 @@ def test_explicit_project_dir_is_used_as_the_project_anchor(tmp_path: Path, monk
     monkeypatch.chdir(other_dir)
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(other_dir))
 
-    assert harness_paths.resolve_harness_root(project_dir=project_dir) == project_dir / ".explicit-project"
+    assert harness_paths.resolve_harness_root(project_dir=project_dir) == project_dir / NAMESPACED_ROOT
+
+
+def test_every_project_shares_one_plugin_namespaced_directory_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The root is named for the plugin's own repository, never for the project."""
+    first = tmp_path / "foo"
+    second = tmp_path / "Bar Repo (v2)"
+
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(first))
+    first_root = harness_paths.resolve_harness_root()
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(second))
+    second_root = harness_paths.resolve_harness_root()
+
+    assert first_root.name == second_root.name == NAMESPACED_ROOT
+    assert first_root.parent == first
+    assert second_root.parent == second
+
+
+def test_worktree_project_directories_do_not_fragment_the_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A branch-named worktree resolves to the same root as its main checkout."""
+    main_checkout = tmp_path / "boss-skills"
+    worktree = main_checkout / ".claude" / "worktrees" / "boss-skills-auth"
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(worktree))
+
+    assert harness_paths.resolve_harness_root() == worktree / NAMESPACED_ROOT
 
 
 def test_claude_harness_dir_overrides_derived_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -71,6 +100,7 @@ def test_plugin_option_harness_dir_precedes_bare_option(tmp_path: Path, monkeypa
 def test_derivation_uses_project_environment_not_current_working_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """The project environment selects the location; the plugin selects the name."""
     project_dir = tmp_path / "My Project"
     working_dir = tmp_path / "unrelated"
     project_dir.mkdir()
@@ -78,16 +108,16 @@ def test_derivation_uses_project_environment_not_current_working_directory(
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(project_dir))
     monkeypatch.chdir(working_dir)
 
-    assert harness_paths.resolve_harness_root() == project_dir / ".my-project"
+    assert harness_paths.resolve_harness_root() == project_dir / NAMESPACED_ROOT
 
 
-def test_unresolvable_project_directory_uses_the_single_default_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unresolvable_project_directory_keeps_the_namespaced_name(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise_os_error() -> str:
         raise OSError("no current directory")
 
     monkeypatch.setattr(harness_paths.os, "getcwd", _raise_os_error)
 
-    assert harness_paths.resolve_harness_root() == Path(harness_paths.DEFAULT_HARNESS_DIR)
+    assert harness_paths.resolve_harness_root() == Path(NAMESPACED_ROOT)
 
 
 def test_artifact_paths_are_side_effect_free_and_log_override_is_narrow(

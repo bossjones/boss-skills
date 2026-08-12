@@ -11,8 +11,9 @@ import setup_harness as sh
 # --- .gitignore ---------------------------------------------------------------
 
 
-def _patterns(repo: Path) -> list[str]:
-    return sh.gitignore_patterns(repo)
+def _patterns(_repo: Path | None = None) -> list[str]:
+    """Return the managed patterns; the repository no longer names the root."""
+    return sh.gitignore_patterns()
 
 
 def test_missing_patterns_empty_file(tmp_path: Path) -> None:
@@ -28,13 +29,40 @@ def test_missing_patterns_skips_existing(tmp_path: Path) -> None:
     assert ".claude/*.backup.*" in missing
 
 
-def test_gitignore_patterns_ignore_derived_harness_root_and_backups(tmp_path: Path) -> None:
+def test_gitignore_patterns_ignore_plugin_namespaced_root_and_backups(tmp_path: Path) -> None:
     # backup() writes `.gitignore.backup.<ts>` at the repo root, so the managed
     # block must ignore those root backups, not just `.claude/` ones.
     patterns = _patterns(tmp_path)
-    assert patterns[0] == f".{sh.harness_slug(tmp_path.name)}/"
+    assert patterns[0] == f".{sh._plugin_namespace()}/"
     assert ".gitignore.backup.*" in patterns
     assert ".gitignore.backup.*" in sh.missing_patterns("", patterns)
+
+
+def test_gitignore_root_is_named_for_the_plugin_not_the_repository(tmp_path: Path) -> None:
+    """Two unrelated repositories receive the same managed root pattern."""
+    first = tmp_path / "some-app"
+    second = tmp_path / "another-app"
+    first.mkdir()
+    second.mkdir()
+
+    assert _patterns(first)[0] == _patterns(second)[0]
+    assert _patterns(first)[0] != f".{first.name}/"
+
+
+def test_apply_gitignore_rewrites_a_stale_managed_root_in_place(tmp_path: Path) -> None:
+    """A block written by the old repository-derived scheme is replaced, not appended to."""
+    stale_root = f".{tmp_path.name}/"
+    (tmp_path / ".gitignore").write_text(
+        f"{sh.MANAGED_BLOCK_START}\n{stale_root}\n*.log\n{sh.MANAGED_BLOCK_END}\n",
+        encoding="utf-8",
+    )
+
+    sh.apply_gitignore(tmp_path, dry_run=False)
+
+    content = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    assert content.count(sh.MANAGED_BLOCK_START) == 1
+    assert _patterns()[0] in content
+    assert stale_root not in content
 
 
 def test_missing_patterns_ignores_commented_lines(tmp_path: Path) -> None:
