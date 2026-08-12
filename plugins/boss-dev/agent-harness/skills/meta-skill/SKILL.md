@@ -1,402 +1,322 @@
 ---
 name: Create New Skills
-description: Creates new Agent Skills for Claude Code following best practices and documentation. Use when the user wants to create a new skill, extend Claude's capabilities, or package domain expertise into a reusable skill.
+description: >
+  Creates new Agent Skills for Claude Code following this repository's conventions.
+  Use when the user wants to create a new skill, when building or authoring a plugin skill,
+  when packaging a workflow or domain expertise into a reusable SKILL.md, or when extending
+  an existing skill. Use proactively when creating skills — it guides choosing the destination
+  (repo-internal vs plugin), evaluating quality, and committing safely on a feature branch.
 ---
 
 # Create New Skills
 
 ## Instructions
 
-This skill helps you create new Agent Skills for Claude Code. Before starting, read the comprehensive documentation files in the [docs/](docs/) directory for complete context.
+This skill helps you author new Agent Skills **inside this repository**. It reads the vendored
+Anthropic reference docs for general skill theory, but this repo has its own conventions that
+override them (see the callout below).
 
 ### Prerequisites
 
-**Required Reading** - Read these files in order before creating a skill:
-1. [docs/claude_code_agent_skills.md](docs/claude_code_agent_skills.md) - Complete guide to creating and managing skills
-2. [docs/claude_code_agent_skills_overview.md](docs/claude_code_agent_skills_overview.md) - Architecture and how skills work
-3. [docs/blog_equipping_agents_with_skills.md](docs/blog_equipping_agents_with_skills.md) - Design principles and best practices
+**Required reading** — the bundled Anthropic references in the [docs/](docs/) directory give the
+general model of what a skill is and how progressive disclosure works:
+
+1. [docs/claude_code_agent_skills.md](docs/claude_code_agent_skills.md) — guide to creating and managing skills
+2. [docs/claude_code_agent_skills_overview.md](docs/claude_code_agent_skills_overview.md) — architecture
+3. [docs/blog_equipping_agents_with_skills.md](docs/blog_equipping_agents_with_skills.md) — design principles
+
+### Repository Conventions (authoritative)
+
+> **These conventions win.** The `docs/` files are Anthropic's *general* reference. Where they
+> conflict with this repository, **this callout and the repo's `rules` files win**. The
+> authoritative sources are `.claude/rules/plugin-structure.md`,
+> `.claude/rules/skill-development.md`, and the repo `CLAUDE.md`.
+
+Two hard rules:
+
+1. **Skills are created in exactly one of two places:**
+   - **Repo-internal** — `.claude/skills/<skill-name>/` (tooling for *this* repo's own use).
+   - **Plugin** — `plugins/<category>/<plugin-name>/skills/<skill-name>/` (a shippable unit
+     distributed via `marketplace.json`).
+2. **Never create or write into `~/.claude/skills/`** (or any home-directory skills dir). Users
+   choose install scope themselves by adding the marketplace — the agent never installs skills
+   into a user's home directory.
+
+Throughout the steps below, `<skill-dir>` is the chosen destination — either
+`.claude/skills/<skill-name>/` or `plugins/<category>/<plugin-name>/skills/<skill-name>/`.
 
 ### Understanding Skills
 
 **What is a Skill?**
-- A directory containing a `SKILL.md` file with YAML frontmatter
-- Instructions that Claude loads on-demand when relevant
-- Optional supporting files (scripts, documentation, templates)
-- Like an onboarding guide for a new team member
 
-**Progressive Disclosure (3 Levels):**
-1. **Metadata** (always loaded): `name` and `description` in YAML frontmatter
-2. **Instructions** (loaded when triggered): Main body of SKILL.md
-3. **Resources** (loaded as needed): Additional files, scripts, templates
+- A directory containing a `SKILL.md` file with YAML frontmatter.
+- Instructions Claude loads on-demand when the description matches the task.
+- Optional supporting files (scripts, references, templates).
 
-**Key Principle:** Only relevant content enters the context window at any time.
+**Progressive disclosure (3 levels):**
 
-### Skill Creation Workflow
+1. **Metadata** (always loaded): `name` and `description` in YAML frontmatter.
+2. **Instructions** (loaded when triggered): the body of SKILL.md.
+3. **Resources** (loaded as needed): reference files, scripts, templates.
 
-#### Step 1: Define the Skill's Purpose
+Only relevant content enters the context window at any time.
 
-Ask the user these questions:
+## Skill Creation Workflow
+
+### Step 1: Define the Skill's Purpose
+
+Ask the user (and record the answers):
+
 1. What task or domain should this skill cover?
-2. When should Claude use this skill? (triggers)
-3. What expertise or workflows need to be captured?
-4. Does it need scripts, templates, or other resources?
+2. When should Claude use it? (concrete triggers, not "when needed")
+3. What expertise or workflow needs to be captured?
+4. Does it need scripts, templates, or reference files?
 
-Document the answers for reference.
+### Step 2: Choose the destination and create the directory
 
-#### Step 2: Create the Skill Directory Structure
+Decide **repo-internal vs plugin** — this determines both the path and how the change is
+versioned:
 
-Create skills in the project's `.claude/skills/` directory for team sharing:
+| Destination | Path | Versioned by |
+| --- | --- | --- |
+| Repo-internal | `.claude/skills/<skill-name>/` | a `metadata.version` field in the skill's own frontmatter |
+| Plugin | `plugins/<category>/<plugin-name>/skills/<skill-name>/` | the owning `plugin.json` **and** its `marketplace.json` entry, kept in lockstep |
+
+**Decision rule — when to use which:** repo-internal is for locally-scoped tooling only this
+repo uses; a plugin is for something shippable to others. **If the destination is not clear from
+the request or context, STOP and ask with `AskUserQuestion`** — (a) repo-internal or plugin, and
+(b) if plugin, which existing category/plugin (list the plugin directories) or a new plugin. Do
+not assume.
+
+Create the chosen directory:
 
 ```bash
+# Repo-internal
 mkdir -p .claude/skills/<skill-name>
+
+# Plugin (pick the category + plugin per .claude/rules/plugin-structure.md)
+mkdir -p plugins/<category>/<plugin-name>/skills/<skill-name>
 ```
 
-**Naming conventions:**
-- Use lowercase with hyphens (e.g., `pdf-processing`, `data-analysis`)
-- Be descriptive but concise
-- Avoid generic names
+**Naming conventions:** lowercase with hyphens (e.g. `pdf-processing`), descriptive but concise,
+avoid generic names. See `.claude/rules/plugin-structure.md` for the category list and
+`CLAUDE.md` for the repo-internal-vs-plugin distinction.
 
-**Note:** Project skills (`.claude/skills/`) are automatically shared with your team via git. For personal skills only you use, create in `~/.claude/skills/` instead.
+### Step 3: Design the SKILL.md structure
 
-#### Step 3: Design the SKILL.md Structure
+Every skill needs valid frontmatter and a focused body:
 
-Every skill must have:
 ```yaml
 ---
 name: Your Skill Name
-description: Brief description of what this Skill does and when to use it
+description: What this skill does AND when to use it, with concrete trigger phrases.
 ---
-
-# Your Skill Name
-
-## Instructions
-[Clear, step-by-step guidance for Claude]
-
-## Examples
-[Concrete examples of using this Skill]
 ```
 
-**Frontmatter Requirements:**
-- `name`: Required, max 64 characters
-- `description`: Required, max 1024 characters
-  - Include BOTH what it does AND when to use it
-  - Mention key trigger words/phrases
-  - Be specific, not vague
+**Frontmatter requirements:**
 
-**Optional Frontmatter (Claude Code only):**
-- `allowed-tools`: Restrict which tools Claude can use (e.g., `Read, Grep, Glob`)
+- `name` — required, max 64 characters.
+- `description` — required, max 1024 characters. Include **both** what it does and *when* to use
+  it, name concrete trigger words, and be specific. A weak description is the single most common
+  reason a skill never activates.
+- `allowed-tools` *(optional, Claude Code only)* — restrict which tools the skill may use.
 
-#### Step 4: Write the Instructions Section
+### Step 4: Write the instructions
 
-**Structure the instructions as:**
-1. **Prerequisites** - Required dependencies, tools, environment setup
-2. **Workflow** - Step-by-step process (numbered steps)
-3. **Supporting Details** - Additional context, script usage, error handling
+Structure the body as: **Prerequisites → Workflow (numbered steps) → Supporting details**.
 
-**Best Practices:**
-- Use clear, actionable language
-- Number sequential steps
-- Use bullet points for options/lists
-- Include code blocks with bash commands
-- Reference supporting files with relative links: `[reference.md](reference.md)`
-- Keep focused on one capability
+- Use clear, actionable language; number sequential steps.
+- Keep the main body focused (aim for ~200–500 lines); push long menus and tables into
+  `references/` files for progressive disclosure.
+- Reference supporting files with relative links: `[eval-systems.md](references/eval-systems.md)`.
+- Document the skill's **output** (what it produces/returns) and its **input** (arguments or
+  parameters it accepts) so an agent knows how to wire it into a larger task.
 
-**Example workflow format:**
-```markdown
-### Workflow
+### Step 5: Write the examples
 
-1. **First step description**:
-   ```bash
-   command to run
-   ```
-   - Additional context
-   - Options or variations
+Provide 2–4 concrete examples showing different use cases, input formats, and expected outcomes.
+Examples are what let an agent generalize the skill to a new request.
 
-2. **Second step description**:
-   - Detailed instructions
-   - What to look for
-   - Expected outcomes
+### Step 6: Add supporting files (optional)
 
-3. **Third step**...
-```
+If the skill needs more than the main body:
 
-#### Step 5: Write the Examples Section
+- Reference docs in `references/`, templates in `templates/`, helper scripts in `scripts/`.
+- Make Python scripts standalone with PEP 723 inline metadata and mark them executable.
+- Use progressive disclosure — split by topic so only the needed file loads.
 
-Provide 2-4 concrete examples showing:
-- Different use cases
-- Various input formats
-- Step-by-step execution
-- Expected outcomes
+### Step 7: Test the skill (destination-agnostic + repo-aware)
 
-**Example format:**
-```markdown
-### Example 1: Descriptive Title
-
-User request:
-```
-User's exact request text
-```
-
-You would:
-1. First action
-2. Second action with command:
-   ```bash
-   actual command
-   ```
-3. Next steps...
-4. Final result
-```
-
-#### Step 6: Add Supporting Files (Optional)
-
-If the skill needs additional context:
-1. Create files alongside SKILL.md
-2. Reference them from instructions: `[forms.md](forms.md)`
-3. Use progressive disclosure - split by topic/scenario
-
-**Common supporting file types:**
-- Additional instructions (e.g., `advanced_usage.md`)
-- Reference documentation (e.g., `api_reference.md`)
-- Scripts in `scripts/` directory
-- Templates in `templates/` directory
-- Configuration examples
-
-**Script guidelines:**
-- Make executable: `chmod +x scripts/*.py`
-- Add PEP 723 inline dependencies for Python scripts
-- Include usage instructions in SKILL.md
-- Return clear output for Claude to parse
-
-#### Step 7: Test the Skill
-
-1. Verify file structure:
-   ```bash
-   ls -la .claude/skills/<skill-name>/
-   ```
-
-2. Check YAML frontmatter is valid:
-   ```bash
-   head -10 .claude/skills/<skill-name>/SKILL.md
-   ```
-
-3. Test with relevant queries:
-   - Ask questions matching the skill's description
-   - Verify Claude loads and uses the skill
-   - Check that instructions are clear and actionable
-
-4. Iterate based on testing:
-   - Refine description if skill doesn't trigger
-   - Clarify instructions if Claude struggles
-   - Add examples for common edge cases
-
-#### Step 8: Commit to Version Control
-
-Since project skills are automatically shared with your team, commit them to git:
+Validate structurally and by triggering, using `<skill-dir>` (the path chosen in Step 2):
 
 ```bash
-git add .claude/skills/<skill-name>
-git commit -m "Add <skill-name> skill"
-git push
+# Structure: recognizes plugin/skill layout, eval/ suites, and -workspace/ scratch
+./scripts/verify-structure.py
+
+# Lint the repo (Python + markdown)
+make lint
+make markdown-lint
+
+# Confirm the frontmatter is valid and the body reads well
+ls -la <skill-dir>
 ```
 
-**Note:** Team members will get the skill automatically when they pull the latest changes.
+Then test triggering: in a fresh session, ask questions that match the description and confirm
+Claude loads and uses the skill; refine the description if it doesn't fire.
 
-### Best Practices Summary
+> **Parser bug — GitHub #12781:** the skill parser executes exclamation-mark + backtick patterns
+> **even inside fenced code blocks**, and the backslash escape does not help. In `SKILL.md`, never
+> put that pattern (or an `@`-prefixed file reference) inside a code fence — use `$ command`
+> notation and describe the syntax in prose instead. See `.claude/rules/skill-development.md`.
+
+### Step 8: Evaluate the skill (interview-driven — never assume)
+
+This repo has **three** eval systems. **Interview the user before running anything** — ask
+(a) *which* system and (b) *how deep* — and tie depth to maturity: a first draft wants the
+fastest, cheapest signal; a later improvement loop wants a deeper one. Do not assume a system or
+depth.
+
+The three systems, one line each (full menu, invocations, and the depths table live in
+[references/eval-systems.md](references/eval-systems.md)):
+
+1. **skill-creator loop** — a with-skill-vs-baseline benchmark plus a description/trigger
+   optimizer; best when the issue is *activation*.
+2. **PluginEval** — invoke the `skill-evals` skill, or `make eval-skill SKILL=<skill-dir>
+   DEPTH=<quick|standard|deep|thorough>`; reports go to `docs/evals/`. The `quick` (static)
+   depth is deterministic and free — ideal for a first-draft loop.
+3. **skillgrade suites** — scaffold an `eval/` suite (the `scaffold-skill-eval` skill), then run
+   it (the `run-skill-eval` skill) with the smoke/reliable/regression presets.
+
+Concrete maturity guidance: first draft → PluginEval `quick` or skillgrade `smoke`; improvement
+loop → PluginEval `deep`/`thorough` or skillgrade `reliable`/`regression`.
+
+### Step 9: Commit safely (never auto-commit)
+
+**Do not auto-commit or auto-push.** Stop and have the user verify the skill first. When they are
+ready:
+
+- Work on a **feature branch** — never commit skill work straight to `main`.
+- **Version bump.** For a **plugin** skill, invoke the `version-bump-reviewer` skill first; it
+  bumps `plugin.json` and the matching `marketplace.json` entry in lockstep. For a
+  **repo-internal** skill, bump the `metadata.version` in the skill's own frontmatter.
+- Then hand off to the `commit-push-pr` skill (or make a conventional commit on the feature
+  branch and open a PR manually).
+
+## Best Practices
 
 **Description writing:**
-- ✅ "Transcribes audio/video files to text using Fireworks API. Use when user asks to transcribe, convert speech to text, or needs transcripts."
-- ❌ "Helps with audio"
+
+- Good: "Transcribes audio/video to text using the Fireworks API. Use when the user asks to
+  transcribe, convert speech to text, or needs a transcript."
+- Bad: "Helps with audio."
 
 **Instruction organization:**
-- Keep main instructions focused (under 5k tokens ideal)
-- Split complex content into linked files
-- Use progressive disclosure for optional/advanced content
 
-**Skill scope:**
-- One skill = one capability or workflow
-- Don't combine unrelated tasks
-- Make focused, composable skills
-
-**File references:**
-- Use relative paths: `[file.md](file.md)` not absolute paths
-- Reference scripts with full path from skill root
-- Make it clear when Claude should read vs execute files
-
-### Common Patterns from Existing Skills
-
-**Pattern 1: Transcription skill**
-- Prerequisites section with environment setup
-- Clear numbered workflow
-- Multiple examples showing different formats
-- Supporting file for corrections/mappings
-
-**Pattern 2: Morning debrief skill**
-- Two-step process (transcribe, extend)
-- Reference to detailed prompt in separate file
-- File organization step
-- Clear output structure specification
-
-**Pattern 3: Meta-skill (this one)**
-- Extensive prereading documentation
-- Step-by-step creation workflow
-- Multiple examples with variations
-- Best practices and common patterns
+- Keep the main body focused (~200–500 lines); split long material into `references/` files.
+- One skill = one capability. Don't combine unrelated tasks.
+- Use relative links for supporting files; be explicit about read-vs-execute.
 
 ## Examples
 
-### Example 1: Creating a Simple Code Review Skill
+### Example 1: A code-review skill (repo-internal)
 
-User request:
-```
-Create a skill that reviews Python code for best practices
-```
+User request: *"Create a skill that reviews Python code for best practices."*
 
 You would:
-1. Read the documentation files in [docs/](docs/)
-2. Ask clarifying questions:
-   - What specific best practices? (PEP 8, security, performance?)
-   - Should it check only or suggest fixes?
-   - Any specific frameworks or libraries?
-3. Create the skill directory:
-   ```bash
-   mkdir -p .claude/skills/python-code-review
-   ```
-4. Write SKILL.md with:
+
+1. Read the [docs/](docs/) references for general theory.
+2. Since this is tooling for *this* repo, choose the **repo-internal** destination
+   (`<skill-dir>` = `.claude/skills/<skill-name>/`). If it were unclear, ask with
+   `AskUserQuestion`.
+3. Clarify scope: which practices (PEP 8, security, performance)? check-only or suggest fixes?
+4. Create the directory and write the frontmatter:
+
    ```yaml
    ---
    name: Python Code Review
-   description: Reviews Python code for PEP 8 compliance, security issues, and performance. Use when reviewing Python code, checking code quality, or analyzing Python files.
+   description: Reviews Python code for PEP 8, security, and performance. Use when reviewing Python code or checking code quality.
    allowed-tools: Read, Grep, Glob
    ---
    ```
-5. Add Instructions section with:
-   - Prerequisites (none needed, uses built-in tools)
-   - Workflow:
-     1. Read the Python file(s)
-     2. Check PEP 8 compliance
-     3. Identify security issues
-     4. Suggest performance improvements
-     5. Provide summary with specific line references
-6. Add 3 examples:
-   - Example 1: Single file review
-   - Example 2: Multi-file project review
-   - Example 3: Focused security review
-7. Test with sample Python files
 
-### Example 2: Creating a Data Analysis Skill with Scripts
+5. Write the workflow (read files → check style → flag security → suggest perf → summarize with
+   line references), add 2–4 examples, then run Step 7 validation.
 
-User request:
-```
-Build a skill for analyzing CSV data with statistics and visualizations
-```
+### Example 2: A data-analysis skill with scripts (plugin)
+
+User request: *"Build a skill for analyzing CSV data with statistics and visualizations."*
 
 You would:
-1. Read documentation files
-2. Define scope with user:
-   - What statistics? (mean, median, correlations?)
-   - What visualizations? (charts, plots?)
-   - Output format? (markdown report, images?)
-3. Create structure:
-   ```bash
-   mkdir -p .claude/skills/csv-analysis/scripts
-   mkdir -p .claude/skills/csv-analysis/templates
-   ```
-4. Write SKILL.md referencing:
-   - `scripts/analyze.py` - Statistical analysis script
-   - `scripts/visualize.py` - Chart generation script
-   - `templates/report_template.md` - Output template
-5. Create Python scripts with inline dependencies:
+
+1. This is a shippable capability, so choose the **plugin** destination — ask which category and
+   plugin with `AskUserQuestion` if it isn't obvious.
+2. Create `<skill-dir>` and a `scripts/` subdirectory beside `SKILL.md`.
+3. Write PEP 723 scripts with inline dependencies:
+
    ```python
    # /// script
-   # requires-python = ">=3.10"
-   # dependencies = ["pandas", "matplotlib", "seaborn"]
+   # requires-python = ">=3.11"
+   # dependencies = ["pandas", "matplotlib"]
    # ///
    ```
-6. Write clear instructions for:
-   - When to run which script
-   - How to interpret output
-   - How to customize analysis
-7. Add examples showing:
-   - Basic statistics
-   - Visualization generation
-   - Custom report creation
-8. Test with sample CSV files
 
-### Example 3: Creating a Multi-File Documentation Skill
+4. Document when to run each script and how to read its output; add examples; validate (Step 7);
+   evaluate (Step 8, interview for system + depth); then commit on a feature branch with a
+   version bump (Step 9).
 
-User request:
-```
-Create a skill for writing technical documentation with our company's style guide
-```
+### Example 3: A multi-file documentation skill
+
+User request: *"Create a skill for writing docs with our company style guide."*
 
 You would:
-1. Read documentation files
-2. Gather requirements:
-   - Get company style guide document
-   - What types of docs? (API, user guides, architecture?)
-   - Any templates or examples?
-3. Create comprehensive structure:
-   ```bash
-   mkdir -p .claude/skills/tech-docs/{templates,examples,guidelines}
-   ```
-4. Organize content:
-   - `SKILL.md` - Overview and workflow
-   - `guidelines/style_guide.md` - Company style rules
-   - `guidelines/api_docs.md` - API documentation specifics
-   - `guidelines/user_guides.md` - User guide standards
-   - `templates/api_template.md` - API doc template
-   - `templates/guide_template.md` - User guide template
-   - `examples/` - Sample documentation
-5. Write SKILL.md that:
-   - References guidelines by doc type
-   - Uses progressive disclosure (only load needed guidelines)
-   - Provides workflow for each doc type
-6. Add examples for:
-   - API endpoint documentation
-   - User guide creation
-   - Architecture decision records
-7. Test with various documentation requests
 
-### Example 4: Extending an Existing Skill
+1. Gather the style guide and the doc types (API, user guides, architecture).
+2. Choose the destination (ask if unclear), then organize supporting files under `<skill-dir>`:
+   a `references/` folder for the style rules and per-doc-type guidance, and a `templates/`
+   folder for the doc templates.
+3. Write a `SKILL.md` that loads only the needed reference per doc type (progressive disclosure),
+   add examples per doc type, and run Steps 7–9.
 
-User request:
-```
-Add spell correction to our transcribe skill
-```
+### Example 4: Extending an existing skill
+
+User request: *"Add spell correction to our transcribe skill."*
 
 You would:
-1. Read current skill:
-   ```bash
-   cat .claude/skills/transcribe/SKILL.md
-   ```
-2. Identify where to add the feature:
-   - After transcription step
-   - Before final output
-3. Create supporting file:
-   ```bash
-   touch .claude/skills/transcribe/spell_corrections.md
-   ```
-4. Write correction mappings in new file:
-   ```markdown
-   # Spell Corrections
-   - "cloud code" → "claude code"
-   - "API" → "API" (ensure caps)
-   ...
-   ```
-5. Update SKILL.md workflow:
-   - Add step: "Apply spell corrections from [spell_corrections.md](spell_corrections.md)"
-   - Reference the corrections file
-6. Update examples to show correction step
-7. Test with audio that has common errors
+
+1. Locate the existing skill under its `<skill-dir>` and read its `SKILL.md`.
+2. Add a `references/` file with the correction mappings and wire a new workflow step that
+   applies them before final output.
+3. Update the examples, re-validate (Step 7), re-evaluate at a depth matched to the change
+   (Step 8), and commit on a feature branch with the appropriate version bump (Step 9).
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| Skill never activates | Vague description, no trigger phrase | Rewrite the description with concrete "Use when …" triggers; re-run the skill-creator loop |
+| `verify-structure.py` fails | Wrong directory layout or stray files | Follow `.claude/rules/plugin-structure.md`; keep the skill folder to `SKILL.md` + `references/` + `scripts/` + `eval/` |
+| Skill loads unexpectedly at parse time | Exclamation-mark + backtick pattern in a code fence (#12781) | Replace with `$ command` notation; move examples to a reference file |
+| CI quality gate fails on a new skill | Low eval score or anti-patterns | Run PluginEval and fix the weakest dimensions before merging |
+| Marketplace out of sync | `plugin.json` and `marketplace.json` versions diverged | Use the `version-bump-reviewer` skill to bump both in lockstep |
+
+## Related
+
+See also the repo's other skill-authoring and evaluation tooling — `skill-creator` and
+`write-a-skill` (authoring), `skill-evals` / `scaffold-skill-eval` / `run-skill-eval`
+(evaluation), and `version-bump-reviewer` / `commit-push-pr` (versioning and shipping). The full
+evaluation menu is the companion file [references/eval-systems.md](references/eval-systems.md).
 
 ## Summary
 
-Creating skills is about packaging expertise into discoverable, composable capabilities. Follow these principles:
+Creating skills is about packaging expertise into discoverable, composable capabilities. In this
+repo:
 
-1. **Read the docs first** - Understand progressive disclosure and skill architecture
-2. **Write clear descriptions** - Include what AND when
-3. **Keep instructions focused** - Use supporting files for additional context
-4. **Test thoroughly** - Verify Claude discovers and uses the skill correctly
-5. **Iterate with feedback** - Refine based on actual usage
-
-Skills transform general-purpose Claude into a specialist for your domain. Start small, test early, and expand as needed.
+1. **Read the docs first**, but let the repo conventions override them.
+2. **Choose the right destination** — repo-internal vs plugin; ask with `AskUserQuestion` if
+   unclear, and never write to `~/.claude/skills/`.
+3. **Write a strong description** — include what *and* when, with concrete triggers.
+4. **Keep instructions focused** — offload long material to `references/`.
+5. **Validate and evaluate before shipping** — interview for eval system + depth, matched to
+   maturity.
+6. **Commit only on a feature branch after you verify** — delegate versioning to
+   `version-bump-reviewer` and shipping to `commit-push-pr`; never auto-push to `main`.
