@@ -238,6 +238,12 @@ class TestComponentDirectories:
         (d / "commands" / "c.md").write_text("---\ntitle: x\n---\nbody")
         assert any("Missing required field 'description'" in e for e in vs.check_commands_directory(d))
 
+    def test_command_argument_hint_must_be_string(self, tmp_path: Path) -> None:
+        d = _plugin(tmp_path, "p", manifest={"name": "p"})
+        (d / "commands").mkdir()
+        (d / "commands" / "c.md").write_text("---\ndescription: x\nargument-hint: [path-to-plan]\n---\nbody")
+        assert any("argument-hint must be a string" in e for e in vs.check_commands_directory(d))
+
     def test_agent_missing_capabilities(self, tmp_path: Path) -> None:
         d = _plugin(tmp_path, "p", manifest={"name": "p"})
         (d / "agents").mkdir()
@@ -463,6 +469,18 @@ class TestIntegration:
         assert result["marketplace_errors"]
         mocker.patch.object(vs.sys, "argv", ["verify-structure.py"])
         assert vs.main() == 1
+
+    def test_root_command_argument_hint_must_be_string(self, tmp_path: Path, mocker: MockerFixture) -> None:
+        self._repo(tmp_path, mocker)
+        _plugin(tmp_path, "p", manifest={"name": "p"})
+        self._marketplace(tmp_path, [{"name": "p", "source": "./plugins/p"}])
+        commands_dir = tmp_path / ".claude" / "commands"
+        commands_dir.mkdir(parents=True)
+        (commands_dir / "plan.md").write_text("---\ndescription: Plan work\nargument-hint: [user prompt]\n---\nbody")
+
+        result = vs.check_marketplace_structure()
+
+        assert any("argument-hint must be a string" in error for error in result["marketplace_errors"])
 
     def test_strict_conflict_exit_1(self, tmp_path: Path, mocker: MockerFixture) -> None:
         self._repo(tmp_path, mocker)

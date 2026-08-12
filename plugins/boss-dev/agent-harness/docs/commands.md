@@ -35,6 +35,7 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 - [Hygiene & validation](#hygiene--validation)
   - [`validate-unicode-hygiene`](#validate-unicode-hygiene)
 - [Status line & demos](#status-line--demos)
+  - [`install_status_line`](#install_status_line)
   - [`update_status_line`](#update_status_line)
   - [`sentient`](#sentient)
 - [Documentation](#documentation)
@@ -59,6 +60,7 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 | [`fix-gh-pr-comments`](#fix-gh-pr-comments) | `[PR number]` | Resolve unresolved PR review comments | `gh` |
 | [`debug-ci`](#debug-ci) | `[run ID]` | Diagnose and fix a failing GitHub Actions run | `gh` |
 | [`validate-unicode-hygiene`](#validate-unicode-hygiene) | `[paths...] [--strict] [--warn-only]` | Scan files for invisible / spoofed Unicode | `uv` |
+| [`install_status_line`](#install_status_line) | `[--check\|--uninstall\|--restore]` | Install the status line into `.claude/settings.local.json` (backed up, reversible) | `uv` |
 | [`update_status_line`](#update_status_line) | `<session_id> <key> <value>` | Write custom data into a session status line | — |
 | [`sentient`](#sentient) | — | Demo the `rm -rf` hook guard | — |
 | [`docs-tutorial`](#docs-tutorial) | `[what to document]` | Generate a tutorial/doc via the right tutorial-engineer subagent | — |
@@ -316,6 +318,31 @@ fails.
 ---
 
 ## Status line & demos
+
+### `install_status_line`
+
+> Install the agent-harness status line into this project's `.claude/settings.local.json`.
+
+- **Arguments:** optional action flag — `--check`, `--uninstall`, or `--restore` (no flag = install).
+- **When to use:** You want the v10 status line (auth badge + context bar + cost) wired up for this
+  project without hand-editing settings, with a backup and a clean way back out.
+- **What it does:** Requires the `ENABLE_STATUS_LINE` user config to be on (there is no bypass
+  flag), then runs
+  [`scripts/install_status_line.py`](../scripts/install_status_line.py) to write a fully-resolved
+  `statusLine` block into `./.claude/settings.local.json` (gitignored, highest precedence). Every
+  write is preceded by a timestamped backup under `~/.claude/backups/agent-harness-status-line/`;
+  `--check` is a read-only dry run, `--uninstall` removes only our block, and `--restore` reverts the
+  file byte-for-byte to its install-time pre-image (refusing to delete a once-absent target that now
+  holds user-added settings). A third-party `statusLine` is never clobbered without `--force`. Install
+  globally instead with `--settings ~/.claude/settings.json`.
+- **Example:**
+
+  ```text
+  /agent-harness:install_status_line --check
+  ```
+
+- **Source:** [`commands/install_status_line.md`](../commands/install_status_line.md) · pairs with
+  [status-lines.md](./status-lines.md)
 
 ### `update_status_line`
 

@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.29.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.30.2** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
@@ -101,6 +101,7 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 | `commit-push-pr` | — | Stage specific files, write a conventional commit, push, and open or reuse a GitHub PR. |
 | `fix-gh-pr-comments` | `[pr-number]` | Triage unresolved PR review comments, apply fixes, push, reply per-thread, and poll for new comments (≤ 3 cycles). |
 | `debug-ci` | `[run-id]` | Diagnose a failed GitHub Actions run, fix locally, push, and poll the new run until green (≤ 3 cycles). |
+| `install_status_line` | `[--check\|--uninstall\|--restore]` | Install the status line into this project's `.claude/settings.local.json` (backed up, reversible). |
 | `update_status_line` | `<session_id> <key> <value>` | Upsert a key/value pair into a session's status-line data file. |
 | `all_tools` | — | List every available tool as TypeScript-style signatures with purposes. |
 | `sentient` | — | Demo command that triggers the `rm -rf` guard in `pre_tool_use.py`. |
@@ -356,7 +357,7 @@ setting at one to use it.
 | `status_line_v7.py` | Elapsed session time and start time. |
 | `status_line_v8.py` | Input/output token counts and cache stats. |
 | `status_line_v9.py` | Minimal powerline layout (model, branch, path, context %). |
-| `status_line_v10.py` | Context-window usage bar plus a running session cost from list pricing. |
+| `status_line_v10.py` | Leading `[auth:subscription]`/`[auth:api]`/`[auth:pending]` auth label (an inference — `subscription` covers both Pro and Max), context-window usage bar, plus a running session cost from list pricing. |
 
 ## Manual wiring
 
@@ -374,7 +375,7 @@ Hooks are already wired by `hooks/hooks.json`. Status lines are the opt-in compo
 
 ## Status
 
-Plugin version **v0.29.0**. Skills, commands, agents, output styles, and all 20 hook events are
+Plugin version **v0.30.2**. Skills, commands, agents, output styles, and all 20 hook events are
 auto-discovered and active on `/plugin install`. Status lines require a `statusLine` setting.
 
 ## See also

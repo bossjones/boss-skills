@@ -1,27 +1,15 @@
 ---
 name: version-bump-reviewer
 description: >
-  Verifies whether an uncommitted change in this repo needs a version bump, and at what
-  semver tier. Covers three event classes: a SKILL.md edit (plugin skill or repo-internal
-  skill), a plugin component change (any feature-bearing file inside a plugin — commands,
-  agents, hooks, .lsp.json, .mcp.json, monitors, settings, bin), and a new-plugin publish
-  (a brand-new plugins[] entry in marketplace.json). Classifies the diff as
-  major/minor/patch (or no-bump) using a rubric, corroborates skill-level decisions with a
-  plugin-eval score/anti-pattern delta, bumps the correct per-repo version artifact, then
-  commits with a conventional message a CHANGELOG generator can parse. There are three
-  bump artifacts: a plugin skill OR a plugin component change bumps the owning plugin's
-  version in plugins/<category>/<plugin>/.claude-plugin/plugin.json AND the matching entry
-  in .claude-plugin/marketplace.json; a repo-internal skill under .claude/skills/<name>/
-  SKILL.md bumps a per-skill metadata.version in its own frontmatter; a new-plugin publish
-  validates parity between plugin.json.version and marketplace.json[].version without
-  bumping and emits an initial-publish commit. Use this skill whenever any feature-bearing
-  file under plugins/ or .claude/skills/ has been edited, written, or newly created and
-  not yet committed; whenever a new plugins[] entry appears in marketplace.json; whenever
-  the user says "bump the version", "cut a release", "release this skill", "prepare this
-  skill for merge", "introduce this plugin", or "does this need a version bump"; or
-  whenever a plugin's package version may be out of sync with a recently changed
-  component. Run this AFTER plugin-dev:skill-reviewer so any policy or quality issues are addressed
-  first.
+  Reviews uncommitted changes to decide whether a semver bump is required and applies the
+  correct version artifact. Handles plugin skills and components, repo-internal skills,
+  and new marketplace plugins; classifies major, minor, patch, or no-bump changes; uses
+  plugin-eval evidence for skill edits; syncs plugin.json with marketplace.json; updates
+  metadata.version for repo-internal skills; validates initial-publish parity; and creates
+  a conventional commit. Use when feature-bearing files under plugins/ or .claude/skills/
+  change, a marketplace plugin entry is added, versions may be out of sync, or the user
+  asks to bump, release, introduce, or prepare a skill or plugin for merge. Run after
+  plugin-dev:skill-reviewer.
 allowed-tools: Bash(git diff *) Bash(git status *) Bash(git log *) Bash(git show *) Bash(git ls-tree *) Bash(git add *) Bash(git commit *) Bash(make *) Bash(uvx *) Bash(mkdir *) Bash(cp *) Read Edit
 metadata:
   version: 0.1.2

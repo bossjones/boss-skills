@@ -1,6 +1,6 @@
 ---
 description: Creates a worktree-aware engineering plan that segments work into independent parallel tracks and saves it to specs/
-argument-hint: [user prompt]
+argument-hint: "[user prompt]"
 ---
 
 # Plan for Parallel

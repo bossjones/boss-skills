@@ -11,10 +11,12 @@ DOC_PATHS = ["README.md"]
 # Add plugin subdirectories here as they exit scaffolding and gain type annotations.
 # The agent-harness skill scripts below are fully annotated PEP 723 scripts; their
 # test directories use sys.path shims and stay excluded via pyrightconfig.json.
-_AGENT_HARNESS_SKILLS = "plugins/boss-dev/agent-harness/skills"
+_AGENT_HARNESS_PLUGIN = "plugins/boss-dev/agent-harness"
+_AGENT_HARNESS_SKILLS = f"{_AGENT_HARNESS_PLUGIN}/skills"
 TYPE_CHECK_PATHS = [
     "devtools",
     "scripts",
+    f"{_AGENT_HARNESS_PLUGIN}/scripts/install_status_line.py",
     f"{_AGENT_HARNESS_SKILLS}/fetch-diff/scripts/fetch_diff.py",
     f"{_AGENT_HARNESS_SKILLS}/fetch-unresolved-comments/scripts/fetch_unresolved_comments.py",
     f"{_AGENT_HARNESS_SKILLS}/pr-review/scripts/validate_review.py",
