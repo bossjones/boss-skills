@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.29.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.30.2** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
@@ -357,7 +357,7 @@ setting at one to use it.
 | `status_line_v7.py` | Elapsed session time and start time. |
 | `status_line_v8.py` | Input/output token counts and cache stats. |
 | `status_line_v9.py` | Minimal powerline layout (model, branch, path, context %). |
-| `status_line_v10.py` | Leading `[MAX]`/`[API]` auth badge, context-window usage bar, plus a running session cost from list pricing. |
+| `status_line_v10.py` | Leading `[auth:subscription]`/`[auth:api]`/`[auth:pending]` auth label (an inference — `subscription` covers both Pro and Max), context-window usage bar, plus a running session cost from list pricing. |
 
 ## Manual wiring
 
@@ -375,7 +375,7 @@ Hooks are already wired by `hooks/hooks.json`. Status lines are the opt-in compo
 
 ## Status
 
-Plugin version **v0.29.0**. Skills, commands, agents, output styles, and all 20 hook events are
+Plugin version **v0.30.2**. Skills, commands, agents, output styles, and all 20 hook events are
 auto-discovered and active on `/plugin install`. Status lines require a `statusLine` setting.
 
 ## See also

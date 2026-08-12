@@ -326,12 +326,14 @@ fails.
 - **Arguments:** optional action flag — `--check`, `--uninstall`, or `--restore` (no flag = install).
 - **When to use:** You want the v10 status line (auth badge + context bar + cost) wired up for this
   project without hand-editing settings, with a backup and a clean way back out.
-- **What it does:** Requires the `ENABLE_STATUS_LINE` user config to be on, then runs
+- **What it does:** Requires the `ENABLE_STATUS_LINE` user config to be on (there is no bypass
+  flag), then runs
   [`scripts/install_status_line.py`](../scripts/install_status_line.py) to write a fully-resolved
   `statusLine` block into `./.claude/settings.local.json` (gitignored, highest precedence). Every
   write is preceded by a timestamped backup under `~/.claude/backups/agent-harness-status-line/`;
   `--check` is a read-only dry run, `--uninstall` removes only our block, and `--restore` reverts the
-  file byte-for-byte. A third-party `statusLine` is never clobbered without `--force`. Install
+  file byte-for-byte to its install-time pre-image (refusing to delete a once-absent target that now
+  holds user-added settings). A third-party `statusLine` is never clobbered without `--force`. Install
   globally instead with `--settings ~/.claude/settings.json`.
 - **Example:**
 

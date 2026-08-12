@@ -107,6 +107,26 @@ git diff), with a `manifest.json` and a per-target `latest` pointer. A pre-exist
 `statusLine` is never clobbered without `--force`, and a settings file that cannot be parsed is never
 overwritten.
 
+### What `--restore` reverts to
+
+`latest` names the **restore target**, and only a pre-install backup ever advances it. `--uninstall`
+still writes its own backup (the post-install file stays recoverable by hand under the same
+`<target-slug>/` directory) but does not become the restore target — so `install → uninstall →
+restore` lands on the original settings payload rather than re-adding the status-line block.
+
+When the pre-image is "the file did not exist", `--restore` deletes the target. It does so **only
+while that file still holds nothing but our own `statusLine` block**. If you have since added other
+settings, replaced the `statusLine` with a third-party one, or the file no longer parses, restore
+refuses with exit 1 and leaves the file untouched:
+
+```console
+$ uv run plugins/boss-dev/agent-harness/scripts/install_status_line.py --restore --yes
+Refusing to delete /path/.claude/settings.local.json: it now holds settings added since install: permissions.
+Run --uninstall instead to remove only our statusLine block.
+```
+
+Use `--uninstall` in that case: it surgically removes our block and keeps everything you added.
+
 To install somewhere else, pass `--settings PATH`: `~/.claude/settings.json` for a manual **global**
 install (applies to every project), or the committed `.claude/settings.json` for a **team-shared**
 one. Pick the variant with `--variant status_line_v9.py`.

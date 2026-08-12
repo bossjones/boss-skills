@@ -297,6 +297,92 @@ def test_restore_deletes_file_that_did_not_exist(tmp_path: Path) -> None:
     assert not settings_path.exists()
 
 
+def test_restore_after_uninstall_returns_install_time_pre_image(tmp_path: Path) -> None:
+    """install -> uninstall -> restore must land on the *pre-install* payload.
+
+    Regression: ``uninstall`` used to move the ``latest`` pointer to its own (post-install)
+    backup, so ``--restore`` re-added the status-line block instead of reverting to the
+    original settings.
+    """
+    settings_path = tmp_path / "settings.local.json"
+    backup_root = tmp_path / "backups"
+    _settings_file(settings_path, {"env": {"A": "1"}}, indent=4)
+    original_bytes = settings_path.read_bytes()
+
+    assert isl.execute(settings_path, backup_root, _desired()) == 0
+    assert isl.uninstall(settings_path, backup_root) == 0
+
+    rc = isl.restore(settings_path, backup_root, yes=True)
+
+    assert rc == 0
+    assert settings_path.read_bytes() == original_bytes
+    assert "statusLine" not in json.loads(settings_path.read_text())
+
+
+def test_uninstall_still_writes_its_own_backup(tmp_path: Path) -> None:
+    """The uninstall backup is kept (just not the restore target)."""
+    settings_path = tmp_path / "settings.local.json"
+    backup_root = tmp_path / "backups"
+    _settings_file(settings_path, {"env": {"A": "1"}})
+
+    isl.execute(settings_path, backup_root, _desired())
+    installed_bytes = settings_path.read_bytes()
+    isl.uninstall(settings_path, backup_root)
+
+    manifests = [
+        json.loads((d / isl.MANIFEST_NAME).read_text())
+        for d in sorted(isl.backup_dir_for(settings_path, backup_root).iterdir())
+        if d.is_dir()
+    ]
+    uninstall_manifests = [m for m in manifests if m["plan_kind"] == "uninstall"]
+    assert len(uninstall_manifests) == 1
+    assert Path(uninstall_manifests[0]["backup_path"]).read_bytes() == installed_bytes
+
+
+def test_restore_refuses_to_delete_target_with_user_added_settings(tmp_path: Path) -> None:
+    """Absent-before-install + user-added settings -> refuse, never destroy user config."""
+    settings_path = tmp_path / ".claude" / "settings.local.json"
+    backup_root = tmp_path / "backups"
+    assert isl.execute(settings_path, backup_root, _desired()) == 0
+
+    # The user later adds unrelated configuration to the same file.
+    data = json.loads(settings_path.read_text())
+    data["permissions"] = {"allow": ["Bash"]}
+    _settings_file(settings_path, data)
+    before = settings_path.read_bytes()
+
+    rc = isl.restore(settings_path, backup_root, yes=True)
+
+    assert rc != 0
+    assert settings_path.read_bytes() == before
+    assert json.loads(settings_path.read_text())["permissions"] == {"allow": ["Bash"]}
+
+
+def test_restore_refuses_to_delete_target_holding_a_foreign_status_line(tmp_path: Path) -> None:
+    settings_path = tmp_path / ".claude" / "settings.local.json"
+    backup_root = tmp_path / "backups"
+    assert isl.execute(settings_path, backup_root, _desired()) == 0
+    _settings_file(settings_path, {"statusLine": {"type": "command", "command": "echo foreign"}})
+    before = settings_path.read_bytes()
+
+    rc = isl.restore(settings_path, backup_root, yes=True)
+
+    assert rc != 0
+    assert settings_path.read_bytes() == before
+
+
+def test_restore_deletes_target_that_only_holds_our_block(tmp_path: Path) -> None:
+    """The user-preserving guard must not break the plain install -> restore path."""
+    settings_path = tmp_path / ".claude" / "settings.local.json"
+    backup_root = tmp_path / "backups"
+    isl.execute(settings_path, backup_root, _desired())
+
+    rc = isl.restore(settings_path, backup_root, yes=True)
+
+    assert rc == 0
+    assert not settings_path.exists()
+
+
 def test_restore_with_no_backup_is_noop(tmp_path: Path) -> None:
     settings_path = tmp_path / "settings.local.json"
     backup_root = tmp_path / "backups"

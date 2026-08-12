@@ -17,8 +17,17 @@ The write is fail-closed: read → plan → back up → render → validate → 
 ``os.replace``. A file that cannot be parsed is never overwritten; a third-party
 ``statusLine`` is never clobbered without ``--force``. Every mutation is preceded by a
 timestamped backup (outside the repo, under ``~/.claude/backups/…``) with a
-``manifest.json`` and a per-target ``latest`` pointer, so ``--restore`` reverts verbatim
-and ``--uninstall`` surgically removes only our block.
+``manifest.json``, so ``--restore`` reverts verbatim and ``--uninstall`` surgically
+removes only our block.
+
+``--restore`` always targets the **install-time pre-image**: the per-target ``latest``
+pointer names the newest *pre-install* backup and is deliberately not advanced by
+``--uninstall`` (whose backup is still written, so the post-install file remains
+recoverable by hand). When that pre-image is "the file did not exist", restore deletes the
+target — but only while the file still holds nothing but our own ``statusLine``. If the
+user has since added other settings, or replaced the ``statusLine`` with a third-party
+one, or the file no longer parses, restore refuses with exit 1 and points at
+``--uninstall``; user-added configuration is never silently destroyed.
 
 Usage:
     install_status_line.py                     # install into ./.claude/settings.local.json
@@ -65,6 +74,7 @@ INSTALL = "install"
 CURRENT = "current"
 REPLACE_OURS = "replace-ours"
 FOREIGN = "foreign"
+UNINSTALL = "uninstall"
 
 console = Console()
 
@@ -210,7 +220,14 @@ def _next_timestamp_dir(parent: Path) -> Path:
 
 
 def write_backup(settings_path: Path, backup_root: Path, plan_kind: str, variant: str) -> Path:
-    """Back up the current settings file (if any) and record a manifest + latest pointer."""
+    """Back up the current settings file (if any) and record a manifest.
+
+    The ``latest`` pointer names the *restore target*, so it only advances for backups
+    that capture a pre-install state. An ``uninstall`` backup is still written (it is the
+    only copy of the post-install file) but must not become the restore target: doing so
+    made ``install → uninstall → restore`` re-add the status-line block instead of
+    reverting to the original settings.
+    """
     target_dir = backup_dir_for(settings_path, backup_root)
     target_dir.mkdir(parents=True, exist_ok=True)
     stamp_dir = _next_timestamp_dir(target_dir)
@@ -231,7 +248,8 @@ def write_backup(settings_path: Path, backup_root: Path, plan_kind: str, variant
         "version": "1",
     }
     (stamp_dir / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    (target_dir / LATEST_POINTER).write_text(stamp_dir.name + "\n", encoding="utf-8")
+    if plan_kind != UNINSTALL:
+        (target_dir / LATEST_POINTER).write_text(stamp_dir.name + "\n", encoding="utf-8")
     return stamp_dir
 
 
@@ -301,13 +319,35 @@ def uninstall(settings_path: Path, backup_root: Path, *, force: bool = False) ->
         return 1
 
     variant = _variant_from_block(existing)
-    write_backup(settings_path, backup_root, "uninstall", variant)
+    write_backup(settings_path, backup_root, UNINSTALL, variant)
 
     indent = sniff_indent(settings_path.read_text(encoding="utf-8"))
     del settings["statusLine"]
     _atomic_write(settings_path, settings, indent)
     console.print(f"[green]Removed[/green] statusLine ({settings_path}).")
     return 0
+
+
+def _delete_refusal_reason(target: Path) -> str | None:
+    """Why deleting ``target`` would destroy user data — ``None`` when deletion is safe.
+
+    Only reached when the target did not exist before install, i.e. every byte in it was
+    written by us *unless* the user added something afterwards. Deletion is safe only when
+    the file still holds nothing but our own ``statusLine`` block.
+    """
+    if not target.exists():
+        return None
+    try:
+        data = _read_settings(target)
+    except ValueError as exc:
+        return str(exc)
+    added = sorted(key for key in data if key != "statusLine")
+    if added:
+        return f"it now holds settings added since install: {', '.join(added)}"
+    existing = data.get("statusLine")
+    if existing is not None and not is_ours(existing):
+        return "its statusLine is no longer ours"
+    return None
 
 
 def restore(settings_path: Path, backup_root: Path, *, yes: bool = False) -> int:
@@ -328,6 +368,13 @@ def restore(settings_path: Path, backup_root: Path, *, yes: bool = False) -> int
     target = Path(manifest["settings_path"])
 
     if not manifest["existed"]:
+        refusal = _delete_refusal_reason(target)
+        if refusal is not None:
+            console.print(
+                f"[red]Refusing to delete {target}[/red]: {refusal}.\n"
+                "Run --uninstall instead to remove only our statusLine block."
+            )
+            return 1
         console.print(f"[bold]Restore[/bold] will DELETE {target} (it did not exist before install).")
     else:
         console.print(f"[bold]Restore[/bold] will OVERWRITE {target} with the pre-install backup.")

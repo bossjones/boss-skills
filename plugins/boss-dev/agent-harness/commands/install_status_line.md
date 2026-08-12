@@ -18,8 +18,8 @@ This command writes a settings file, so it only proceeds once you have opted in:
 
 1. Read `CLAUDE_PLUGIN_OPTION_ENABLE_STATUS_LINE`.
 2. If it is unset or `false`, **stop** and tell the user to enable it via `/plugin` → Configure →
-   "Enable the agent-harness status line" (or, for scripted use, re-run passing `--yes`). Do not
-   write anything.
+   "Enable the agent-harness status line". There is no bypass flag: `--yes` only confirms a
+   non-interactive `--restore` and never conveys install consent. Do not write anything.
 3. If it is `true`, continue.
 
 ## Workflow
@@ -38,7 +38,10 @@ This command writes a settings file, so it only proceeds once you have opted in:
    - `--check` is a read-only dry run that prints the plan kind and exits non-zero on a foreign
      statusLine.
    - `--uninstall` removes only our block.
-   - `--restore` reverts the target to its pre-install state.
+   - `--restore` reverts the target to its install-time pre-install state (an `--uninstall`
+     in between does not change that target). When the file did not exist before install,
+     restore deletes it — but refuses (exit 1) if the user has since added other settings,
+     pointing at `--uninstall` instead.
    - Add `--force` to replace/remove a third-party statusLine.
    - To install globally instead, pass `--settings ~/.claude/settings.json`.
 
