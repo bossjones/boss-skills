@@ -101,6 +101,7 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 | `commit-push-pr` | — | Stage specific files, write a conventional commit, push, and open or reuse a GitHub PR. |
 | `fix-gh-pr-comments` | `[pr-number]` | Triage unresolved PR review comments, apply fixes, push, reply per-thread, and poll for new comments (≤ 3 cycles). |
 | `debug-ci` | `[run-id]` | Diagnose a failed GitHub Actions run, fix locally, push, and poll the new run until green (≤ 3 cycles). |
+| `install_status_line` | `[--check\|--uninstall\|--restore]` | Install the status line into this project's `.claude/settings.local.json` (backed up, reversible). |
 | `update_status_line` | `<session_id> <key> <value>` | Upsert a key/value pair into a session's status-line data file. |
 | `all_tools` | — | List every available tool as TypeScript-style signatures with purposes. |
 | `sentient` | — | Demo command that triggers the `rm -rf` guard in `pre_tool_use.py`. |
@@ -356,7 +357,7 @@ setting at one to use it.
 | `status_line_v7.py` | Elapsed session time and start time. |
 | `status_line_v8.py` | Input/output token counts and cache stats. |
 | `status_line_v9.py` | Minimal powerline layout (model, branch, path, context %). |
-| `status_line_v10.py` | Context-window usage bar plus a running session cost from list pricing. |
+| `status_line_v10.py` | Leading `[MAX]`/`[API]` auth badge, context-window usage bar, plus a running session cost from list pricing. |
 
 ## Manual wiring
 

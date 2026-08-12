@@ -7,10 +7,14 @@
 # ///
 
 """
-Status Line v10 - Context Window Usage + Session Cost
-Display: [Model] | # [###---] | 42.5% used | ~115k left | session_id | $ $0.0421
-Like v6 but appends a running cost total computed from the transcript using
-public Anthropic list pricing.
+Status Line v10 - Auth badge + Context Window Usage + Session Cost
+Display: [MAX] [Model] | # [###---] | 42.5% used | ~115k left | session_id | $ $0.0421
+Like v6 but prepends a Max-vs-API auth badge and appends a running cost total
+computed from the transcript using public Anthropic list pricing.
+
+The leading badge is inferred from the ``rate_limits`` object Claude Code puts in
+the status-line payload (present ⇒ subscription/Max, absent ⇒ API key once a
+response has landed, otherwise pending). It is an inference, not a reported fact.
 """
 
 from __future__ import annotations
@@ -20,7 +24,9 @@ import os
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 try:
     from dotenv import (
@@ -167,19 +173,34 @@ def get_git_branch(cwd: str) -> str | None:
     return None
 
 
-def compute_session_cost(transcript_path: str | None) -> float:
-    """Compute total session cost (USD) from a transcript JSONL using list prices.
+AuthMode = Literal["max", "api", "pending"]
 
-    Returns 0.0 on any failure so the status line never breaks.
+
+@dataclass(frozen=True)
+class TranscriptStats:
+    """Single-pass results over a transcript JSONL."""
+
+    cost_usd: float
+    assistant_usage_count: int
+
+
+def scan_transcript(transcript_path: str | None) -> TranscriptStats:
+    """Scan a transcript JSONL once, returning session cost and usage-entry count.
+
+    ``cost_usd`` is computed from public Anthropic list prices;
+    ``assistant_usage_count`` is the number of entries carrying a ``message.usage``
+    dict (i.e. assistant responses that reported token usage). Returns zeros on any
+    failure so the status line never breaks.
     """
     if not transcript_path:
-        return 0.0
+        return TranscriptStats(0.0, 0)
 
     path = Path(transcript_path)
     if not path.is_file():
-        return 0.0
+        return TranscriptStats(0.0, 0)
 
     total = 0.0
+    usage_count = 0
     try:
         with path.open("r", encoding="utf-8") as f:
             for line in f:
@@ -198,6 +219,8 @@ def compute_session_cost(transcript_path: str | None) -> float:
                 if not isinstance(usage, dict):
                     continue
 
+                usage_count += 1
+
                 model_id = message.get("model", "") or ""
                 in_price, out_price = get_pricing(model_id)
 
@@ -213,9 +236,40 @@ def compute_session_cost(transcript_path: str | None) -> float:
                     + output_tokens * out_price
                 ) / 1_000_000
     except OSError:
-        return 0.0
+        return TranscriptStats(0.0, 0)
 
-    return total
+    return TranscriptStats(total, usage_count)
+
+
+def compute_session_cost(transcript_path: str | None) -> float:
+    """Backward-compatible wrapper: session cost (USD) only. Delegates to ``scan_transcript``."""
+    return scan_transcript(transcript_path).cost_usd
+
+
+def detect_auth_mode(input_data: dict, saw_usage: bool) -> AuthMode:
+    """Infer the billing regime from the presence of ``rate_limits``.
+
+    ``rate_limits`` is emitted by Claude Code only for subscription (Pro/Max)
+    sessions, and only once at least one window exists — so it is absent both on
+    API-key sessions and on a Max session before its first response. ``saw_usage``
+    (at least one assistant ``usage`` entry in the transcript) disambiguates: an
+    absent ``rate_limits`` after a response has landed is a genuine API key.
+
+    We key off *presence* of the ``rate_limits`` dict only, never any inner field,
+    so this is the narrowest possible coupling to an undocumented payload shape.
+    """
+    if input_data.get("rate_limits"):
+        return "max"
+    return "api" if saw_usage else "pending"
+
+
+def format_auth_badge(mode: AuthMode) -> str:
+    """Render the colored auth badge for a mode: [MAX] / [API] / [?]."""
+    if mode == "max":
+        return f"{GREEN}[MAX]{RESET}"
+    if mode == "api":
+        return f"{YELLOW}[API]{RESET}"
+    return f"{DIM}[?]{RESET}"
 
 
 def generate_status_line(input_data: dict) -> str:
@@ -238,13 +292,17 @@ def generate_status_line(input_data: dict) -> str:
 
     transcript_path = input_data.get("transcript_path", "")
     try:
-        total_cost = compute_session_cost(transcript_path)
+        stats = scan_transcript(transcript_path)
     except Exception:
-        total_cost = 0.0
+        stats = TranscriptStats(0.0, 0)
+    total_cost = stats.cost_usd
+
+    auth_mode = detect_auth_mode(input_data, saw_usage=stats.assistant_usage_count > 0)
+    badge = format_auth_badge(auth_mode)
 
     parts: list[str] = []
 
-    parts.append(f"{CYAN}[{model_name}]{RESET}")
+    parts.append(f"{badge} {CYAN}[{model_name}]{RESET}")
 
     parts.append(f"{BLUE}cwd:{shorten_cwd(current_dir)}{RESET}")
 

@@ -1,4 +1,4 @@
-# Plan: Max-plan vs API auth badge in `status_line_v10.py` + global status-line installer
+# Plan: Max-plan vs API auth badge in `status_line_v10.py` + project-local status-line installer (`.claude/settings.local.json`)
 
 ## Task Description
 
@@ -10,11 +10,15 @@ Two related pieces of work for the `agent-harness` plugin:
    API key, using the `rate_limits` object that Claude Code includes in the status-line stdin
    payload. Built test-first.
 
-2. **Programmatic global install.** Add a new plugin `userConfig` option that records whether the
-   user wants this status line enabled globally, plus a `uv run` Python script that installs the
-   `statusLine` block into `~/.claude/settings.json` — backing up, editing, validating, and
-   atomically saving — with a first-class path back out (`--uninstall` for a surgical removal,
-   `--restore` for a verbatim revert to the pre-install file). A slash command wraps the script.
+2. **Programmatic project-local install.** Add a new plugin `userConfig` option that records whether
+   the user wants this status line enabled, plus a `uv run` Python script that installs the
+   `statusLine` block into the current project's `.claude/settings.local.json` — backing up, editing,
+   validating, and atomically saving — with a first-class path back out (`--uninstall` for a surgical
+   removal, `--restore` for a verbatim revert to the pre-install file). A slash command wraps the
+   script. `.claude/settings.local.json` is gitignored and the highest-precedence settings file (the
+   "master override"), so the badge is scoped to this project and never committed. A `--settings PATH`
+   flag retargets any file — e.g. `~/.claude/settings.json` for a manual global install, or the
+   committed `.claude/settings.json` for a team-shared one.
 
 Constraints from the request: **TDD**, **KISS**, `uv run` Python script, reversible, done on a git
 worktree feature branch with a PR.
@@ -25,10 +29,10 @@ When this plan is complete:
 
 - `status_line_v10.py` renders a leading `[MAX]` / `[API]` / `[?]` badge next to the model name, with
   no false "API" reading during the pre-first-response window of a subscription session.
-- `agent-harness` exposes an `ENABLE_GLOBAL_STATUS_LINE` (boolean) and `STATUS_LINE_VARIANT` (string)
+- `agent-harness` exposes an `ENABLE_STATUS_LINE` (boolean) and `STATUS_LINE_VARIANT` (string)
   `userConfig` pair.
-- `scripts/install_status_line.py` can install, check, uninstall, and restore the global
-  `statusLine` setting without ever corrupting or silently clobbering `~/.claude/settings.json`.
+- `scripts/install_status_line.py` can install, check, uninstall, and restore the `statusLine` setting
+  without ever corrupting or silently clobbering the target `.claude/settings.local.json`.
 - Both are covered by unit tests in `tests/`, and `make lint && make test` are clean.
 
 ---
@@ -95,10 +99,10 @@ No cross-session cache, no clock, no extra file read.
 [`docs/status-lines.md`](../plugins/boss-dev/agent-harness/docs/status-lines.md) currently tells
 users to wire up `"command": "uv run \"${CLAUDE_PLUGIN_ROOT}\"/status_lines/status_line_v10.py"`.
 `CLAUDE_PLUGIN_ROOT` is substituted for **plugin-owned** hook/command entries; a `statusLine` block
-in a user's `~/.claude/settings.json` has no owning plugin, and a string `command` runs through a
-shell, so an unset variable expands to the empty string and yields a broken path. **The installer
-therefore writes a fully resolved absolute path** derived from `Path(__file__)`, which is correct
-for both a repo checkout and a marketplace install. The docs get a note to match.
+in a project's `.claude/settings.local.json` has no owning plugin either, and a string `command` runs
+through a shell, so an unset variable expands to the empty string and yields a broken path. **The
+installer therefore writes a fully resolved absolute path** derived from `Path(__file__)`, which is
+correct for both a repo checkout and a marketplace install. The docs get a note to match.
 
 ---
 
@@ -128,30 +132,36 @@ Separation of concerns inside the installer:
 - **Mutating engine** — `execute()` / `restore()` / `uninstall()`, each taking explicit
   `settings_path` and `backup_root` arguments so tests drive them entirely under `tmp_path`.
 
-**Unit 3 — consent.** `ENABLE_GLOBAL_STATUS_LINE` (boolean, default `false`) and
+**Unit 3 — consent.** `ENABLE_STATUS_LINE` (boolean, default `false`) and
 `STATUS_LINE_VARIANT` (string, default `status_line_v10.py`) in `plugin.json` `userConfig`. Per the
-chosen rollout, **no hook ever writes `~/.claude/settings.json` unattended**. The flag is a declared
-preference; the slash command reads
-`CLAUDE_PLUGIN_OPTION_ENABLE_GLOBAL_STATUS_LINE` and refuses to install when it is unset/false,
+chosen rollout, **no hook ever writes the project's `.claude/settings.local.json` unattended**. The
+flag is a declared preference; the slash command reads
+`CLAUDE_PLUGIN_OPTION_ENABLE_STATUS_LINE` and refuses to install when it is unset/false,
 directing the user to `/plugin` → Configure. `--yes` overrides for scripted use. This keeps the
-"userconfig asks the user" requirement while keeping the global-settings write explicit.
+"userconfig asks the user" requirement while keeping the settings write explicit. The stakes are
+lower than a global write — `.claude/settings.local.json` is gitignored and per-project — but the
+consent gate is retained for faithfulness to the original requirement.
 
 ### Write safety (the core of the "backup, edit, validate, save" ask)
 
 Ordered, fail-closed:
 
-1. **Read.** If `~/.claude/settings.json` exists but is not valid JSON → **abort**, touch nothing.
+1. **Read.** If `.claude/settings.local.json` exists but is not valid JSON → **abort**, touch nothing.
    Never write over a file we could not parse.
 2. **Plan.** Pure. `CURRENT` exits 0 without a backup (idempotent re-runs leave no backup litter).
    `FOREIGN` exits non-zero with the conflicting command printed.
 3. **Back up.** `shutil.copy2` the original to
-   `~/.claude/backups/agent-harness-status-line/<UTC-timestamp>/settings.json`, write a
-   `manifest.json` (`settings_path`, `existed`, `backup_path`, `plan_kind`, `variant`, `version`),
-   and update the `latest` pointer file. If the settings file did **not** exist, record
-   `existed: false` so `--restore` deletes the file rather than resurrecting an empty one.
+   `~/.claude/backups/agent-harness-status-line/<target-slug>/<UTC-timestamp>/settings.local.json`,
+   write a `manifest.json` (`settings_path`, `existed`, `backup_path`, `plan_kind`, `variant`,
+   `version`), and update the per-target `latest` pointer file. `<target-slug>` is a slug of the
+   resolved settings-file path, so backups live **outside the repo** (never in a git diff) and
+   distinct targets (`settings.local.json` vs `settings.json` vs a `--settings` path) don't collide on
+   one `latest` pointer. **`.claude/settings.local.json` commonly does not exist yet**, so recording
+   `existed: false` — making `--restore` delete the file rather than resurrect an empty one — is the
+   common case here, not an edge case.
 4. **Render + validate.** Serialize the mutated dict, then `json.loads()` the rendered *string* to
    prove it round-trips before any bytes touch the target.
-5. **Atomic save.** Write to a `settings.json.<pid>.tmp` sibling in the same directory, then
+5. **Atomic save.** Write to a `settings.local.json.<pid>.tmp` sibling in the same directory, then
    `os.replace()`. Same-filesystem rename ⇒ no torn file even on crash mid-write.
 
 Indent is sniffed from the original file (first indented line; default 2) so installing does not
@@ -162,7 +172,7 @@ loaded `dict` in place — `statusLine` is appended if new.
 
 - `--uninstall` — surgically `del settings["statusLine"]` if and only if it is ours. Keeps every
   other edit the user made since installing.
-- `--restore` — the literal ask ("revert to the original settings.json file"): copy the latest
+- `--restore` — the literal ask ("revert to the original settings file"): copy the latest
   backup back verbatim, discarding anything changed since. Prints a warning naming what it will
   overwrite and requires `--yes` when stdin is not a TTY.
 
@@ -181,13 +191,13 @@ loaded `dict` in place — `statusLine` is appended if new.
   `_load()` `importlib.util.spec_from_file_location` helper for PEP 723 scripts, and the
   "inject explicit roots, never monkeypatch module globals" discipline. Copy both.
 - [`plugins/boss-dev/agent-harness/.claude-plugin/plugin.json`](../plugins/boss-dev/agent-harness/.claude-plugin/plugin.json)
-  — `userConfig` block (v0.29.0 → 0.30.0).
+  — `userConfig` block (v0.29.0 → 0.30.0); adds `ENABLE_STATUS_LINE` + `STATUS_LINE_VARIANT`.
 - [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) — version parity with the
   above; the `version-bump-reviewer` skill enforces this.
 - [`devtools/lint.py`](../devtools/lint.py) — `SRC_PATHS` already covers `plugins/` for ruff;
   `TYPE_CHECK_PATHS` (L16+) is a narrow allowlist and must gain the new installer.
 - [`plugins/boss-dev/agent-harness/docs/status-lines.md`](../plugins/boss-dev/agent-harness/docs/status-lines.md)
-  — v10 row, new auth-badge section, global-install section, `${CLAUDE_PLUGIN_ROOT}` correction.
+  — v10 row, new auth-badge section, project-install section, `${CLAUDE_PLUGIN_ROOT}` correction.
 - [`plugins/boss-dev/agent-harness/docs/commands.md`](../plugins/boss-dev/agent-harness/docs/commands.md)
   and [`README.md`](../plugins/boss-dev/agent-harness/README.md) — command tables (L104, L344–359).
 - [`plugins/boss-dev/agent-harness/commands/update_status_line.md`](../plugins/boss-dev/agent-harness/commands/update_status_line.md)
@@ -221,8 +231,8 @@ then its mutating engine, then restore/uninstall — each to green before the ne
 ### Phase 3: Integration & Polish
 
 `userConfig` entries, slash command, docs, `lint.py` type-check registration, version bump +
-marketplace parity, manual end-to-end verification against a real `~/.claude/settings.json` copy,
-PR.
+marketplace parity, manual end-to-end verification against a scratch `.claude/settings.local.json`
+copy, PR.
 
 ---
 
@@ -271,8 +281,11 @@ fail before the following step makes them pass. Do not write production code ahe
   (`requires-python = ">=3.13"`, `dependencies = ["rich>=13.0.0"]`) matching `symlink_plugins.py`.
 - Constants: `BACKUP_ROOT = Path.home() / ".claude" / "backups" / "agent-harness-status-line"`,
   `LATEST_POINTER = "latest"`, `MANIFEST_NAME = "manifest.json"`, `SETTINGS_REL =
-  Path(".claude") / "settings.json"`, `DEFAULT_VARIANT = "status_line_v10.py"`, and plan-kind
-  constants `INSTALL` / `CURRENT` / `REPLACE_OURS` / `FOREIGN`.
+  Path(".claude") / "settings.local.json"`, `DEFAULT_VARIANT = "status_line_v10.py"`, and plan-kind
+  constants `INSTALL` / `CURRENT` / `REPLACE_OURS` / `FOREIGN`. The default target is resolved
+  relative to **cwd** (`Path.cwd() / SETTINGS_REL`), not `Path.home()`.
+- `backup_dir_for(settings_path, backup_root) -> Path` — `backup_root / slug(resolved settings_path)`,
+  so each distinct target keeps its own timestamped backups and `latest` pointer outside the repo.
 - `resolve_variant_path(variant, plugin_root=None) -> Path` — `Path(__file__).resolve().parent.parent
   / "status_lines" / variant`; raise `FileNotFoundError` for an unknown variant, and reject a
   `variant` containing a path separator or `..` (it comes from user config).
@@ -292,9 +305,9 @@ fail before the following step makes them pass. Do not write production code ahe
 - `execute(settings_path, backup_root, desired, *, force=False) -> int` — the ordered read → plan →
   back up → render → validate → `os.replace` sequence from Solution Approach. Creates parent dirs
   when the settings file is absent.
-- `write_backup(settings_path, backup_root, plan_kind, variant) -> Path` — timestamped dir, `copy2`,
-  `manifest.json`, `latest` pointer. Timestamp is `datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")`
-  with a `-1`, `-2` … suffix on collision.
+- `write_backup(settings_path, backup_root, plan_kind, variant) -> Path` — timestamped dir under
+  `backup_dir_for(settings_path, backup_root)`, `copy2`, `manifest.json`, per-target `latest` pointer.
+  Timestamp is `datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")` with a `-1`, `-2` … suffix on collision.
 - `uninstall(settings_path, *, force=False) -> int` — remove `statusLine` only when `is_ours()`;
   same backup + atomic-save path.
 - `restore(backup_root, *, yes=False) -> int` — read `latest`, honor `existed: false` by unlinking,
@@ -303,16 +316,17 @@ fail before the following step makes them pass. Do not write production code ahe
   `CURRENT`/`INSTALL`, `1` for `FOREIGN`. Suitable for CI.
 - `main(argv=None) -> int` with argparse: default action install; flags `--check`, `--uninstall`,
   `--restore`, `--variant`, `--settings PATH`, `--backup-root PATH`, `--force`, `--yes`. Mutually
-  exclusive group for the four actions.
+  exclusive group for the four actions. `--settings` defaults to `Path.cwd() / SETTINGS_REL`
+  (`./.claude/settings.local.json`); pass `~/.claude/settings.json` for a manual global install.
 - `if __name__ == "__main__": raise SystemExit(main())`.
 
 ### 7. Add the `userConfig` entries
 
 - In `plugin.json`, add to `userConfig`:
-  - `ENABLE_GLOBAL_STATUS_LINE` — `boolean`, default `false`, title "Enable the agent-harness status
-    line globally", description stating that enabling it authorizes
-    `/agent-harness:install_status_line` to write `~/.claude/settings.json` (with a backup), and that
-    `--restore` reverts.
+  - `ENABLE_STATUS_LINE` — `boolean`, default `false`, title "Enable the agent-harness status
+    line", description stating that enabling it authorizes
+    `/agent-harness:install_status_line` to write this project's `.claude/settings.local.json`
+    (gitignored, with a backup), and that `--restore` reverts.
   - `STATUS_LINE_VARIANT` — `string`, default `"status_line_v10.py"`, description listing that any
     filename from `status_lines/` is valid.
 
@@ -320,7 +334,7 @@ fail before the following step makes them pass. Do not write production code ahe
 
 - Create `commands/install_status_line.md` following the frontmatter shape of
   `update_status_line.md` (`description`, `argument-hint: "[--check|--uninstall|--restore]"`).
-- Workflow: read `CLAUDE_PLUGIN_OPTION_ENABLE_GLOBAL_STATUS_LINE`; if unset/false, stop and tell the
+- Workflow: read `CLAUDE_PLUGIN_OPTION_ENABLE_STATUS_LINE`; if unset/false, stop and tell the
   user to enable it via `/plugin` → Configure (or pass `--yes`). Otherwise run the script with
   `uv run` and report the plan kind, backup path, and the exact revert command.
 
@@ -332,9 +346,11 @@ fail before the following step makes them pass. Do not write production code ahe
 ### 10. Update documentation
 
 - `docs/status-lines.md`: new "Auth badge (Max vs API)" section with the truth table, an explicit
-  "this is inferred from `rate_limits`, not a reported fact" caveat; new "Installing globally"
-  section covering install/check/uninstall/restore and the backup location; correct the
-  `${CLAUDE_PLUGIN_ROOT}` wiring guidance to note it does not expand in user settings.
+  "this is inferred from `rate_limits`, not a reported fact" caveat; new "Installing for a project
+  (`.claude/settings.local.json`)" section covering install/check/uninstall/restore, the backup
+  location, and the `--settings` escape hatch for a manual global install; correct the
+  `${CLAUDE_PLUGIN_ROOT}` wiring guidance to note it does not expand in a project `.claude/`
+  settings file (no owning plugin) so an absolute path is required.
 - `docs/commands.md` + `README.md`: add `install_status_line` to both command tables; update the v10
   row in both status-line tables to mention the badge.
 
@@ -346,9 +362,11 @@ fail before the following step makes them pass. Do not write production code ahe
 ### 12. Validate
 
 - Run every command in Validation Commands below.
-- Manual end-to-end: copy the real `~/.claude/settings.json` to a scratch path, run the script
-  against it with `--settings`, confirm the block lands, `--check` reports `CURRENT`, `--uninstall`
-  removes it, and `--restore` reproduces the original byte-for-byte.
+- Manual end-to-end: seed a scratch `settings.local.json` (or run in a throwaway project dir), run
+  the script against it with `--settings`, confirm the block lands, `--check` reports `CURRENT`,
+  `--uninstall` removes it, and `--restore` reproduces the original byte-for-byte. Also verify the
+  absent-file path: point `--settings` at a non-existent scratch file, install (manifest records
+  `existed: false`), then `--restore` deletes it.
 - Manual badge check: pipe a hand-built payload with and without `rate_limits` into
   `status_line_v10.py` and confirm all three badge states render.
 
@@ -360,7 +378,8 @@ All tests are plain `pytest` under `tests/`, loading the PEP 723 scripts via
 `importlib.util.spec_from_file_location` — the pattern established by `tests/test_symlink_plugins.py`
 and required by `CLAUDE.md` (the `if __name__ == "__main__"` guard keeps import side-effect-free).
 The installer engine takes explicit `settings_path` / `backup_root` arguments, so **no test
-monkeypatches module globals and no test touches the real `~/.claude/`**.
+monkeypatches module globals and no test touches the real `~/.claude/` or the real project
+`.claude/settings.local.json`**.
 
 ### `tests/test_status_line_v10.py`
 
@@ -429,7 +448,7 @@ message (matching `symlink_plugins.restore()`'s behavior).
 ### Edge cases explicitly covered
 
 - Backup timestamp collision within the same second → `-1` suffix, no overwrite.
-- `~/.claude/settings.json` absent entirely (fresh machine).
+- `.claude/settings.local.json` absent entirely (the common case — a fresh project).
 - Settings file present but empty (`""`) → treated as malformed, fail-closed.
 - A variant filename supplied from `STATUS_LINE_VARIANT` user config is untrusted input and is
   path-validated.
@@ -447,7 +466,7 @@ message (matching `symlink_plugins.restore()`'s behavior).
    the same pass); the existing cost, context bar, percentage, tokens-left, cwd, branch, and session
    id segments are unchanged.
 4. `status_line_v10.py` still exits `0` and prints something on every input, including invalid JSON.
-5. `plugin.json` declares `ENABLE_GLOBAL_STATUS_LINE` (boolean, default `false`) and
+5. `plugin.json` declares `ENABLE_STATUS_LINE` (boolean, default `false`) and
    `STATUS_LINE_VARIANT` (string, default `status_line_v10.py`).
 6. `install_status_line.py` writes a `statusLine` block containing an **absolute** path to the chosen
    variant — no `${CLAUDE_PLUGIN_ROOT}`.
@@ -456,12 +475,13 @@ message (matching `symlink_plugins.restore()`'s behavior).
 8. The installer never writes to a settings file it could not parse, and never leaves a partial file
    (temp-file + `os.replace`).
 9. A pre-existing third-party `statusLine` is never clobbered without `--force`.
-10. `--restore` reproduces the pre-install `~/.claude/settings.json` byte-for-byte;
+10. `--restore` reproduces the pre-install target settings file (default
+    `.claude/settings.local.json`) byte-for-byte, or deletes it when it did not previously exist;
     `--uninstall` removes only our block and preserves later user edits.
-11. No hook or automatic process writes `~/.claude/settings.json` — installation only happens when
+11. No hook or automatic process writes the project settings file — installation only happens when
     the user runs the command.
 12. New tests exist in `tests/test_status_line_v10.py` and `tests/test_install_status_line.py`, and
-    no test reads or writes the real `~/.claude/`.
+    no test reads or writes the real `~/.claude/` or the real project `.claude/settings.local.json`.
 13. `make lint` and `make test` pass with zero warnings; the installer is in `TYPE_CHECK_PATHS` and
     passes `basedpyright`.
 14. `plugin.json` and `marketplace.json` both read `0.30.0`.
@@ -502,16 +522,18 @@ Badge smoke test — expect a leading `[?]` (no rate limits, no transcript):
 echo '{"model":{"display_name":"Opus 5"},"context_window":{"used_percentage":12.5,"context_window_size":200000}}' | uv run plugins/boss-dev/agent-harness/status_lines/status_line_v10.py
 ```
 
-Installer dry run against the real settings file (read-only, safe):
+Installer dry run against the default project target `./.claude/settings.local.json` (read-only,
+safe):
 
 ```bash
 uv run plugins/boss-dev/agent-harness/scripts/install_status_line.py --check
 ```
 
-Full install/revert round trip against a scratch copy:
+Full install/revert round trip against a scratch copy (never touches a real settings file). Seed a
+representative file, then install → verify `CURRENT` → restore → diff:
 
 ```bash
-cp ~/.claude/settings.json /tmp/settings-probe.json && uv run plugins/boss-dev/agent-harness/scripts/install_status_line.py --settings /tmp/settings-probe.json && uv run plugins/boss-dev/agent-harness/scripts/install_status_line.py --settings /tmp/settings-probe.json --check && uv run plugins/boss-dev/agent-harness/scripts/install_status_line.py --settings /tmp/settings-probe.json --restore --yes && diff ~/.claude/settings.json /tmp/settings-probe.json && echo "round trip clean"
+printf '{\n  "permissions": {}\n}\n' > /tmp/settings-probe.json && cp /tmp/settings-probe.json /tmp/settings-probe.orig.json && uv run plugins/boss-dev/agent-harness/scripts/install_status_line.py --settings /tmp/settings-probe.json && uv run plugins/boss-dev/agent-harness/scripts/install_status_line.py --settings /tmp/settings-probe.json --check && uv run plugins/boss-dev/agent-harness/scripts/install_status_line.py --settings /tmp/settings-probe.json --restore --yes && diff /tmp/settings-probe.orig.json /tmp/settings-probe.json && echo "round trip clean"
 ```
 
 ---
@@ -520,6 +542,13 @@ cp ~/.claude/settings.json /tmp/settings-probe.json && uv run plugins/boss-dev/a
 
 - **No new dependencies.** The installer uses `rich>=13.0.0` via PEP 723 inline metadata, matching
   `scripts/symlink_plugins.py`; nothing is added to `pyproject.toml`. No `uv add` required.
+- **Scope is project-local, not global.** The installer targets the current project's
+  `.claude/settings.local.json` (gitignored, highest-precedence "master override"), so the badge is
+  enabled per-project and never committed — teammates who clone the repo are unaffected. This is a
+  deliberate change from a `~/.claude/settings.json` global install; a user who *wants* the badge
+  everywhere can still `--settings ~/.claude/settings.json`, and a team that wants it shared can
+  `--settings .claude/settings.json` (committed). All three paths share the same backup/restore
+  machinery keyed by the resolved target.
 - **`rate_limits` is an inference, not a reported fact.** Claude Code exposes no auth-source field in
   the status-line payload. If a future CLI version emits `rate_limits` for API-key sessions, or adds
   a real auth field, the badge logic is one pure function (`detect_auth_mode`) and one test table to
