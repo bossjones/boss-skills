@@ -352,9 +352,10 @@ fails.
 - **When to use:** You want a custom field (project name, current status, ticket) to show up in a
   status line that renders the `extras` object.
 - **What it does:** Loads
-  `.{repo-slug}/data/sessions/{session_id}.json`, creates an `extras` object if needed, upserts
+  `.{plugin-repo}/data/sessions/{session_id}.json`, creates an `extras` object if needed, upserts
   `extras[key] = value`, and writes it back — then reports old/new values and the file path. The
-  harness root is project-derived (or configured with `HARNESS_DIR`), not cwd-relative.
+  harness root sits in the project directory (or wherever `HARNESS_DIR` points), not cwd-relative,
+  and is named for the plugin's marketplace repository.
 - **Example:**
 
   ```text

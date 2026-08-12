@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · v0.30.2 · [plugin source](../../plugins/boss-dev/agent-harness/)
+> `boss-dev` · v0.31.0 · [plugin source](../../plugins/boss-dev/agent-harness/)
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that
 build and operate agentic dev workflows. The plugin ships three families of skills — a
@@ -213,7 +213,7 @@ body, and a Slack announcement.
 
 All 20 hook events are enabled on install through `hooks/hooks.json`; they use a universal,
 fail-open logger that appends redacted JSONL records at
-`.{repo-slug}/logs/<session>/<Event>.jsonl`. The same project-local root contains live session
+`.{plugin-repo}/logs/<session>/<Event>.jsonl`. The same project-local root contains live session
 `data/` and regenerable `cache/`. `MessageDisplay` is intentionally deferred pending a measured
 logger cold-start p95 and is not enabled. See the
 [hooks reference](../../plugins/boss-dev/agent-harness/docs/hooks.md) for the event list,
@@ -221,7 +221,7 @@ retention, configuration, and deferred-event decisions.
 
 Status lines remain opt-in: set `statusLine` to a script under `status_lines/`. Status lines and
 `/agent-harness:update_status_line` read session state from
-`.{repo-slug}/data/sessions/<session>.json`.
+`.{plugin-repo}/data/sessions/<session>.json`.
 
 ## See also
 

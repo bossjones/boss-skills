@@ -33,7 +33,6 @@ import difflib
 import importlib.util
 import json
 import os
-import re
 import shutil
 import sys
 from datetime import datetime
@@ -46,10 +45,9 @@ MANAGED_BLOCK_START = "# >>> agent-harness managed (do not edit) >>>"
 MANAGED_BLOCK_END = "# <<< agent-harness managed <<<"
 
 # Runtime artifacts written by agent-harness hooks, plus the backups this script
-# creates. The root is derived at install time so this standalone script writes
-# the same concrete root as the hook path helper without relying on a package
-# import from the installed plugin.
-_NON_ALPHANUMERIC = re.compile(r"[^a-z0-9]+")
+# creates. The root name comes from the same helper the hooks use, loaded by path
+# so this standalone script stays free of a package import from the installed
+# plugin — see ``_plugin_namespace``.
 
 # --- settings.local.json shape ------------------------------------------------
 
@@ -137,16 +135,15 @@ def _non_comment_lines(text: str) -> set[str]:
     return out
 
 
-def harness_slug(value: str) -> str:
-    """Return the filesystem-safe harness root suffix for a repository name."""
-    normalized = _NON_ALPHANUMERIC.sub("-", value.lower()).strip(".-")
-    return normalized or "agent-harness"
+def _plugin_namespace() -> str:
+    """Return the plugin-repository namespace the hooks write their artifacts under."""
+    return str(_shared_hook_util("plugin_namespace").plugin_namespace())
 
 
-def gitignore_patterns(repo_root: Path) -> list[str]:
-    """Return managed ignores for this repository's harness runtime artifacts."""
+def gitignore_patterns() -> list[str]:
+    """Return managed ignores for the harness runtime artifacts written here."""
     return [
-        f".{harness_slug(repo_root.name)}/",
+        f".{_plugin_namespace()}/",
         "*.log",
         ".claude/*.backup.*",
         ".gitignore.backup.*",
@@ -171,7 +168,7 @@ def apply_gitignore(repo_root: Path, dry_run: bool) -> dict[str, object]:
     """
     path = repo_root / ".gitignore"
     text = path.read_text(encoding="utf-8") if path.exists() else ""
-    patterns = gitignore_patterns(repo_root)
+    patterns = gitignore_patterns()
     missing = missing_patterns(text, patterns)
     has_managed_block = MANAGED_BLOCK_START in text
 
@@ -346,21 +343,26 @@ def apply_settings(
 # --- environment readiness ----------------------------------------------------
 
 
-def _shared_preflight() -> dict[str, object]:
-    """Load the shared stdlib helper by path for standalone-skill compatibility."""
-    module_name = "_agent_harness_preflight"
+def _shared_hook_util(name: str) -> ModuleType:
+    """Load a stdlib-only hook utility by path for standalone-skill compatibility."""
+    module_name = f"_agent_harness_{name}"
     cached = sys.modules.get(module_name)
     if isinstance(cached, ModuleType):
-        module = cached
-    else:
-        path = Path(__file__).resolve().parents[3] / "hooks" / "utils" / "preflight.py"
-        spec = importlib.util.spec_from_file_location(module_name, path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Cannot load shared preflight helper: {path}")
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
-        spec.loader.exec_module(module)
-    return module.check_env()
+        return cached
+
+    path = Path(__file__).resolve().parents[3] / "hooks" / "utils" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load shared hook utility: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _shared_preflight() -> dict[str, object]:
+    """Return the shared advisory environment checks."""
+    return _shared_hook_util("preflight").check_env()
 
 
 def check_env() -> dict[str, object]:
@@ -401,7 +403,7 @@ def cmd_detect(repo_root: Path) -> int:
         "has_output_style": None if settings_error else "outputStyle" in settings,
         "output_style": None if settings_error else settings.get("outputStyle"),
         "plugin_enabled": None if settings_error else _plugin_enabled(settings),
-        "gitignore_missing": missing_patterns(gitignore_text, gitignore_patterns(repo_root)),
+        "gitignore_missing": missing_patterns(gitignore_text, gitignore_patterns()),
         "output_styles": OUTPUT_STYLES,
         "env": check_env(),
     }

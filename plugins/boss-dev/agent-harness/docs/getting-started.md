@@ -75,7 +75,7 @@ can also point at a local checkout:
 
 This auto-discovers and activates the plugin's **commands**, **agents**, **skills**, **output
 styles**, and **20 hook events**. Hooks are pre-wired through `hooks/hooks.json`; a universal,
-fail-open logger writes redacted JSONL under `.{repo-slug}/logs/<session>/<Event>.jsonl`. Status
+fail-open logger writes redacted JSONL under `.{plugin-repo}/logs/<session>/<Event>.jsonl`. Status
 lines ship as a library and are opt-in — see [status-lines.md](./status-lines.md).
 
 ## Step 4 — Verify it loaded
@@ -145,18 +145,20 @@ prompts.
 Hook logs, session state, and cache are stored under one project-local root:
 
 ```text
-.{repo-slug}/
+.{plugin-repo}/
 ├── logs/<session_id>/<Event>.jsonl
 ├── data/sessions/<session_id>.json
 └── cache/
 ```
 
-The root is derived from the project name by default. Configure these options in `/plugin` →
-**Configure** when a project needs a different location or retention policy:
+The root is named for the marketplace repository that ships the plugin, so the same directory
+appears in every project you work in — `.boss-skills/` for a plugin installed from the
+`boss-skills` marketplace. Configure these options in `/plugin` → **Configure** when a project
+needs a different location or retention policy:
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `HARNESS_DIR` | string | _(empty)_ | Optional project-relative or absolute root; empty uses `.{repo-slug}`. |
+| `HARNESS_DIR` | string | _(empty)_ | Optional project-relative or absolute root; empty uses `.{plugin-repo}`. |
 | `HOOKS_LOG_RETENTION_DAYS` | number | `7` | Retain log directories and cache entries for this many days. |
 | `HOOKS_LOG_RETENTION_MAX_MB` | number | `100` | Combined log/cache limit; oldest entries are evicted first. |
 

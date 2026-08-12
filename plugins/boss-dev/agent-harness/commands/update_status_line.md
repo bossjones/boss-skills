@@ -1,5 +1,5 @@
 ---
-description: Upsert a key/value pair into a session's status line data file at .{repo-slug}/data/sessions/{session_id}.json.
+description: Upsert a key/value pair into a session's status line data file at .{plugin-repo}/data/sessions/{session_id}.json.
 argument-hint: "<session_id> <key> <value>"
 ---
 
@@ -17,7 +17,7 @@ Update or add custom key-value pairs to a session's status line data, enabling d
 
 ## Instructions
 
-Update the session JSON file at `.{repo-slug}/data/sessions/{session_id}.json` by:
+Update the session JSON file at `.{plugin-repo}/data/sessions/{session_id}.json` by:
 
 1. Locating the correct session file based on the provided session_id
 2. Loading the existing JSON data
@@ -29,7 +29,7 @@ Update the session JSON file at `.{repo-slug}/data/sessions/{session_id}.json` b
 
 1. Parse the session_id from $ARGUMENTS (format: "session_id key value")
 2. Resolve the project harness root, then verify the session file exists at
-   `.{repo-slug}/data/sessions/{session_id}.json`
+   `.{plugin-repo}/data/sessions/{session_id}.json`
 3. Read the current session data
 4. Initialize "extras" object if not present
 5. Set extras[key] = value

@@ -45,7 +45,7 @@ runtime path is `.logs/{session_id}/`. The default is duplicated in both `log_ev
 `utils/constants.py:16` — a drift hazard this port must not reproduce.
 
 **Intended outcome:** one writer, one path helper, one place to change; **every** plugin-generated
-artifact — logs, runtime state, and caches — under a single repo-named dot-directory; per-session
+artifact — logs, runtime state, and caches — under a single plugin-named dot-directory; per-session
 append-only JSONL; expanded event coverage; and enough tests that the old pattern cannot silently
 return.
 
@@ -56,7 +56,7 @@ return.
 When this plan is complete:
 
 1. Every hook event is logged by exactly **one** script — `hooks/log_event.py` — as append-only
-   JSONL at `$CLAUDE_PROJECT_DIR/.{repo-slug}/logs/{session_id}/{HookEventName}.jsonl`.
+   JSONL at `$CLAUDE_PROJECT_DIR/.{plugin-repo}/logs/{session_id}/{HookEventName}.jsonl`.
 2. Path resolution lives in exactly **one** module with a documented precedence chain, and it
    resolves **all three** artifact classes: `logs/`, `data/`, `cache/`.
 3. **Nothing** the plugin generates is written outside that root — not to `logs/`, not to
@@ -123,12 +123,22 @@ Port pinata's architecture, fix its known gaps, and keep our superior event cove
 This is deliberately not a logs-only helper — logs, runtime state, and caches all share the root
 so there is exactly one directory to gitignore, inspect, and delete.
 
+> **Amended by [`specs/hooks-namespaced-to-plugin-repo.md`](hooks-namespaced-to-plugin-repo.md).**
+> Branch 3 below originally derived the root name from the *project* basename. It now derives it
+> from the *plugin's marketplace repository*, so the same name is used in every project. The block
+> below reflects the amended behavior; the location, the override precedence, and the narrow
+> `$CLAUDE_HOOKS_LOG_DIR` scope are unchanged.
+
 ```
 resolve_harness_root():
   1. $CLAUDE_HARNESS_DIR                    → used verbatim, relative to project dir
   2. CLAUDE_PLUGIN_OPTION_HARNESS_DIR       → via utils/config.py resolver
-  3. derived: .{slug(basename($CLAUDE_PROJECT_DIR))}
-  4. fallback: .agent-harness               → when project dir is unresolvable
+  3. derived: <project dir>/.{plugin_namespace()}
+  4. fallback: .{plugin_namespace()} (relative) → when project dir is unresolvable
+
+plugin_namespace()  (utils/plugin_namespace.py)
+  nearest ancestor of __file__ holding .claude-plugin/marketplace.json → slug(its basename)
+  no such ancestor                                                     → "agent-harness"
 
 Derived from the root:
   logs_root()   → <root>/logs
@@ -142,18 +152,21 @@ set, overrides **only** the logs subtree — `data/` and `cache/` still come fro
 this narrow scope; it is the one place the two variables can disagree, and a reader who assumes it
 moves everything will be wrong.
 
-Resulting in:
+Resulting in, for a plugin shipped from the `boss-skills` marketplace:
 
 ```
-boss-skills  →  .boss-skills/logs/<session_id>/PostToolUse.jsonl
-                .boss-skills/data/sessions/<session_id>.json
-pinata       →  .pinata/logs/<session_id>/PostToolUse.jsonl
+working in boss-skills  →  .boss-skills/logs/<session_id>/PostToolUse.jsonl
+                           .boss-skills/data/sessions/<session_id>.json
+working in pinata       →  .boss-skills/logs/<session_id>/PostToolUse.jsonl
 ```
+
+The same bytes copied into the `aif-skills` marketplace produce `.aif-skills/` everywhere, which is
+what keeps the backport a clean `cp`.
 
 `slug()` must lowercase, replace any non-`[a-z0-9]` run with a single `-`, strip leading/trailing
-`-` and `.`, and fall back to `agent-harness` if the result is empty. This matters: a repo named
-`My Repo (v2)` must not produce a broken path, and a repo already named `.foo` must not produce
-`..foo`.
+`-` and `.`, and fall back to `agent-harness` if the result is empty. This matters: a marketplace
+directory named `My Repo (v2)` must not produce a broken path, and one already named `.foo` must
+not produce `..foo`.
 
 `$CLAUDE_PROJECT_DIR` is resolved as `os.environ.get("CLAUDE_PROJECT_DIR")` falling back to
 `os.getcwd()`. Per the [hooks reference](https://code.claude.com/docs/en/hooks), a hook's cwd is
@@ -240,9 +253,10 @@ them.
 ##### Backport portability — a hard constraint
 
 Because this code migrates boss-skills → aif-skills as a copy, **no plugin file may contain the
-literal string `boss-skills`.** The dot-dir is *derived at runtime* from
-`basename($CLAUDE_PROJECT_DIR)`, so the same bytes produce `.boss-skills/` in one repo,
-`.aif-skills/` in another, and `.pinata/` in a consumer repo. Add a test asserting
+literal string `boss-skills`.** The dot-dir is *derived at runtime* from the marketplace
+repository shipping the plugin, so the same bytes produce `.boss-skills/` for every repo the
+boss-skills copy runs in and `.aif-skills/` for every repo the aif-skills copy runs in. Add a test
+asserting
 `grep -rn 'boss-skills' plugins/boss-dev/agent-harness/ --include='*.py'` returns **zero** hits
 outside tests and docs. That single constraint is what keeps the backport a clean `cp`.
 
@@ -273,7 +287,7 @@ question the doctor should answer without the user going digging.
 
 ```
 $CLAUDE_PROJECT_DIR/
-└── .boss-skills/                      # gitignored, repo-named, plugin-owned
+└── .boss-skills/                      # gitignored, plugin-named, plugin-owned
     ├── logs/                          # append-only event record — safe to delete anytime
     │   └── <session_id>/
     │       ├── SessionStart.jsonl
@@ -848,7 +862,7 @@ exists, is executable, has valid PEP 723 metadata; every event name is valid; no
 
 ## Acceptance Criteria
 
-1. `.{repo-slug}/logs/{session_id}/{Event}.jsonl` is created for every registered event during a
+1. `.{plugin-repo}/logs/{session_id}/{Event}.jsonl` is created for every registered event during a
    real session; every line parses as JSON and carries `schema_version: 1`.
 2. No file under `plugins/boss-dev/agent-harness/` (excluding tests) constructs a log, state, or
    cache path itself — **zero** grep hits for `Path("logs")`, `Path.cwd() / "logs"`,

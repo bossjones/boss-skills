@@ -45,6 +45,20 @@ def _preflight() -> dict[str, dict[str, bool | str | None]]:
     return check_env()
 
 
+def _namespace() -> tuple[str, Path | None]:
+    """Return the plugin-repository namespace and the marketplace root it came from."""
+    module = _load_hook_module("plugin_namespace")
+    name: str = getattr(module, "plugin_namespace")()
+    source: Path | None = getattr(module, "namespace_source")()
+    return name, source
+
+
+def _legacy_project_root(repo_root: Path) -> Path:
+    """Return the pre-namespace root this repository would have used."""
+    slug = getattr(_load_hook_module("plugin_namespace"), "slug")
+    return repo_root / f".{slug(repo_root.name)}"
+
+
 def _harness_root(repo_root: Path) -> Path:
     """Resolve the harness root through the canonical path helper."""
     existing_utils = {
@@ -146,19 +160,30 @@ def enabled_plugins(repo_root: Path) -> list[dict[str, str | None]]:
 def build_report(repo_root: Path) -> dict[str, Any]:
     """Build the complete read-only doctor report."""
     root = _harness_root(repo_root)
+    namespace, namespace_source = _namespace()
     storage = {name: directory_size(root / name) for name in ("logs", "data", "cache")}
+
+    stale: dict[str, Any] = {
+        "logs": stale_artifact(repo_root / "logs"),
+        "claude_data": stale_artifact(repo_root / ".claude" / "data"),
+    }
+    # A root named for this repository rather than for the plugin predates the
+    # namespaced layout. Report it only when it exists and is not the live root.
+    legacy_root = _legacy_project_root(repo_root)
+    if legacy_root != root and legacy_root.is_dir() and not legacy_root.is_symlink():
+        stale["legacy_project_root"] = stale_artifact(legacy_root)
+
     return {
         "repo_root": str(repo_root),
         "environment": _preflight(),
         "harness_root": {
             "path": str(root),
+            "namespace": namespace,
+            "namespace_source": str(namespace_source) if namespace_source else None,
             "storage": storage,
             "bytes": sum(details["bytes"] for details in storage.values()),
         },
-        "stale_artifacts": {
-            "logs": stale_artifact(repo_root / "logs"),
-            "claude_data": stale_artifact(repo_root / ".claude" / "data"),
-        },
+        "stale_artifacts": stale,
         "enabled_plugins": enabled_plugins(repo_root),
         "advisory": True,
     }

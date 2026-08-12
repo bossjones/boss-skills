@@ -41,6 +41,38 @@ def test_build_report_breaks_down_storage_and_stale_artifacts(tmp_path: Path, mo
     assert report["advisory"] is True
 
 
+def test_report_names_the_namespace_and_the_marketplace_it_came_from(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+
+    report = doctor.build_report(tmp_path)
+    namespace = report["harness_root"]["namespace"]
+    source = report["harness_root"]["namespace_source"]
+
+    # The root is named for the plugin's marketplace, never for the inspected repo.
+    assert report["harness_root"]["path"].endswith(f".{namespace}")
+    assert namespace != tmp_path.name
+    assert source is not None
+    assert (Path(source) / ".claude-plugin" / "marketplace.json").is_file()
+
+
+def test_legacy_repository_named_root_is_reported_only_when_present(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+
+    assert "legacy_project_root" not in doctor.build_report(tmp_path)["stale_artifacts"]
+
+    legacy = doctor._legacy_project_root(tmp_path)
+    (legacy / "logs").mkdir(parents=True)
+    (legacy / "logs" / "old.jsonl").write_bytes(b"old")
+
+    legacy_report = doctor.build_report(tmp_path)["stale_artifacts"]["legacy_project_root"]
+
+    assert legacy_report["exists"] is True
+    assert legacy_report["files"] == 1
+    assert legacy_report["advice"] is not None
+    # Reporting must never touch the directory it describes.
+    assert (legacy / "logs" / "old.jsonl").exists()
+
+
 def test_enabled_plugins_reports_current_manifest_version(tmp_path: Path) -> None:
     settings = tmp_path / ".claude" / "settings.local.json"
     settings.parent.mkdir()
