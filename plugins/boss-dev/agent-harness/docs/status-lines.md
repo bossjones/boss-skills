@@ -9,7 +9,7 @@ context-window and cost readouts; pick the one that surfaces what you watch most
 
 - [What ships](#what-ships)
 - [Wiring it up](#wiring-it-up)
-- [Auth badge (Max vs API)](#auth-badge-max-vs-api)
+- [Auth label (subscription vs API)](#auth-label-subscription-vs-api)
 - [Installing for a project (`.claude/settings.local.json`)](#installing-for-a-project-claudesettingslocaljson)
 - [Custom fields via `update_status_line`](#custom-fields-via-update_status_line)
 - [Dependencies](#dependencies)
@@ -27,11 +27,11 @@ context-window and cost readouts; pick the one that surfaces what you watch most
 | `status_line_v7.py` | Session duration timer — elapsed time and start time | [`status_lines/status_line_v7.py`](../status_lines/status_line_v7.py) |
 | `status_line_v8.py` | Token usage with cache stats — input/output tokens and cache create/read | [`status_lines/status_line_v8.py`](../status_lines/status_line_v8.py) |
 | `status_line_v9.py` | Minimal powerline style — model, branch, cwd, context % with powerline separators | [`status_lines/status_line_v9.py`](../status_lines/status_line_v9.py) |
-| `status_line_v10.py` | Leading `[MAX]`/`[API]` auth badge, context-window usage bar (%), **and** running session cost in USD | [`status_lines/status_line_v10.py`](../status_lines/status_line_v10.py) |
+| `status_line_v10.py` | Leading `[auth:subscription]`/`[auth:api]`/`[auth:pending]` auth label, context-window usage bar (%), **and** running session cost in USD | [`status_lines/status_line_v10.py`](../status_lines/status_line_v10.py) |
 
 `v10` is the current iteration of a progressively richer status line — it extends v6's context-window
 bar with a running cost total computed from the transcript using public Anthropic list pricing, and
-prepends a Max-vs-API auth badge (see below), so you can keep an eye on all three at a glance.
+prepends a subscription-vs-API auth label (see below), so you can keep an eye on all three at a glance.
 
 ## Wiring it up
 
@@ -56,26 +56,29 @@ script on stdin; the script prints the status line to stdout.
 > user/project settings file, use a **fully resolved absolute path**, or let the installer below
 > write one for you.
 
-## Auth badge (Max vs API)
+## Auth label (subscription vs API)
 
-`status_line_v10.py` prepends a badge inferred from the `rate_limits` object Claude Code includes in
+`status_line_v10.py` prepends a label inferred from the `rate_limits` object Claude Code includes in
 the status-line payload:
 
-| `rate_limits` present | assistant `usage` seen in transcript | badge |
+| `rate_limits` present | assistant `usage` seen in transcript | label |
 | --- | --- | --- |
-| yes | — | `[MAX]` |
-| no | yes | `[API]` |
-| no | no | `[?]` |
+| yes | — | `[auth:subscription]` |
+| no | yes | `[auth:api]` |
+| no | no | `[auth:pending]` |
 
 Claude Code emits `rate_limits` only for subscription (Pro/Max) sessions, and only once at least one
-rate-limit window exists — so it is absent both on API-key sessions and on a Max session before its
-first response. The transcript's assistant `usage` entries disambiguate: absence *after* a response
-has landed is a genuine API key (`[API]`); absence *before* any response is still pending (`[?]`).
+rate-limit window exists — so it is absent both on API-key sessions and on a subscription session
+before its first response. The transcript's assistant `usage` entries disambiguate: absence *after* a
+response has landed is a genuine API key (`[auth:api]`); absence *before* any response means the
+transcript has not yet distinguished API from subscription, an explicit pending state
+(`[auth:pending]`).
 
-> **This is an inference, not a reported fact.** The payload exposes no auth-source field; the badge
+> **This is an inference, not a reported fact.** The payload exposes no auth-source field; the label
 > keys off the mere *presence* of `rate_limits`, the narrowest possible coupling to an undocumented
-> shape. Do not treat `[MAX]` as authoritative for billing — it is a hint, and the adjacent cost
-> figure is list-price arithmetic from the transcript (meaningful on an API key, notional on Max).
+> shape. Do not treat `[auth:subscription]` as authoritative for billing — `subscription` covers
+> both Pro and Max, it is a hint, and the adjacent cost figure is list-price arithmetic from the
+> transcript (meaningful on an API key, notional on a subscription).
 
 ## Installing for a project (`.claude/settings.local.json`)
 

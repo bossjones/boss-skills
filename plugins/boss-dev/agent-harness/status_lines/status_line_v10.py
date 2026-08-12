@@ -7,14 +7,15 @@
 # ///
 
 """
-Status Line v10 - Auth badge + Context Window Usage + Session Cost
-Display: [MAX] [Model] | # [###---] | 42.5% used | ~115k left | session_id | $ $0.0421
-Like v6 but prepends a Max-vs-API auth badge and appends a running cost total
+Status Line v10 - Auth label + Context Window Usage + Session Cost
+Display: [auth:subscription] [Model] | # [###---] | 42.5% used | ~115k left | session_id | $ $0.0421
+Like v6 but prepends a subscription-vs-API auth label and appends a running cost total
 computed from the transcript using public Anthropic list pricing.
 
-The leading badge is inferred from the ``rate_limits`` object Claude Code puts in
-the status-line payload (present ⇒ subscription/Max, absent ⇒ API key once a
-response has landed, otherwise pending). It is an inference, not a reported fact.
+The leading label is inferred from the ``rate_limits`` object Claude Code puts in
+the status-line payload (present ⇒ subscription inference covering Pro/Max, absent ⇒
+API key once a response has landed, otherwise pending). It is an inference, not a
+reported fact.
 """
 
 from __future__ import annotations
@@ -251,7 +252,7 @@ def detect_auth_mode(input_data: dict, saw_usage: bool) -> AuthMode:
 
     ``rate_limits`` is emitted by Claude Code only for subscription (Pro/Max)
     sessions, and only once at least one window exists — so it is absent both on
-    API-key sessions and on a Max session before its first response. ``saw_usage``
+    API-key sessions and on a subscription session before its first response. ``saw_usage``
     (at least one assistant ``usage`` entry in the transcript) disambiguates: an
     absent ``rate_limits`` after a response has landed is a genuine API key.
 
@@ -264,12 +265,12 @@ def detect_auth_mode(input_data: dict, saw_usage: bool) -> AuthMode:
 
 
 def format_auth_badge(mode: AuthMode) -> str:
-    """Render the colored auth badge for a mode: [MAX] / [API] / [?]."""
+    """Render a colored auth label for subscription, API, or pending mode."""
     if mode == "max":
-        return f"{GREEN}[MAX]{RESET}"
+        return f"{GREEN}[auth:subscription]{RESET}"
     if mode == "api":
-        return f"{YELLOW}[API]{RESET}"
-    return f"{DIM}[?]{RESET}"
+        return f"{YELLOW}[auth:api]{RESET}"
+    return f"{DIM}[auth:pending]{RESET}"
 
 
 def generate_status_line(input_data: dict) -> str:

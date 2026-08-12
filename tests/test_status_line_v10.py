@@ -183,15 +183,15 @@ def test_scan_transcript_ignores_entries_without_usage(tmp_path: Path) -> None:
 
 
 def test_format_auth_badge_labels_and_colors() -> None:
-    max_badge = sl.format_auth_badge("max")
+    subscription_badge = sl.format_auth_badge("max")
     api_badge = sl.format_auth_badge("api")
     pending_badge = sl.format_auth_badge("pending")
 
-    assert "[MAX]" in max_badge
-    assert max_badge.startswith(sl.GREEN)
-    assert "[API]" in api_badge
+    assert "[auth:subscription]" in subscription_badge
+    assert subscription_badge.startswith(sl.GREEN)
+    assert "[auth:api]" in api_badge
     assert api_badge.startswith(sl.YELLOW)
-    assert "[?]" in pending_badge
+    assert "[auth:pending]" in pending_badge
     assert pending_badge.startswith(sl.DIM)
 
 
@@ -200,7 +200,7 @@ def test_format_auth_badge_labels_and_colors() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_generate_status_line_max_badge_is_additive(tmp_path: Path) -> None:
+def test_generate_status_line_subscription_badge_is_additive(tmp_path: Path) -> None:
     path = _transcript(tmp_path, [_usage_entry("claude-opus-4-8", input_tokens=1000, output_tokens=500)])
     payload = _payload(
         rate_limits={"five_hour": {"used_percentage": 42.0, "resets_at": 1}},
@@ -209,7 +209,7 @@ def test_generate_status_line_max_badge_is_additive(tmp_path: Path) -> None:
     )
     out = sl.generate_status_line(payload)
     # Badge precedes the model segment.
-    assert out.index("[MAX]") < out.index("[Opus 5]")
+    assert out.index("[auth:subscription]") < out.index("[Opus 5]")
     # Nothing regressed: context bar, %, tokens-left, session id, and cost all still render.
     assert "12.5%" in out
     assert "used" in out
@@ -222,12 +222,12 @@ def test_generate_status_line_api_badge(tmp_path: Path) -> None:
     path = _transcript(tmp_path, [_usage_entry("claude-opus-4-8", input_tokens=1000, output_tokens=500)])
     payload = _payload(transcript_path=str(path))
     out = sl.generate_status_line(payload)
-    assert "[API]" in out
+    assert "[auth:api]" in out
 
 
 def test_generate_status_line_empty_payload_renders_pending() -> None:
     out = sl.generate_status_line({})
-    assert "[?]" in out
+    assert "[auth:pending]" in out
 
 
 # --------------------------------------------------------------------------- #
