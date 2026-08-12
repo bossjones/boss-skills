@@ -471,7 +471,10 @@ def validate_marketplace_json(marketplace_data: dict[str, Any]) -> list[str]:
 
 
 def validate_markdown_frontmatter(  # noqa: C901
-    file_path: Path, required_fields: list[str], plugin_name: str
+    file_path: Path,
+    required_fields: list[str],
+    plugin_name: str,
+    field_types: dict[str, type] | None = None,
 ) -> list[str]:
     """Validate YAML frontmatter in markdown file.
 
@@ -483,6 +486,7 @@ def validate_markdown_frontmatter(  # noqa: C901
         file_path: Path to markdown file with frontmatter
         required_fields: List of required field names
         plugin_name: Plugin name for error context
+        field_types: Optional mapping of field names to required Python types
 
     Returns:
         List of validation error messages
@@ -546,6 +550,11 @@ def validate_markdown_frontmatter(  # noqa: C901
             errors.append(f"{plugin_name}/{rel_path}: Missing required field '{field}' in frontmatter")
         elif not frontmatter[field]:
             errors.append(f"{plugin_name}/{rel_path}: Required field '{field}' is empty or null")
+
+    for field, expected_type in (field_types or {}).items():
+        if field in frontmatter and not isinstance(frontmatter[field], expected_type):
+            expected_name = "string" if expected_type is str else expected_type.__name__
+            errors.append(f"{plugin_name}/{rel_path}: {field} must be a {expected_name}")
 
     return errors
 
@@ -660,7 +669,12 @@ def check_commands_directory(plugin_dir: Path) -> list[str]:
 
     for cmd_file in command_files:
         # Validate frontmatter
-        frontmatter_errors = validate_markdown_frontmatter(cmd_file, ["description"], plugin_name)
+        frontmatter_errors = validate_markdown_frontmatter(
+            cmd_file,
+            ["description"],
+            plugin_name,
+            field_types={"argument-hint": str},
+        )
         errors.extend(frontmatter_errors)
 
     return errors
@@ -1180,6 +1194,7 @@ def check_marketplace_structure() -> dict[str, Any]:  # noqa: C901
     # Validate marketplace schema
     marketplace_schema_errors = validate_marketplace_json(marketplace_data)
     result["marketplace_errors"].extend(marketplace_schema_errors)
+    result["marketplace_errors"].extend(check_commands_directory(repo_root / ".claude"))
 
     # If marketplace structure invalid, don't continue
     if marketplace_schema_errors:

@@ -1,6 +1,6 @@
 ---
 description: Creates a concise engineering implementation plan based on user requirements and saves it to specs directory
-argument-hint: [user prompt]
+argument-hint: "[user prompt]"
 ---
 
 # Quick Plan

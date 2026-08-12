@@ -1,5 +1,5 @@
 ---
-argument-hint: [agent-file-path]
+argument-hint: "[agent-file-path]"
 description: Convert a sub-agent to a slash command (project)
 allowed-tools: Read, Write, AskUserQuestion
 ---

@@ -1,5 +1,5 @@
 ---
-argument-hint: [slash-command-file-path]
+argument-hint: "[slash-command-file-path]"
 description: Convert a slash command to a sub-agent definition (project)
 ---
 
