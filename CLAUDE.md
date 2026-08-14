@@ -64,15 +64,20 @@ The agent-harness plugin enables 20 lifecycle events through
 `plugins/boss-dev/agent-harness/hooks/hooks.json`. Every event includes the universal, fail-open
 `hooks/log_event.py`; behavior hooks run separately and must not duplicate event logging.
 The logger appends redacted, schema-versioned JSONL at
-`.{repo-slug}/logs/<session_id>/<Event>.jsonl`, with sibling `data/` (live session state) and
-`cache/` (regenerable data) under the same project-derived root.
+`.{plugin-repo}/logs/<session_id>/<Event>.jsonl`, with sibling `data/` (live session state) and
+`cache/` (regenerable data) under the same root. The root lives in the project directory but is
+**named for the marketplace repository shipping the plugin** (`.boss-skills/` here), so the same
+name is used in every project and worktree. `hooks/utils/plugin_namespace.py` derives it from the
+nearest ancestor holding `.claude-plugin/marketplace.json` — never hardcode the repository name,
+or the aif-skills backport writes the wrong directory.
 
 Resolve that root through `hooks/utils/harness_paths.py`; do not create cwd-relative `logs/` or
-`.claude/data/` paths. `CLAUDE_HARNESS_DIR` takes precedence, followed by the `HARNESS_DIR` plugin
-option; `CLAUDE_HOOKS_LOG_DIR` is a legacy override for `logs/` only. Retention runs at
-`SessionEnd` (default 7 days / 100 MB) and is configurable with
-`HOOKS_LOG_RETENTION_DAYS` and `HOOKS_LOG_RETENTION_MAX_MB`. Do not migrate old `logs/` or
-`.claude/data/` automatically: `harness-doctor` reports them as stale artifacts for user review.
+`.claude/data/` paths, and do not derive a root from the project's own name. `CLAUDE_HARNESS_DIR`
+takes precedence, followed by the `HARNESS_DIR` plugin option; `CLAUDE_HOOKS_LOG_DIR` is a legacy
+override for `logs/` only. Retention runs at `SessionEnd` (default 7 days / 100 MB) and is
+configurable with `HOOKS_LOG_RETENTION_DAYS` and `HOOKS_LOG_RETENTION_MAX_MB`. Do not migrate old
+`logs/`, `.claude/data/`, or repository-named roots automatically: `harness-doctor` reports them as
+stale artifacts for user review.
 
 ## Code Standards
 

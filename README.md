@@ -76,7 +76,7 @@ flowchart LR
 ```
 
 The 20 enabled hook events use a universal, fail-open JSONL logger. Runtime artifacts are scoped to
-`.{repo-slug}/` in the project (`logs/`, `data/`, and `cache/`), rather than a shared cwd-relative
+`.{plugin-repo}/` in the project (`logs/`, `data/`, and `cache/`), rather than a shared cwd-relative
 directory. `MessageDisplay` is intentionally deferred pending a measured logger cold-start p95; it
 is not enabled. See [`plugins/boss-dev/agent-harness/README.md`](plugins/boss-dev/agent-harness/README.md)
 or the [expanded docs](docs/plugins/agent-harness.md) for configuration, retention, and the full

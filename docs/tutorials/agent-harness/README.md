@@ -88,7 +88,7 @@ as a conventional-commit PR, with review feedback addressed — without leaving 
 
 `agent-harness` bundles more than the feature loop — a PR-review skill family, worktree-lifecycle
 skills, a release-notes generator, output styles, status lines, and 20 enabled lifecycle hook
-events. Hook records are redacted JSONL under `.{repo-slug}/logs/<session>/`; status lines remain
+events. Hook records are redacted JSONL under `.{plugin-repo}/logs/<session>/`; status lines remain
 opt-in. See the [reference page](../../plugins/agent-harness.md) for the full component roster and
 hook-storage details.
 

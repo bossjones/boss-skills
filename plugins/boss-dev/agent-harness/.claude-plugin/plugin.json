@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-harness",
   "displayName": "Agent Harness",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "description": "Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build and operate agentic dev workflows.",
   "author": {
     "name": "Malcolm Jones",
@@ -41,7 +41,7 @@
     "HARNESS_DIR": {
       "type": "string",
       "title": "Agent-harness runtime directory",
-      "description": "Optional project-relative or absolute root for agent-harness logs, session data, and cache. Leave blank to use the project-derived .{repo-slug} directory.",
+      "description": "Optional project-relative or absolute root for agent-harness logs, session data, and cache. Leave blank to use the .{plugin-repo} directory named for the marketplace this plugin ships from.",
       "default": "",
       "required": false
     },

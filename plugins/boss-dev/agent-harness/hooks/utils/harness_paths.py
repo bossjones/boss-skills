@@ -3,20 +3,26 @@
 from __future__ import annotations
 
 import os
-import re
 from pathlib import Path
 
 from utils.config import _option
+from utils.plugin_namespace import plugin_namespace, slug
 
-DEFAULT_HARNESS_DIR = ".agent-harness"
+__all__ = [
+    "agent_log_dir",
+    "cache_dir",
+    "data_dir",
+    "harness_dir_name",
+    "logs_root",
+    "resolve_harness_root",
+    "session_log_dir",
+    "slug",
+]
 
-_NON_ALPHANUMERIC = re.compile(r"[^a-z0-9]+")
 
-
-def slug(value: str) -> str:
-    """Return a filesystem-safe, lowercase name derived from ``value``."""
-    normalized = _NON_ALPHANUMERIC.sub("-", value.lower()).strip(".-")
-    return normalized or "agent-harness"
+def harness_dir_name() -> str:
+    """Return the dot-directory name shared by every project this plugin runs in."""
+    return f".{plugin_namespace()}"
 
 
 def _project_dir(project_dir: Path | str | None) -> Path | None:
@@ -46,6 +52,9 @@ def resolve_harness_root(project_dir: Path | str | None = None) -> Path:
     ``project_dir`` explicitly selects the project anchor. It therefore takes
     precedence over ``CLAUDE_PROJECT_DIR`` and the process working directory;
     configured harness directories remain relative to that selected project.
+
+    The derived name comes from the plugin's own marketplace repository, so the
+    same directory name is used in every project the plugin runs in.
     """
     resolved_project_dir = _project_dir(project_dir)
     configured = os.environ.get("CLAUDE_HARNESS_DIR")
@@ -57,9 +66,9 @@ def resolve_harness_root(project_dir: Path | str | None = None) -> Path:
         return Path(configured) if resolved_project_dir is None else _configured_path(configured, resolved_project_dir)
 
     if resolved_project_dir is None:
-        return Path(DEFAULT_HARNESS_DIR)
+        return Path(harness_dir_name())
 
-    return resolved_project_dir / f".{slug(resolved_project_dir.name)}"
+    return resolved_project_dir / harness_dir_name()
 
 
 def logs_root(project_dir: Path | str | None = None) -> Path:

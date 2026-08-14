@@ -80,19 +80,33 @@ revisit a reasoned decision rather than treating their absence as an omission.
 Runtime artifacts are grouped under one project-local root:
 
 ```text
-<project>/.{repo-slug}/
+<project>/.{plugin-repo}/
 ├── logs/<session_id>/<Event>.jsonl
 ├── data/sessions/<session_id>.json
 └── cache/
 ```
 
-The default root uses the project directory basename, lowercased and slugged. For example, a
-project named `boss-skills` uses `.boss-skills/`. The root resolution order is:
+The default root is named for the marketplace repository that ships this plugin, lowercased and
+slugged — not for the project being worked in. A plugin installed from the `boss-skills`
+marketplace writes `.boss-skills/` in **every** project and worktree it runs in, which gives one
+name to ignore, inspect, and document. The root resolution order is:
 
 1. `CLAUDE_HARNESS_DIR`
 2. Plugin option `HARNESS_DIR` (`CLAUDE_PLUGIN_OPTION_HARNESS_DIR`, then bare `HARNESS_DIR`)
-3. The derived `.{repo-slug}` root
-4. `.agent-harness` only when the project directory cannot be resolved
+3. The derived `.{plugin-repo}` root
+4. The global-cache marketplace segment when no manifest is available
+5. `.agent-harness` for other manifest-less plugin paths
+
+The namespace is resolved from the plugin's own location on disk: the nearest ancestor directory
+holding `.claude-plugin/marketplace.json`. Claude's global cache does not retain that manifest, so
+for `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` installs the resolver uses the
+`<marketplace>` path segment instead. Neither case needs an environment variable — status lines and
+standalone skill scripts do not reliably receive `CLAUDE_PLUGIN_ROOT`.
+
+Resolution walks a handful of ancestors and is cached per process, so it is safe on the
+status-line hot path: measured at **0.087 ms** for the first resolve, **0.048 ms** per uncached
+walk, and ~30 ns once cached (macOS, local SSD). Status lines re-run on every assistant message,
+so if that walk ever becomes expensive, set `HARNESS_DIR` to skip it entirely.
 
 Relative configured roots are resolved against the project directory. The legacy
 `CLAUDE_HOOKS_LOG_DIR` override changes **only** the `logs/` subtree; `data/` and `cache/` remain
@@ -144,7 +158,7 @@ Configure these in `/plugin` → **Configure** or by environment variable. Plugi
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| `HARNESS_DIR` | string | _(empty)_ | Optional project-relative or absolute root. Empty uses `.{repo-slug}`. |
+| `HARNESS_DIR` | string | _(empty)_ | Optional project-relative or absolute root. Empty uses `.{plugin-repo}`. |
 | `HOOKS_LOG_RETENTION_DAYS` | number | `7` | Maximum age for log directories and cache entries. |
 | `HOOKS_LOG_RETENTION_MAX_MB` | number | `100` | Combined log/cache cap; oldest entries are evicted first. |
 | `ENABLE_TTS` | boolean | `true` | Enable spoken notifications and completion announcements. |

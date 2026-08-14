@@ -270,7 +270,10 @@ apps/task-manager/data/
 
 
 
-# Agent-harness runtime root for this repository.
+# Agent-harness runtime root. Named for the marketplace repository shipping the
+# plugin (this repo), not for whichever project a session runs in — the same
+# entry is what the plugin writes into consumer repos too. Do not "correct" it
+# to a project-derived name.
 .boss-skills/
 
 # Legacy pre-migration agent-harness logs; retain so old output remains ignored.

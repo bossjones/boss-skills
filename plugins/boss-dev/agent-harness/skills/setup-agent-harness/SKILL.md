@@ -1,6 +1,6 @@
 ---
 name: setup-agent-harness
-description: Make a repo "agent-harness ready" by safely updating .gitignore and .claude/settings.local.json. Use when setting up or onboarding a repo to the agent-harness plugin, ensuring .gitignore covers the repository-derived harness runtime root and optionally configuring the statusLine and an outputStyle in the per-user settings.local.json. Every file is backed up before any change.
+description: Make a repo "agent-harness ready" by safely updating .gitignore and .claude/settings.local.json. Use when setting up or onboarding a repo to the agent-harness plugin, ensuring .gitignore covers the plugin-namespaced harness runtime root and optionally configuring the statusLine and an outputStyle in the per-user settings.local.json. Every file is backed up before any change.
 disable-model-invocation: true
 allowed-tools:
   - Bash(uv run:*)
@@ -15,10 +15,12 @@ Prepares a repository to use the agent-harness plugin without risking committed
 hook output or hand-edited JSON. It does two things, each preceded by a
 timestamped backup:
 
-1. Adds or refreshes a managed block in `.gitignore` covering the repository's
-   derived harness root (for example, `.my-repo/`), `*.log`, and the backups this
-   skill creates. Existing managed blocks are rewritten in place so obsolete
-   `logs/` and `.claude/data/` entries do not persist. The update is idempotent.
+1. Adds or refreshes a managed block in `.gitignore` covering the harness runtime
+   root, `*.log`, and the backups this skill creates. The root is named for the
+   plugin's own marketplace repository, so every repository ignores the same
+   directory name. Existing managed blocks are rewritten in place so obsolete
+   `logs/`, `.claude/data/`, and repository-named roots do not persist. The
+   update is idempotent.
 2. Merges `$schema`, an optional `statusLine`, an optional `outputStyle`, and the
    `enabledPlugins` entry into `.claude/settings.local.json` — the **per-user,
    git-ignored** settings file, so nothing is forced on the team.
