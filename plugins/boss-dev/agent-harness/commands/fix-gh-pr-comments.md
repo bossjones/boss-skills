@@ -146,6 +146,7 @@ make test   # pytest with coverage
 ```
 
 If a check fails:
+
 1. Read the error output.
 2. Apply the fix.
 3. Re-run the failing check.
