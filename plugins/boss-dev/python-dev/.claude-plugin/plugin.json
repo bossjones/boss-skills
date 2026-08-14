@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "python-dev",
   "displayName": "Python Dev",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "Python development tooling for Claude Code: debug GitHub Actions CI failures end-to-end and ship changes via conventional-commit PRs. Assumes a uv-based project with ruff, ty, deptry, pre-commit, and mkdocs.",
   "author": {
     "name": "Malcolm Jones",

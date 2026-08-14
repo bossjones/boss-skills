@@ -27,9 +27,9 @@ Full per-plugin documentation — components, install commands, and usage exampl
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.29.0 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
+| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.31.3 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
 | [basedpyright-lsp](#boss-devbasedpyright-lsp) | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [↗](docs/plugins/basedpyright-lsp.md) |
-| python-dev | `boss-dev` | 0.1.1 | Debug GitHub Actions CI and ship conventional-commit PRs | [↗](docs/plugins/python-dev.md) |
+| python-dev | `boss-dev` | 1.0.0 | Debug GitHub Actions CI and ship conventional-commit PRs | [↗](docs/plugins/python-dev.md) |
 | [github-pr-review](#boss-devgithub-pr-review) | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [↗](docs/plugins/github-pr-review.md) |
 | [twitter-tools](#social-mediatwitter-tools) | `social-media` | 0.1.1 | Download X/Twitter media and convert tweets to Reels | [↗](docs/plugins/twitter-tools.md) |
 | proxmox-infra | `boss-homelab` | 0.1.1 | Manage Proxmox VE homelab infrastructure and IaC | [↗](docs/plugins/proxmox-infra.md) |
@@ -65,7 +65,6 @@ flowchart LR
     ab --> verify{"lint + test"}
     verify -- red --> ab
     verify -- green --> cpp["/commit-push-pr"]
-    cpp --> fix["/fix-gh-pr-comments"]
     fix --> pr(["PR shipped"])
 ```
 
@@ -124,7 +123,6 @@ changes via conventional-commit pull requests. Assumes a `uv`-based project with
 |---------|-------------|
 | `/python-dev:debug-ci` | Diagnose a failed GitHub Actions run, fix it locally, validate, push, and poll until green (up to 3 cycles) |
 | `/python-dev:commit-push-pr` | Stage changes, write a conventional commit, push, and open/update a PR via `gh` |
-| `/python-dev:fix-gh-pr-comments` | Fetch unresolved PR review comments, apply fixes, push, and reply per thread (up to 3 cycles) |
 
 See the [expanded docs](docs/plugins/python-dev.md) for project assumptions and usage examples.
 
