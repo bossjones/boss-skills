@@ -11,10 +11,11 @@ name appears in every project, worktree, and machine.
 
 The namespace is derived from this file's own location: the nearest ancestor
 holding a ``.claude-plugin/marketplace.json`` manifest is the marketplace
-repository. That anchor works identically for a development checkout and for an
-installed copy under ``~/.claude/plugins/marketplaces/``, and it needs no
-environment variable — status lines and standalone skill scripts do not reliably
-receive ``CLAUDE_PLUGIN_ROOT``.
+repository. Claude's global cache instead stores it in
+``~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/``, so that
+marketplace path segment is used when no manifest is available. Neither
+strategy needs an environment variable — status lines and standalone skill
+scripts do not reliably receive ``CLAUDE_PLUGIN_ROOT``.
 
 This module deliberately imports nothing from ``utils``. Standalone consumers
 (the ``harness-doctor`` and ``setup-agent-harness`` skill scripts) load it by
@@ -64,6 +65,10 @@ def namespace_from(start: Path | str) -> tuple[str, Path | None]:
                 return slug(ancestor.name), ancestor
         except OSError:
             continue
+
+    for ancestor in resolved.parents:
+        if ancestor.parent.name == "cache" and ancestor.parent.parent.name == "plugins":
+            return slug(ancestor.name), None
     return DEFAULT_NAMESPACE, None
 
 

@@ -72,6 +72,16 @@ def test_missing_marketplace_manifest_falls_back_to_the_default_namespace(tmp_pa
     )
 
 
+def test_global_cache_path_uses_the_marketplace_segment_without_a_manifest(tmp_path: Path) -> None:
+    """Claude's cache keeps the marketplace name in its path, not a manifest."""
+    module_path = (
+        tmp_path / ".claude" / "plugins" / "cache" / "boss-skills" / "agent-harness" / "0.31.0" / "hooks" / "utils"
+    )
+    module_path.mkdir(parents=True)
+
+    assert plugin_namespace.namespace_from(module_path / "plugin_namespace.py") == ("boss-skills", None)
+
+
 @pytest.mark.parametrize(
     ("directory_name", "expected"),
     [

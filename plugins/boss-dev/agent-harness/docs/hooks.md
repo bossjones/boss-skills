@@ -94,12 +94,14 @@ name to ignore, inspect, and document. The root resolution order is:
 1. `CLAUDE_HARNESS_DIR`
 2. Plugin option `HARNESS_DIR` (`CLAUDE_PLUGIN_OPTION_HARNESS_DIR`, then bare `HARNESS_DIR`)
 3. The derived `.{plugin-repo}` root
-4. `.agent-harness` only when no marketplace manifest is found above the plugin
+4. The global-cache marketplace segment when no manifest is available
+5. `.agent-harness` for other manifest-less plugin paths
 
 The namespace is resolved from the plugin's own location on disk: the nearest ancestor directory
-holding `.claude-plugin/marketplace.json`. That works identically for a development checkout and an
-installed copy under `~/.claude/plugins/marketplaces/`, and needs no environment variable — status
-lines and standalone skill scripts do not reliably receive `CLAUDE_PLUGIN_ROOT`.
+holding `.claude-plugin/marketplace.json`. Claude's global cache does not retain that manifest, so
+for `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` installs the resolver uses the
+`<marketplace>` path segment instead. Neither case needs an environment variable — status lines and
+standalone skill scripts do not reliably receive `CLAUDE_PLUGIN_ROOT`.
 
 Resolution walks a handful of ancestors and is cached per process, so it is safe on the
 status-line hot path: measured at **0.087 ms** for the first resolve, **0.048 ms** per uncached
