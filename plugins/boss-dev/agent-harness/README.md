@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.31.1** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.31.2** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
@@ -99,7 +99,7 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 | `build` | `[path-to-plan]` | Read a plan file and implement it, then report the completed work. |
 | `autobuild` | `<spec-path>` | Implement a spec inside a linked git worktree, then verify, commit, push, open a PR, and address review comments (model: opus). |
 | `commit-push-pr` | — | Stage specific files, write a conventional commit, push, and open or reuse a GitHub PR. |
-| `fix-gh-pr-comments` | `[pr-number]` | Triage unresolved PR review comments, apply fixes, push, reply per-thread, and poll for new comments (≤ 3 cycles). |
+| `fix-gh-pr-comments` | `[pr-number]` | Triage unresolved PR review comments, apply fixes, push, reply and resolve each thread, and poll for new comments (≤ 3 cycles). |
 | `debug-ci` | `[run-id]` | Diagnose a failed GitHub Actions run, fix locally, push, and poll the new run until green (≤ 3 cycles). |
 | `install_status_line` | `[--check\|--uninstall\|--restore]` | Install the status line into this project's `.claude/settings.local.json` (backed up, reversible). |
 | `update_status_line` | `<session_id> <key> <value>` | Upsert a key/value pair into a session's status-line data file. |
@@ -185,7 +185,7 @@ uv run "${CLAUDE_SKILL_DIR}/scripts/fetch_diff.py" --help
 
 ```text
 /agent-harness:debug-ci              # find the failed run, fix, push, poll until green
-/agent-harness:fix-gh-pr-comments 142  # apply + reply to unresolved review comments
+/agent-harness:fix-gh-pr-comments 142  # apply, reply to, and resolve unresolved review comments
 ```
 
 ## Hooks
@@ -377,7 +377,7 @@ Hooks are already wired by `hooks/hooks.json`. Status lines are the opt-in compo
 
 ## Status
 
-Plugin version **v0.31.1**. Skills, commands, agents, output styles, and all 20 hook events are
+Plugin version **v0.31.2**. Skills, commands, agents, output styles, and all 20 hook events are
 auto-discovered and active on `/plugin install`. Status lines require a `statusLine` setting.
 
 ## See also

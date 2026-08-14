@@ -72,8 +72,8 @@ Once the branch is green, package it into a reviewable PR with a conventional-co
 
 ## Step 6 — Address review comments
 
-After reviewers (human or bot) leave unresolved comments, pull them in, apply fixes, push, and reply
-per-thread — up to three cycles:
+After reviewers (human or bot) leave unresolved comments, pull them in, apply fixes, push, reply
+per-thread, and resolve each handled thread — up to three cycles:
 
 ```text
 /agent-harness:fix-gh-pr-comments

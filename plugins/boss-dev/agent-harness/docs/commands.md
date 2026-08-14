@@ -57,7 +57,7 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 | [`question`](#question) | `[question]` | Ask about the project without editing code | — |
 | [`all_tools`](#all_tools) | — | List every available tool as TS signatures | — |
 | [`commit-push-pr`](#commit-push-pr) | — | Commit current changes and open/update a PR | `gh` |
-| [`fix-gh-pr-comments`](#fix-gh-pr-comments) | `[PR number]` | Resolve unresolved PR review comments | `gh` |
+| [`fix-gh-pr-comments`](#fix-gh-pr-comments) | `[PR number]` | Reply to and resolve unresolved PR review comments | `gh` |
 | [`debug-ci`](#debug-ci) | `[run ID]` | Diagnose and fix a failing GitHub Actions run | `gh` |
 | [`validate-unicode-hygiene`](#validate-unicode-hygiene) | `[paths...] [--strict] [--warn-only]` | Scan files for invisible / spoofed Unicode | `uv` |
 | [`install_status_line`](#install_status_line) | `[--check\|--uninstall\|--restore]` | Install the status line into `.claude/settings.local.json` (backed up, reversible) | `uv` |
@@ -240,7 +240,8 @@ fails.
 
 ### `fix-gh-pr-comments`
 
-> Fetch unresolved PR review comments, evaluate each, fix, push, reply per-thread, and re-poll.
+> Fetch unresolved PR review comments, evaluate each, fix, push, reply to and resolve each thread,
+> and re-poll.
 
 - **Arguments:** optional PR number (`/agent-harness:fix-gh-pr-comments 42`); otherwise resolves the
   PR from the current branch.
@@ -249,8 +250,8 @@ fails.
 - **What it does:** A 7-phase loop — fetch top-level unresolved comments, triage by severity
   (security → bugs → correctness → nits), verify each against the current code, apply minimal fixes,
   run `make lint`/`test`, push one conventional commit, reply on each thread with the SHA (pushing
-  back with technical reasoning where a suggestion is wrong), then poll for new comments. **Up to 3
-  outer cycles.**
+  back with technical reasoning where a suggestion is wrong), resolve every handled thread, then
+  poll for new comments. **Up to 3 outer cycles.**
 - **Example:**
 
   ```text
@@ -260,7 +261,7 @@ fails.
 - **Source:** [`commands/fix-gh-pr-comments.md`](../commands/fix-gh-pr-comments.md)
 
 > [!IMPORTANT]
-> Autonomous and multi-cycle (≤ 3 fetch → fix → push → reply loops) — launch with plan mode + an
+> Autonomous and multi-cycle (≤ 3 fetch → fix → push → reply and resolve loops) — launch with plan mode + an
 > Opus-level model: `claude --model 'claude-opus-4-8[1m]' --permission-mode plan`, then approve into
 > auto mode. See
 > [Running autonomous commands](./getting-started.md#running-autonomous-commands-plan-mode--opus).

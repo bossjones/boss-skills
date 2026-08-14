@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · v0.31.1 · [plugin source](../../plugins/boss-dev/agent-harness/)
+> `boss-dev` · v0.31.2 · [plugin source](../../plugins/boss-dev/agent-harness/)
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that
 build and operate agentic dev workflows. The plugin ships three families of skills — a
@@ -84,7 +84,7 @@ Twelve slash commands, namespaced `/agent-harness:<command>`.
 | `/agent-harness:build` | Implement an existing plan file, then report the completed work. |
 | `/agent-harness:autobuild` | Implement a spec inside a linked git worktree, then verify, commit, push, open a PR, and address reviews (opus). |
 | `/agent-harness:commit-push-pr` | Stage specific files, write a conventional commit, push, and open or reuse a GitHub PR. |
-| `/agent-harness:fix-gh-pr-comments` | Triage unresolved PR review comments, apply fixes, push, reply per-thread, and poll for new ones (≤ 3 cycles). |
+| `/agent-harness:fix-gh-pr-comments` | Triage unresolved PR review comments, apply fixes, push, reply to and resolve each thread, and poll for new ones (≤ 3 cycles). |
 | `/agent-harness:debug-ci` | Diagnose a failed GitHub Actions run, fix locally, push, and poll the new run until green (≤ 3 cycles). |
 | `/agent-harness:update_status_line` | Upsert a key/value pair into a session's status-line data file. |
 | `/agent-harness:all_tools` | List every tool in the system prompt as TypeScript signatures with each tool's purpose. |
@@ -178,8 +178,8 @@ What review comments on PR #142 still need a response?
 ```
 
 The `fetch-unresolved-comments` skill queries the GitHub GraphQL API and returns only the
-threads that have not been resolved, grouped by file. To go further and actually apply +
-reply to them, run `/agent-harness:fix-gh-pr-comments 142`.
+threads that have not been resolved, grouped by file. To go further and actually apply fixes, reply
+to each thread, and resolve it, run `/agent-harness:fix-gh-pr-comments 142`.
 
 ### Fix a failing CI run
 
