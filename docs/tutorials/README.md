@@ -19,6 +19,7 @@ into a numbered series with bundled screenshots over time.
 | [agent-harness](agent-harness/README.md) | [Set up your second brain](agent-harness/second-brain.md) | Install obsidian-wiki + optional QMD semantic search via the setup-second-brain skill |
 | [agent-harness](agent-harness/README.md) | [Get started with your second brain (series)](second-brain/README.md) | Use the vault end to end: first steps, ingest, query, keep it current, maintain and scale |
 | [agent-harness](agent-harness/README.md) | [Write and build plans with planf3](agent-harness/planf3.md) | Author an HTML plan with diagrams, then revise and build it out end to end |
+| [agent-harness](agent-harness/README.md) | [Author a new skill with the meta-skill](agent-harness/meta-skill.md) | Run the 9-step Create New Skills workflow end to end to author a new skill |
 | [github-pr-review](github-pr-review/README.md) | [Review your first PR](github-pr-review/README.md) | Install the plugin and post an approval-gated PR review with inline code suggestions |
 | [python-dev](python-dev/README.md) | [Get a red CI run green, then ship the fix](python-dev/README.md) | Debug a failed GitHub Actions run and open a conventional-commit PR |
 | [twitter-tools](twitter-tools/README.md) | [From tweet to Instagram Reel](twitter-tools/README.md) | Download tweet media and compose a 9:16 vertical Reel |
