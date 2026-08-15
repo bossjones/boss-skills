@@ -9,7 +9,59 @@ example: a repo-internal skill named `changelog-linter` that reviews `CHANGELOG.
 before a release.
 
 **Time:** ~30 minutes · **Level:** intermediate · **Reference:**
-[meta-skill `SKILL.md`](../../../plugins/boss-dev/agent-harness/skills/meta-skill/SKILL.md)
+[meta-skill `SKILL.md`](../../../plugins/boss-dev/agent-harness/skills/meta-skill/SKILL.md) ·
+[plugin page](../../plugins/agent-harness.md) · [tutorials index](../README.md)
+
+## TL;DR
+
+> **The meta-skill turns a plain-English request into a well-formed, validated, discoverable
+> skill — without you hand-writing a single `SKILL.md` line.** You say what you want; it
+> interviews you for the gaps, decides where the skill belongs, writes the frontmatter and body,
+> validates the structure, evaluates it, and stops for your sign-off before committing.
+
+At a glance, it can:
+
+- **Author a brand-new skill** — repo-internal ([`.claude/skills/`](../../../.claude/skills/)) or
+  a shippable [plugin](../../../plugins/) skill — with a strong, trigger-rich description.
+- **Extend an existing skill** — add a workflow step, a `references/` file, or a helper script.
+- **Wire in supporting files** — [PEP 723](https://peps.python.org/pep-0723/) scripts, reference
+  docs, and templates, using progressive disclosure so only what's needed loads.
+- **Validate and evaluate before shipping** — structural checks plus your choice of three eval
+  systems, at a depth matched to the skill's maturity.
+- **Guard the guardrails** — it never writes to `~/.claude/skills/`, never guesses the
+  destination, and never auto-commits.
+
+## What you can ask for
+
+The meta-skill has **no slash command** — it triggers on natural language. Any of these phrasings
+matches its description and loads it automatically:
+
+| If you want to… | Say something like | Where it lands |
+|---|---|---|
+| Create tooling only this repo uses | "Create a skill that lints our CHANGELOG entries" | [`.claude/skills/<name>/`](../../../.claude/skills/) (repo-internal) |
+| Build a shippable capability | "Build a skill for analyzing CSV data with charts" | [`plugins/<category>/<plugin>/skills/<name>/`](../../../plugins/) |
+| Add to an existing skill | "Add spell correction to our transcribe skill" | the existing skill's directory |
+| Package a workflow you keep repeating | "Turn this release checklist into a skill" | you pick — it asks if unclear |
+| Capture domain expertise | "Make a skill that writes docs in our house style" | you pick — it asks if unclear |
+
+If the request doesn't make the destination obvious, the skill **stops and asks** with
+`AskUserQuestion` rather than assuming — see [Step 2](#step-2--choose-the-destination-and-create-the-directory).
+
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [A sample session](#a-sample-session) — a full mock Human/Agent run
+- [Step 1 — Define the skill's purpose](#step-1--define-the-skills-purpose)
+- [Step 2 — Choose the destination](#step-2--choose-the-destination-and-create-the-directory)
+- [Step 3 — Design the SKILL.md structure](#step-3--design-the-skillmd-structure)
+- [Step 4 — Write the instructions](#step-4--write-the-instructions)
+- [Step 5 — Write the examples](#step-5--write-the-examples)
+- [Step 6 — Add supporting files](#step-6--add-supporting-files-optional)
+- [Step 7 — Test the skill](#step-7--test-the-skill)
+- [Step 8 — Evaluate the skill](#step-8--evaluate-the-skill)
+- [Step 9 — Commit safely](#step-9--commit-safely)
+- [Troubleshooting](#troubleshooting)
+- [Where to go next](#where-to-go-next)
 
 ## Prerequisites
 
@@ -18,7 +70,7 @@ before a release.
 | The plugin installed | `/plugin install agent-harness@boss-skills` |
 | `uv` on PATH (for `scripts/verify-structure.py` and any PEP 723 scripts) | `uv --version` |
 | A feature branch — the meta-skill never commits to `main` | `git switch -c skill/changelog-linter` |
-| Familiarity with this repo's `CLAUDE.md` and `.claude/rules/skill-development.md` | skim once before starting |
+| Familiarity with this repo's [`CLAUDE.md`](../../../CLAUDE.md) and [`.claude/rules/skill-development.md`](../../../.claude/rules/skill-development.md) | skim once before starting |
 
 The meta-skill has no slash command — it triggers on natural language, the same way any other
 skill does. Just describe what you want to build and Claude Code loads it automatically because
@@ -109,9 +161,12 @@ yes, a small parsing script would help. These answers directly shape the frontma
 and the workflow in Step 4 — nothing here is thrown away.
 
 Before answering, the meta-skill also reads its own bundled references for general skill theory
-(`docs/claude_code_agent_skills.md`, `docs/claude_code_agent_skills_overview.md`,
-`docs/blog_equipping_agents_with_skills.md` under the skill's own directory) — but this repo's
-conventions override them wherever they conflict, per the callout at the top of its `SKILL.md`.
+([`docs/claude_code_agent_skills.md`](../../../plugins/boss-dev/agent-harness/skills/meta-skill/docs/claude_code_agent_skills.md),
+[`claude_code_agent_skills_overview.md`](../../../plugins/boss-dev/agent-harness/skills/meta-skill/docs/claude_code_agent_skills_overview.md),
+[`blog_equipping_agents_with_skills.md`](../../../plugins/boss-dev/agent-harness/skills/meta-skill/docs/blog_equipping_agents_with_skills.md)
+under the skill's own directory) — but this repo's conventions override them wherever they
+conflict, per the callout at the top of its
+[`SKILL.md`](../../../plugins/boss-dev/agent-harness/skills/meta-skill/SKILL.md).
 
 ## Step 2 — Choose the destination and create the directory
 
@@ -125,8 +180,9 @@ unclear:
 
 Because "lints our CHANGELOG entries" doesn't say whether this is for this repo only or meant to
 ship elsewhere, the meta-skill stops and asks with `AskUserQuestion` — (a) repo-internal or
-plugin, and (b) if plugin, which category/plugin. It never assumes. Once you answer
-repo-internal, it creates the directory:
+plugin, and (b) if plugin, which category/plugin (the full category list lives in
+[`.claude/rules/plugin-structure.md`](../../../.claude/rules/plugin-structure.md)). It never
+assumes. Once you answer repo-internal, it creates the directory:
 
 ```text
 mkdir -p .claude/skills/changelog-linter
@@ -211,15 +267,18 @@ make markdown-lint
 ls -la .claude/skills/changelog-linter
 ```
 
-`verify-structure.py` recognizes the plugin/skill layout, `eval/` suites, and `-workspace/`
-scratch directories, and will fail if the skill folder holds anything else. `make lint` and
-`make markdown-lint` catch Python and Markdown issues respectively. Then comes a live check: in a
+[`verify-structure.py`](../../../scripts/verify-structure.py) recognizes the plugin/skill layout,
+`eval/` suites, and `-workspace/` scratch directories, and will fail if the skill folder holds
+anything else. `make lint` and `make markdown-lint` (see
+[`.claude/rules/documentation.md`](../../../.claude/rules/documentation.md)) catch Python and
+Markdown issues respectively. Then comes a live check: in a
 fresh session, ask something that should match the description — "lint the changelog before I
 tag this release" — and confirm Claude Code loads `changelog-linter` rather than staying silent.
 If it doesn't fire, the fix is almost always a weaker-than-needed description; tighten it and
 re-test.
 
-> **Parser bug — GitHub #12781:** the skill parser executes exclamation-mark + backtick patterns
+> **Parser bug — [GitHub #12781](https://github.com/anthropics/claude-code/issues/12781):** the
+> skill parser executes exclamation-mark + backtick patterns
 > **even inside fenced code blocks**, and a backslash escape does not help. Never put that pattern
 > (or an `@`-prefixed file reference) inside a code fence in `SKILL.md` — use `$ command` notation
 > and describe the syntax in prose instead. This is exactly why every command above is shown as
@@ -247,7 +306,8 @@ make eval-skill SKILL=.claude/skills/changelog-linter DEPTH=quick
 ```
 
 That writes a report to `docs/evals/changelog-linter.md` (repo-internal skills report directly
-under `docs/evals/`; plugin skills report under `docs/evals/<plugin>/<skill>.md`). The same
+under [`docs/evals/`](../../evals/README.md); plugin skills report under
+`docs/evals/<plugin>/<skill>.md`). The same
 invocation is also reachable through the `skill-evals` skill
 (`/skill-evals --review --depth quick`), which fans out one subagent per skill. If the real
 problem later turns out to be *activation* rather than structure — the skill exists but doesn't
@@ -262,8 +322,9 @@ back so you can verify the skill first. When you're ready:
 
 - Confirm you're on a **feature branch** — skill work never lands straight on `main`.
 - **Version bump.** For a repo-internal skill like `changelog-linter`, bump `metadata.version` in
-  the skill's own frontmatter. (For a plugin skill, invoke the `version-bump-reviewer` skill
-  instead — it bumps `plugin.json` and the matching `marketplace.json` entry in lockstep.)
+  the skill's own frontmatter. (For a plugin skill, invoke the
+  [`version-bump-reviewer`](../../../.claude/skills/version-bump-reviewer/SKILL.md) skill instead
+  — it bumps `plugin.json` and the matching `marketplace.json` entry in lockstep.)
 - Hand off to the `commit-push-pr` skill (or make a conventional commit manually and open a PR).
 
 Only once you say the equivalent of "looks good, ship it" does the agent perform the version
@@ -284,7 +345,11 @@ reads in practice.
 
 - Compare with the lighter-weight `skill-creator` skill when the problem is purely
   *activation* — a skill that exists but won't fire reliably.
-- Read [references/eval-systems.md](../../../plugins/boss-dev/agent-harness/skills/meta-skill/references/eval-systems.md)
+- Read [`references/eval-systems.md`](../../../plugins/boss-dev/agent-harness/skills/meta-skill/references/eval-systems.md)
   directly before an improvement loop — it has the full depths table for all three eval systems.
-- Once a skill has shipped once, revisit Step 8 at a deeper depth (`standard`/`deep`, or
-  skillgrade `reliable`) as part of your normal review cycle rather than only at first draft.
+- Once a skill has shipped once, revisit [Step 8](#step-8--evaluate-the-skill) at a deeper depth
+  (`standard`/`deep`, or skillgrade `reliable`) as part of your normal review cycle rather than
+  only at first draft.
+- Browse the [agent-harness plugin page](../../plugins/agent-harness.md) for the other skills,
+  commands, and hooks this plugin ships, or head back to the [tutorials index](../README.md) for
+  the full walkthrough catalog.
