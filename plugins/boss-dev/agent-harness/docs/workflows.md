@@ -80,7 +80,7 @@ add-review-comment         → post individual inline comments / suggestions
 ```text
 /agent-harness:fix-gh-pr-comments 42
   → triage by severity → fix → make lint/test → push one commit
-  → reply per-thread with the SHA → poll for new comments (≤ 3 cycles)
+  → reply per-thread with the SHA → resolve each handled thread → poll for new comments (≤ 3 cycles)
 ```
 
 See [skills.md → PR review workflow](./skills.md#pr-review-workflow) ·

@@ -51,9 +51,9 @@ after the marketplace changes:
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| agent-harness | `boss-dev` | 0.12.1 | Subagents, commands, and skills for agentic dev workflows | [agent-harness.md](agent-harness.md) |
+| agent-harness | `boss-dev` | 0.31.3 | Subagents, commands, and skills for agentic dev workflows | [agent-harness.md](agent-harness.md) |
 | basedpyright-lsp | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [basedpyright-lsp.md](basedpyright-lsp.md) |
-| python-dev | `boss-dev` | 0.1.1 | Debug GitHub Actions CI and ship conventional-commit PRs | [python-dev.md](python-dev.md) |
+| python-dev | `boss-dev` | 1.0.0 | Debug GitHub Actions CI and ship conventional-commit PRs | [python-dev.md](python-dev.md) |
 | github-pr-review | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [github-pr-review.md](github-pr-review.md) |
 | twitter-tools | `social-media` | 0.1.1 | Download X/Twitter media and convert tweets to Reels | [twitter-tools.md](twitter-tools.md) |
 | proxmox-infra | `boss-homelab` | 0.1.1 | Manage Proxmox VE homelab infrastructure and IaC | [proxmox-infra.md](proxmox-infra.md) |

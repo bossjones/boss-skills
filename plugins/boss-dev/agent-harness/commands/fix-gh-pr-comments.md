@@ -1,11 +1,11 @@
 ---
-description: Fetch unresolved PR review comments via gh CLI, evaluate each one, apply fixes locally, validate, push, reply per-thread, and poll for new comments. Supports up to 3 outer cycles.
+description: Fetch unresolved PR review comments via gh CLI, evaluate each one, apply fixes locally, validate, push, reply and resolve each thread, and poll for new comments. Supports up to 3 outer cycles.
 allowed-tools: [Bash, Read, Edit, Write, Glob, Grep, Agent]
 ---
 
 # Fix GitHub PR Review Comments
 
-You are a PR-review responder. Your job is to take the inline review comments on a pull request, evaluate each one technically, apply the fixes the project actually needs, push a single conventional commit, reply to each thread with what was done, and then poll for any new comments triggered by your push.
+You are a PR-review responder. Your job is to take the inline review comments on a pull request, evaluate each one technically, apply the fixes the project actually needs, push a single conventional commit, reply to and resolve each handled thread, and then poll for any new comments triggered by your push.
 
 Argument: optional PR number (`/agent-harness:fix-gh-pr-comments 42`). If omitted, resolve the PR from the current branch.
 
@@ -15,9 +15,10 @@ Argument: optional PR number (`/agent-harness:fix-gh-pr-comments 42`). If omitte
 - **Never `git add -A` or `git add .`** — stage only the specific files you edited.
 - **Never amend or force-push.** Always create a new commit.
 - **Conventional commit prefix required**: `fix:` for security/bug fixes, `docs:` for doc-only changes, `style:` for formatting, `refactor:` if restructuring. If a single commit covers multiple categories, use the highest-priority one (`fix` > `refactor` > `docs` > `style`).
-- **Max 3 outer cycles** (fetch → fix → push → reply → poll). If reviewers keep returning new actionable comments after 3 cycles, stop and ask the user for direction.
+- **Max 3 outer cycles** (fetch → fix → push → reply and resolve → poll). If reviewers keep returning new actionable comments after 3 cycles, stop and ask the user for direction.
 - **Max 3 inner iterations** for local validation per cycle.
 - **Reply on each thread**, not as a top-level PR comment. The endpoint is `POST /repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies`.
+- **Resolve each handled thread after its reply succeeds.** The `resolveReviewThread` mutation must return `isResolved: true`; stop and surface the failure if either the reply or resolution fails.
 - **No performative agreement** in replies. Acknowledge what was fixed (or push back) with the commit SHA. Never write "Thanks", "Great catch", or similar — actions speak via the diff.
 - **Filter out comments authored by the current GitHub user** when polling, to avoid self-reply loops.
 - **Auto-sync PR title/description on push.** After pushing to an existing PR, check whether the title/body still reflect the PR's actual scope. If this cycle's fixes changed that (new category of fix, e.g. security/bug fix not mentioned in a docs-only title; new files/areas not covered by the body's Summary), update both immediately with `gh pr edit` — do not ask the user first. If the existing title/body still accurately describe the PR, leave them untouched.
@@ -46,17 +47,58 @@ If `$1` is empty here, fall back to the PR for the current branch. Bail with a c
 ## Phase 1: Fetch & Triage Comments
 
 ```bash
-gh api --paginate "repos/$OWNER_REPO/pulls/$PR_NUMBER/comments" > /tmp/pr_comments.json
-```
+gh api graphql --paginate --slurp \
+  -F owner="${OWNER_REPO%/*}" \
+  -F repo="${OWNER_REPO#*/}" \
+  -F prNumber="$PR_NUMBER" \
+  -f query='
+query($owner: String!, $repo: String!, $prNumber: Int!, $endCursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $prNumber) {
+      reviewThreads(first: 100, after: $endCursor) {
+        nodes {
+          id
+          isResolved
+          comments(first: 1) {
+            nodes {
+              databaseId
+              path
+              line
+              body
+              author { login }
+            }
+          }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}' > /tmp/pr_threads.json
 
-Pull out **actionable, unresolved, top-level** comments — exclude reply chains and your own comments:
-
-```bash
-jq '[.[] | select(.in_reply_to_id == null and .user.login != "'"$ME"'")]' /tmp/pr_comments.json > /tmp/pr_top_comments.json
+jq --arg me "$ME" '
+  [
+    .[]
+    | .data.repository.pullRequest.reviewThreads.nodes[]
+    | select(.isResolved == false and (.comments.nodes | length > 0))
+    | . as $thread
+    | $thread.comments.nodes[0]
+    | select(.author.login != $me)
+    | {
+        thread_id: $thread.id,
+        id: .databaseId,
+        path,
+        line,
+        user: .author.login,
+        body
+      }
+  ]
+' /tmp/pr_threads.json > /tmp/pr_top_comments.json
 jq 'length' /tmp/pr_top_comments.json
 ```
 
-For each comment, record: `id`, `path`, `line`, `user.login`, `body`, `original_commit_id`. Group by file path. Within each file, prioritize:
+GraphQL is required because only review threads expose both their unresolved state and the opaque
+`thread_id` needed to resolve them. For each comment, preserve `thread_id`, `id`, `path`, `line`,
+`user`, and `body`. Group by file path. Within each file, prioritize:
 
 1. **Security** (auth, injection, secrets exposure) — fix first.
 2. **Bugs / robustness** (crashes, race conditions, data corruption).
@@ -104,6 +146,7 @@ make test   # pytest with coverage
 ```
 
 If a check fails:
+
 1. Read the error output.
 2. Apply the fix.
 3. Re-run the failing check.
@@ -170,9 +213,11 @@ EOF
 
 Preserve the original body's structure (Summary/Test plan) — amend in place and append a per-cycle "Review feedback addressed" section rather than replacing the whole body, so the description accumulates history across cycles.
 
-## Phase 6: Reply to Each Thread
+## Phase 6: Reply to and Resolve Each Thread
 
-For every comment you addressed (or pushed back on), POST a reply on its thread. **Do not** post a top-level PR comment.
+For every comment you handled (applied, pushed back, or deferred), POST a reply on its thread.
+**Do not** post a top-level PR comment. Keep the matching `thread_id` from Phase 1, then resolve
+that thread only after the reply succeeds.
 
 ```bash
 gh api -X POST "repos/$OWNER_REPO/pulls/$PR_NUMBER/comments/<id>/replies" \
@@ -187,6 +232,30 @@ gh api -X POST "repos/$OWNER_REPO/pulls/$PR_NUMBER/comments/<id>/replies" \
 ```
 
 Keep replies short and technical. No "thanks", no "great catch", no apologies.
+
+After each successful reply, resolve its matching review thread:
+
+```bash
+THREAD_ID="<thread_id from Phase 1>"
+RESOLVED=$(gh api graphql \
+  -F threadId="$THREAD_ID" \
+  -f query='
+mutation($threadId: ID!) {
+  resolveReviewThread(input: {threadId: $threadId}) {
+    thread { isResolved }
+  }
+}' \
+  --jq '.data.resolveReviewThread.thread.isResolved')
+
+if [ "$RESOLVED" != "true" ]; then
+  echo "Failed to resolve review thread $THREAD_ID after replying; stopping."
+  exit 1
+fi
+```
+
+Run the reply and resolution sequentially for one thread at a time. If either request fails, stop
+the cycle immediately and surface the thread ID; do not continue to polling or silently leave a
+handled thread open.
 
 ## Phase 7: Poll for New Comments
 
@@ -242,8 +311,8 @@ Committed: fix: address gemini-code-assist review feedback on PR #2
 Pushed: abc1234
 PR scope unchanged — title/description left as-is.
 
-### Phase 6: Reply
-Posted 9 thread replies.
+### Phase 6: Reply + Resolve
+Posted 9 thread replies and resolved 9 review threads.
 
 ### Phase 7: Poll
 Sleep 60s... 0 new actionable comments.
@@ -256,5 +325,6 @@ Sleep 60s... 0 new actionable comments.
 - **No PR resolved** → bail with instructions to pass a PR number or push the branch first.
 - **`gh auth status` fails** → ask user to run `gh auth login` and stop.
 - **All checks still failing after 3 inner iterations** → stop, surface error.
+- **A reply or resolution request fails** → stop, surface the affected thread ID; do not poll.
 - **Same reviewer keeps re-flagging the same issue across cycles** → stop, ask user — likely a misunderstanding of the suggestion.
 - **3 outer cycles exhausted** → stop, summarize what's still open, hand back to user.

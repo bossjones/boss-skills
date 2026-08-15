@@ -37,29 +37,17 @@ Stages the modified files (skipping anything that looks like a secret), writes a
 [Conventional Commits](https://www.conventionalcommits.org/) message, pushes the branch, and opens —
 or updates — a GitHub PR with `gh`.
 
-## Step 3 — Respond to review comments
-
-After reviewers leave unresolved comments, fetch them, apply fixes, push, and reply per thread:
-
-```text
-/python-dev:fix-gh-pr-comments
-```
-
-It evaluates each unresolved thread, applies the fixes locally, validates, pushes, replies, and polls
-for new comments — up to three outer cycles.
-
 ## The full chain
 
 ```text
 /python-dev:debug-ci            # get the branch green
 /python-dev:commit-push-pr      # open/update the PR
-/python-dev:fix-gh-pr-comments  # address review feedback
 ```
 
 ## What you get
 
-A failing CI run diagnosed and fixed at its root cause, packaged into a conventional-commit PR, with
-review feedback handled — without leaving Claude Code.
+A failing CI run diagnosed and fixed at its root cause, packaged into a conventional-commit PR —
+without leaving Claude Code.
 
 ## Next steps
 
