@@ -148,10 +148,19 @@ Verified directly during research (do not re-derive):
 - **`plugin.json` ships exactly 25 skills.** Its `skills` array names 18 paths under
   `./skills/engineering/` and 7 under `./skills/productivity/`. The 12 skills in `in-progress/` and
   `misc/` are not in it and are therefore not installable via either plugin manager.
-- **Copilot CLI installs plugins from `owner/repo`, `owner/repo:path`, a git URL, or a local path**
-  (`copilot plugin install --help`), and it does parse `.claude-plugin/plugin.json`:
+- **Copilot's two install commands accept different sources.** `copilot plugin install` (singular)
+  takes `plugin@marketplace`, `owner/repo`, `owner/repo:path`, or `https://…` — **no local path**.
+  `copilot plugins install` (plural) additionally accepts a **local path**. Rung 9a stages a plugin
+  on disk, so it must use the plural form. Copilot does parse `.claude-plugin/plugin.json`:
   `copilot --plugin-dir /Users/bossjones/dev/mattpocock/skills plugin list` reports
   `mattpocock-skills` under *External Plugins*.
+- **`claude plugin` and `claude plugins` are aliases** for the same command group. `claude plugin
+  install` takes `-s/--scope <user|project|local>`, defaulting to `user`, plus `-y/--yes` for
+  non-TTY runs. `claude plugin details <name>` prints a plugin's full component inventory (skill
+  names included) and its projected per-session token cost — the best single verification that all
+  25 skills loaded.
+- **Copilot's uninstall/update take a plugin name**, not a repo slug: `copilot plugin uninstall
+  <plugin-name|plugin-name@marketplace>`, `copilot plugin update <name>` or `--all`.
 - **Escape hatch for the 12 non-promoted skills, if ever wanted** (`npx skills@latest --help`):
   `-g/--global`, `-a/--agent` (repeatable, **not** comma-separated; `claude-code` →
   `~/.claude/skills/`, `github-copilot` → `~/.copilot/skills/`), `-s/--skill`, `-y/--yes`,
@@ -349,24 +358,30 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
 ### 7. Install the plugin at user scope for Claude Code
 
 - Install from the official marketplace. `claude-plugins-official` is registered by default, so there
-  is no marketplace to add first:
+  is no marketplace to add first. `--scope user` is the default, but pass it explicitly — this runs
+  from inside a project directory, where `project` and `local` are equally valid scopes and a silent
+  default is the wrong thing to rely on:
 
   ```bash
-  claude plugin install mattpocock-skills
+  claude plugin install mattpocock-skills --scope user
   ```
 
-- Verify it landed at user scope:
+- **Verify with the component inventory, not the JSON.** This is the single best check that the
+  manifest's 25 skills all loaded, and it names them:
 
   ```bash
-  python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json')));print([(k,[e.get('scope'),e.get('version')]) for k,v in d.items() if 'mattpocock' in k for e in v])"
+  claude plugin details mattpocock-skills
   ```
 
-  Expect one `mattpocock-skills@claude-plugins-official` entry with `scope: "user"`.
+  Expect `Skills (25)` listing `ask-matt … writing-for-agents`, `Source:
+  mattpocock-skills@claude-plugins-official`. Note the *Projected token cost* line while it is on
+  screen: 25 skill descriptions are always-on context in every session from here on, so if that
+  number looks unacceptable, this is the moment to reconsider scope rather than after the fact.
 
-- Confirm the cache holds the bucketed layout the manifest declares:
+- Confirm the scope recorded is `user`:
 
   ```bash
-  ls ~/.claude/plugins/cache/claude-plugins-official/mattpocock-skills/*/skills/*/ | head -30
+  claude plugin list 2>&1 | grep -A3 mattpocock
   ```
 
 - Verify no duplication: from inside this repo, confirm none of the 25 names resolves to a
@@ -451,10 +466,12 @@ Copy rather than symlink — plugin installers copy the tree and drop symlinks. 
 local path and re-run Step 8's decisive check:
 
 ```bash
-copilot plugin install ~/.local/share/mattpocock-skills-copilot
+copilot plugins install ~/.local/share/mattpocock-skills-copilot
 ```
 
-Refreshing this later means re-running the staging script after a `git pull`, then
+**The plural `plugins install` is required here** — the singular `copilot plugin install` accepts
+only `plugin@marketplace`, `owner/repo`, `owner/repo:path`, and `https://…`, and will not take a
+local path. Refreshing later means re-running the staging script after a `git pull`, then
 `copilot plugin update mattpocock-skills`. Record that as the maintenance cost.
 
 **9b — Personal skills, namespacing sacrificed on Copilot only.** If 9a fails, fall back to the
@@ -599,6 +616,16 @@ installs took effect.
 - *Silent version skew.* Claude tracks the marketplace's pinned SHA; Copilot tracks the default
   branch at install time. Not a failure, but check both before attributing a behaviour difference to
   a harness rather than a commit.
+- *Wrong Copilot install verb in rung 9a.* `copilot plugin install` (singular) rejects local paths;
+  only `copilot plugins install` (plural) accepts them. A singular call there fails at the argument
+  parser, which is loud rather than silent — but easy to mistype given the alias-like naming.
+- *Scope drift on Claude.* `claude plugin install` defaults to `--scope user`, but the plan runs it
+  from inside a project directory. If `claude plugin list` reports `Scope: project`, uninstall and
+  re-install with `--scope user` — a project-scoped install would follow this repo rather than the
+  machine.
+- *Always-on token cost.* 25 skill descriptions load into every session. `claude plugin details
+  mattpocock-skills` reports the projected figure; check it once rather than discovering the cost
+  through degraded context later.
 
 ## Acceptance Criteria
 
@@ -610,8 +637,8 @@ installs took effect.
    (`grep -rn "matt-pocock-skills" docs/` returns nothing).
 5. `CLAUDE.md`'s `## Agent skills` block and all three `docs/agents/*.md` files are unchanged
    (`git diff --stat CLAUDE.md docs/agents/` is empty).
-6. `~/.claude/plugins/installed_plugins.json` contains a `mattpocock-skills@claude-plugins-official`
-   entry with `scope: "user"`.
+6. `claude plugin details mattpocock-skills` reports `Skills (25)`, and `claude plugin list` shows the
+   plugin at `Scope: user`, `Status: ✔ enabled`.
 7. Copilot reports the plugin's skills — `ask-matt`, `grilling`, `wayfinder`, `to-spec`, `to-tickets`,
    `wizard` all present — via Step 8 or a recorded rung of Step 9.
 8. Skills resolve under the `mattpocock-skills:` namespace on both harnesses (Claude Code's skill
@@ -640,7 +667,8 @@ Execute these to validate the task is complete:
 - `make verify-structure` — repository structure gate passes.
 - `make lint` — ruff + basedpyright clean (unchanged; no Python touched).
 - `make test` — `uv run pytest` suite passes.
-- `python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json')));print([k for k in d if 'mattpocock' in k])"` — expect `['mattpocock-skills@claude-plugins-official']`.
+- `claude plugin details mattpocock-skills` — expect `Skills (25)` and `Source: mattpocock-skills@claude-plugins-official`.
+- `claude plugin list 2>&1 | grep -A3 mattpocock` — expect `Scope: user` and `Status: ✔ enabled`.
 - `copilot plugin list 2>&1 | grep -i mattpocock` — the plugin is registered with Copilot.
 - `copilot skill list 2>&1 | sed -n '/^Plugin skills:/,/^Builtin skills:/p' | grep -cE '^\s+(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard) '` — expect `6`; Copilot loaded the plugin's skills.
 - `test $(find .claude/skills -maxdepth 1 -mindepth 1 -type d | wc -l) -eq 3 && echo "only repo-owned skills remain"` — no vendored directory survived the trash step.
