@@ -28,8 +28,11 @@ When this plan is complete:
 1. No `mattpocock/skills`-derived content remains under `.claude/skills/`, and `skills-lock.json`
    is gone. Only repo-owned skills (real directories) and plugin symlinks remain.
 2. Documentation that described the vendored copies is removed or rewritten to point upstream.
-3. The upstream skills are installed once, at user scope, for Claude Code.
-4. The same upstream skills are reachable from Copilot CLI at personal (user) scope.
+3. All upstream skills are installed once at user scope, via the `skills` CLI
+   (`vercel-labs/skills`), for **both** Claude Code (`~/.claude/skills/`) and Copilot CLI
+   (`~/.copilot/skills/`), with a single documented command that is safe to re-run.
+4. Re-running that command updates or overrides an existing install rather than duplicating it, and
+   `npx skills update -g -y` refreshes to newer upstream content.
 5. `make lint`, `make test`, `make verify-structure`, `make markdown-lint`, and `make link-check`
    all pass, and neither harness lists any mattpocock skill twice.
 
@@ -78,9 +81,29 @@ Split the work along the "who owns this file" line:
   `CLAUDE.md` and `docs/agents/{issue-tracker,triage-labels,domain}.md` are repo configuration read
   by the upstream skills at runtime. They are not install artifacts, and the globally-installed
   skills will still read them. Deleting them would break `triage` / `to-tickets` / `to-spec`.
-- **Global install: one command per harness.** Claude Code takes the official plugin. Copilot CLI
-  takes either the same repo as a plugin or the two promoted bucket directories registered as
-  personal skill directories — decided by a verification step, not by assumption.
+- **Global install: one command, both harnesses.** The `skills` CLI ([vercel-labs/skills](https://github.com/vercel-labs/skills),
+  the tool behind `skills.sh`) installs to multiple agents in one invocation, so
+  `--agent claude-code --agent github-copilot --global` covers both. Every flag is spelled out so
+  nothing is written outside those two directories.
+
+### Why the `skills` CLI rather than the Claude Code plugin
+
+Both routes deliver the same upstream content. The chosen route is the `skills` CLI, and the
+trade-off is worth stating plainly because it is not free:
+
+| | `skills` CLI (chosen) | `claude plugin install` |
+|---|---|---|
+| Harness coverage | Both, one command | Claude Code only |
+| Scope | User (`-g`) | User |
+| Names | **Bare** (`code-review`) | **Namespaced** (`mattpocock-skills:code-review`) |
+| Skills installed | 37 (25 promoted + 12 non-promoted) | 25 promoted |
+| Updates | `npx skills update -g -y` | Automatic on upstream release |
+| Files | Symlinks to one canonical copy | Read-only plugin cache |
+
+The CLI wins on the thing that actually matters here — one route covering both harnesses, with
+everything upstream ships. It loses on namespacing, and that loss is real rather than cosmetic:
+personal skills have no plugin to be namespaced under, so `code-review` lands as a bare global name
+in both harnesses. Step 10 resolves that one collision explicitly rather than leaving it implicit.
 
 ### What is verified vs. what is not
 
@@ -98,13 +121,33 @@ Verified directly during research (do not re-derive):
 - `scripts/eval-skills.py` discovers skills under `plugins/` only (`discover_skills()`), so
   `make eval-ci` is unaffected by anything under `.claude/skills/`.
 - `scripts/verify-structure.py` contains no `.claude/skills` references.
-- **Claude Code namespaces plugin skills as `plugin-name:skill-name`.** A live session's skill
-  listing carries the built-in `code-review` and the plugin's `code-review:code-review` as separate
-  entries, plus `superpowers:brainstorming`, `agent-harness:boss-cmux`, and so on. Project-level
-  `.claude/skills/<name>` entries stay bare — which is why this repo's symlinked plugin skills
-  currently appear twice (`boss-cmux` and `agent-harness:boss-cmux`).
-- **Copilot CLI does not namespace.** `copilot skill list` produced zero `plugin:skill` entries
-  across its entire output; `code-review` appears once, bare, under *Plugin skills*.
+- **Both harnesses namespace *plugin* skills as `plugin-name:skill-name`; neither namespaces
+  *personal* or *project* skills.** Claude Code: a live session's skill listing carries the built-in
+  `code-review` and the plugin's `code-review:code-review` as separate entries, plus
+  `superpowers:brainstorming`, `agent-harness:boss-cmux`. Copilot CLI: its slash-command picker
+  offers `/superpowers:brainstorming`, `/superpowers:executing-plans`, and so on — `superpowers` is
+  installed there as a plugin (`~/.copilot/config.json` `installedPlugins`), which is where the
+  prefix comes from.
+- **`copilot skill list` is not evidence about naming.** It renders every entry bare regardless of
+  source — plugin skills included — and only groups them under *Project* / *Personal* / *Plugin* /
+  *Builtin* headings. An earlier reading of that output wrongly concluded Copilot does not namespace;
+  the slash-command picker is the authority, and it does.
+- **The `skills` CLI installs personal skills, which are therefore bare in both harnesses.** Nothing
+  namespaces them, because there is no plugin to namespace them under. Corroborated on this machine:
+  the skills.sh-installed copies in this repo's `.claude/skills/` appear bare in a Claude session
+  (`grill-me`, `triage`, `diagnose`), and the obsidian-wiki symlinks in `~/.copilot/skills/` appear
+  bare under Copilot's *Personal skills*. This is the central trade-off of the chosen route, and
+  Step 10 handles its one sharp consequence.
+- **The `skills` CLI (`vercel-labs/skills`) discovers 37 skills in `mattpocock/skills`, not 25.**
+  `npx skills@latest add mattpocock/skills --list` groups them as *Mattpocock Skills* (25, from
+  `.claude-plugin/plugin.json`) and *General* (12, from the catalog walk over `in-progress/` and
+  `misc/`). Manifest discovery **adds to** the catalog walk rather than restricting it.
+- **`skills` CLI flags** (`npx skills@latest --help`): `-g/--global` for user scope;
+  `-a/--agent` repeatable, **not** comma-separated; `-s/--skill '*'` for all; `-y/--yes`;
+  `--copy` to opt out of the default symlinking; `-l/--list` to preview. `--all` is shorthand for
+  `--skill '*' --agent '*' -y` and must be avoided — `--agent '*'` targets all 78 supported agents.
+  Agent identifiers and their global paths: `claude-code` → `~/.claude/skills/`, `github-copilot` →
+  `~/.copilot/skills/`.
 - `trash` is macOS `/usr/bin/trash`. It recurses into directories with no `-r` flag (passing one is
   an error), moves to `~/.Trash`, and exits 0 — but it does **not** update the git index, so staging
   is a separate step.
@@ -112,13 +155,14 @@ Verified directly during research (do not re-derive):
   after `<vertical-slice-rules>` / `<issue-template>` / `<user-story-example>` in `to-issues` and
   `to-prd` to satisfy `rumdl`. Nothing else has been edited since `c9b0237`.
 
-**Not verified, and Step 8 must resolve it:** whether an *installed* Copilot plugin surfaces skills
-declared through `plugin.json`'s explicit `skills` array of bucketed paths (`./skills/engineering/…`)
-rather than a conventional flat `skills/` directory. `--plugin-dir` cannot answer this — a control
-run with this repo's own `plugins/boss-dev/agent-harness` (which has a conventional layout) showed
-`--plugin-dir` does not feed `copilot skill list` at all, so the absence of mattpocock names there
-proves nothing either way. Upstream ADR 0002 records that *Codex* cannot express this manifest
-shape; Copilot may or may not share that limitation. Step 8 tests it and Step 9 is the fallback.
+**Not verified, and deliberately no longer on the critical path:** whether an *installed* Copilot
+plugin surfaces skills declared through `plugin.json`'s explicit `skills` array of bucketed paths.
+`--plugin-dir` could not answer it — a control run with this repo's own
+`plugins/boss-dev/agent-harness` (conventional layout) showed `--plugin-dir` does not feed
+`copilot skill list` at all — and upstream ADR 0002 records that *Codex* cannot express this manifest
+shape. Choosing the `skills` CLI route sidesteps the question entirely: the CLI does its own manifest
+and catalog discovery and writes plain skill directories, so Copilot's plugin-manifest handling never
+comes into play. Left recorded here only so a future reader does not re-run the same dead end.
 
 ## Relevant Files
 
@@ -143,7 +187,8 @@ Use these files to complete the task:
 
 **Read for context**
 
-- `/Users/bossjones/dev/mattpocock/skills/.claude-plugin/plugin.json` — the authoritative 25-skill promoted list.
+- [`vercel-labs/skills`](https://github.com/vercel-labs/skills) — the `skills` CLI behind `skills.sh`, and the installer this plan uses. Its README is the authority on flags, the supported-agent table (`claude-code` → `~/.claude/skills/`, `github-copilot` → `~/.copilot/skills/`), Skill Discovery, and Plugin Manifest Discovery.
+- `/Users/bossjones/dev/mattpocock/skills/.claude-plugin/plugin.json` — the authoritative 25-skill promoted list, and the manifest the `skills` CLI reads on top of its catalog walk.
 - `/Users/bossjones/dev/mattpocock/skills/.agents/install-block.md` — upstream's canonical install wording.
 - `/Users/bossjones/dev/mattpocock/skills/scripts/link-skills.sh` — read to understand why it is **not** used here (see Notes).
 
@@ -164,8 +209,8 @@ anything deleted can be restored.
 ### Phase 2: Core implementation — removal and global install
 
 Delete the 18 directories, `skills-lock.json`, and the stale doc; fix the docs index. Then install
-upstream once at user scope for Claude Code, and once at personal scope for Copilot CLI, verifying
-each harness sees exactly one copy of each skill.
+upstream once at user scope with the `skills` CLI, targeting Claude Code and Copilot CLI in a single
+invocation, and verify each harness sees exactly one copy of each skill.
 
 ### Phase 3: Integration & polish — collisions, validation, commit
 
@@ -280,25 +325,58 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
 
 - `link-check` is the one that catches a forgotten `docs/README.md` edit. Fix and re-run until green.
 
-### 7. Install upstream globally for Claude Code
+### 7. Install upstream globally for both harnesses with the `skills` CLI
 
-- Install at user scope from the official marketplace (`claude-plugins-official` is registered by
-  default; there is no marketplace to add first):
+One command covers both harnesses. Every flag is explicit so nothing lands anywhere unintended —
+`--all` is deliberately **not** used, because it expands to `--agent '*'` and would write into all
+78 supported agents' directories.
+
+- Run it from **outside** any git repository. The CLI auto-detects project scope from the cwd, and
+  `skills add` at project scope writes a `skills-lock.json` into that project — exactly the file
+  Step 4 deleted:
 
   ```bash
-  claude plugin install mattpocock-skills
+  cd ~ && npx skills@latest add mattpocock/skills --skill '*' --agent claude-code --agent github-copilot --global --yes
   ```
 
-- Verify the install landed at user scope:
+  Flag by flag: `--skill '*'` takes every discovered skill; `--agent` is repeatable (not
+  comma-separated) and names only the two wanted harnesses — `claude-code` → `~/.claude/skills/`,
+  `github-copilot` → `~/.copilot/skills/`; `--global` selects user scope over project scope;
+  `--yes` skips the interactive prompts. Symlinking is the default install method (each agent
+  directory points at one canonical copy), which is what makes `skills update` a single operation —
+  do **not** pass `--copy`.
+
+- **This install is idempotent by design.** Re-running the same command re-installs over whatever is
+  already there, so it doubles as the "override if it exists" path. For refreshing to newer upstream
+  content later, use the update command rather than re-adding:
 
   ```bash
-  python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json')));print([ (k,[e.get('scope'),e.get('version')]) for k,v in d.items() if 'mattpocock' in k for e in v])"
+  cd ~ && npx skills@latest update --global --yes
   ```
 
-  Expect one `mattpocock-skills@claude-plugins-official` entry with `scope: "user"`.
+  `update -y` auto-detects scope from cwd (project if in a project directory, else global), so the
+  `cd ~` matters here too; `--global` makes it explicit regardless.
 
-- Verify no duplication: from inside this repo, confirm none of the 25 promoted names resolve to a
-  project-level copy:
+- Confirm what landed in each agent directory:
+
+  ```bash
+  npx skills@latest ls --global --agent claude-code --agent github-copilot
+  ```
+
+  ```bash
+  ls ~/.claude/skills | wc -l && ls ~/.copilot/skills | wc -l
+  ```
+
+  Both counts should have grown by 37 relative to their pre-install values (capture those first).
+
+- Confirm no `skills-lock.json` was recreated in this repo:
+
+  ```bash
+  test ! -e skills-lock.json && echo "no project lockfile recreated"
+  ```
+
+- Verify no duplication from inside this repo — none of the 37 names may resolve to a project-level
+  copy, which is what Step 4 guaranteed:
 
   ```bash
   for n in ask-matt code-review codebase-design diagnosing-bugs domain-modeling grill-with-docs implement improve-codebase-architecture prototype research resolving-merge-conflicts setup-matt-pocock-skills tdd to-spec to-tickets triage wayfinder wizard grill-me grilling handoff teach to-questionnaire wait-what writing-for-agents; do [ -e ".claude/skills/$n" ] && echo "DUPLICATE $n"; done; echo "duplicate check done"
@@ -306,105 +384,95 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
 
   Expect no `DUPLICATE` lines.
 
-### 8. Try the plugin route for Copilot CLI, and verify it actually exposes skills
+### 8. Decide whether to keep the 12 non-promoted skills
 
-- Install the repo as a Copilot plugin (Copilot's `owner/repo` form reads `.claude-plugin/plugin.json`,
-  which was confirmed during research):
+`--skill '*'` installs **37 skills, not 25.** Verified with `npx skills@latest add mattpocock/skills
+--list`, which reports them in two groups:
 
-  ```bash
-  copilot plugin install mattpocock/skills
-  ```
+- **"Mattpocock Skills" (25)** — sourced from `.claude-plugin/plugin.json`'s `skills` array. This is
+  the promoted set: exactly what `claude plugin install mattpocock-skills` would give.
+- **"General" (12)** — found by the CLI's own catalog walk of `skills/<category>/<name>/SKILL.md`,
+  which sweeps up the non-promoted buckets. From `in-progress/`: `claude-handoff`, `implement-spec`,
+  `loop-me`, `retro`, `setup-ts-deep-modules`, `writing-beats`, `writing-fragments`, `writing-shape`.
+  From `misc/`: `git-guardrails-claude-code`, `migrate-to-shoehorn`, `scaffold-exercises`,
+  `setup-pre-commit`.
 
-- **This is the verification that decides Step 9.** Check whether the promoted skills actually
-  surface, using names that exist only upstream (so a hit cannot come from anything already installed):
+The `--list` output is the authority here, not `plugin.json` — the CLI's Plugin Manifest Discovery
+adds manifest-declared skills to what the catalog walk finds; it does not restrict the set to them.
 
-  ```bash
-  copilot skill list 2>&1 | grep -cE '^\s+(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard) '
-  ```
-
-  - Result `6` → the plugin route works. **Skip Step 9.**
-  - Result `0` (or fewer than 6) → Copilot installed the plugin but did not load its
-    `skills`-array-declared skills. Uninstall and go to Step 9:
-
-    ```bash
-    copilot plugin uninstall mattpocock-skills
-    ```
-
-### 9. Fallback for Copilot CLI: register the promoted bucket directories
-
-Only if Step 8 came back short.
-
-- Ensure the clone is present and current (this becomes the update mechanism — `git pull` replaces
-  `copilot plugin update`):
+- **Default: keep all 37.** They install cleanly and several (`git-guardrails-claude-code`,
+  `setup-pre-commit`) are useful standalone. Upstream simply hasn't promoted them.
+- To take only the promoted 25 instead, there is no exclusion flag — enumerate them with repeated
+  `-s` flags, or install all 37 and remove the 12 afterwards:
 
   ```bash
-  git -C /Users/bossjones/dev/mattpocock/skills pull --ff-only
+  npx skills@latest remove --global --agent '*' claude-handoff implement-spec loop-me retro setup-ts-deep-modules writing-beats writing-fragments writing-shape git-guardrails-claude-code migrate-to-shoehorn scaffold-exercises setup-pre-commit
   ```
 
-- Register exactly the two promoted buckets as personal skill directories. `skills/engineering/`
-  holds 18 skills and `skills/productivity/` holds 7 — the exact 25 in `plugin.json`, so this
-  registers the promoted set and nothing from `in-progress/` (8) or `misc/` (4):
+- Record the choice in the commit body.
+
+### 9. Sanity-check that both harnesses actually see the skills
+
+- Claude Code — confirm the personal skill directory is populated and readable:
 
   ```bash
-  copilot skill add /Users/bossjones/dev/mattpocock/skills/skills/engineering
+  ls ~/.claude/skills | grep -E '^(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard)$' | wc -l
   ```
+
+  Expect `6`.
+
+- Copilot CLI — confirm they register as *Personal* skills:
 
   ```bash
-  copilot skill add /Users/bossjones/dev/mattpocock/skills/skills/productivity
+  copilot skill list 2>&1 | sed -n '/^Personal skills:/,/^Plugin skills:/p' | grep -cE '^\s+(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard) '
   ```
 
-- Re-run the same verification as Step 8; expect `6`. If `copilot skill add` rejects a directory of
-  skill subdirectories, fall back to symlinking each promoted skill into `~/.copilot/skills/`,
-  matching the existing obsidian-wiki pattern already on this machine:
-
-  ```bash
-  for d in /Users/bossjones/dev/mattpocock/skills/skills/engineering/*/ /Users/bossjones/dev/mattpocock/skills/skills/productivity/*/; do [ -f "$d/SKILL.md" ] && ln -sfn "${d%/}" "$HOME/.copilot/skills/$(basename "$d")"; done
-  ```
-
-- Do **not** run upstream's `scripts/link-skills.sh` for this (see Notes).
+  Expect `6`. If the count is `0`, check whether the CLI wrote symlinks Copilot cannot follow, and
+  re-run Step 7 with `--copy` as a fallback.
 
 ### 10. Reconcile the name collisions the install introduces
 
-**Claude Code: resolved by namespacing, no action needed.** Claude Code addresses plugin skills as
-`plugin-name:skill-name`, so upstream's skill arrives as `mattpocock-skills:code-review` and cannot
-shadow anything. This is directly observable in a live session's skill list, which carries the
-built-in `code-review` and the plugin's `code-review:code-review` as two separate entries, alongside
-`superpowers:brainstorming`, `agent-harness:boss-cmux`, and every other plugin skill in namespaced
-form. (Note that the background gist claims Claude Code does *not* namespace skill names — that
-claim is wrong; the live skill listing is the authority.)
+The `skills` CLI route installs **personal** skills, which are bare in both harnesses (see *What is
+verified*). Namespacing is a property of the *plugin* system, so choosing this route means accepting
+bare global names and handling collisions by hand. There is one sharp collision and several soft
+ones.
 
-**Copilot CLI: a real bare-name collision, and the reason Step 8's choice matters.** Verified:
-`copilot skill list` renders every skill bare, with zero `plugin:skill` entries anywhere in its
-output, and `code-review` already appears exactly once under *Plugin skills* from
-`anthropics/claude-plugins-official`. Adding upstream's `code-review` puts two different skills
-under one unqualified name with no way to address them apart.
+**Sharp: `code-review`.** After Step 7, `~/.claude/skills/code-review/` and
+`~/.copilot/skills/code-review/` both exist, while both harnesses already carry a `code-review` skill
+from the `anthropics/claude-plugins-official` plugin, and Claude Code additionally ships a built-in
+`/code-review`. The plugin copies stay addressable as `code-review:code-review`; the newly installed
+personal one takes the bare name.
 
-- Check what Copilot actually ended up with after Step 8 or Step 9:
+- See what each harness ended up with:
 
   ```bash
-  copilot skill list 2>&1 | grep -nE '^\s+code-review '
+  ls -d ~/.claude/skills/code-review ~/.copilot/skills/code-review 2>&1; copilot skill list 2>&1 | grep -nE '^\s+code-review '
   ```
 
-- If two entries appear, pick one and disable the other rather than leaving the ambiguity in place:
+- **Recommended:** drop just this one from the global install and keep reaching the official plugin's
+  version by its namespaced name. This is the only exclusion worth making, and it is one command:
 
   ```bash
-  copilot plugins disable code-review --skill
+  npx skills@latest remove --global --agent '*' code-review
   ```
 
-  Prefer disabling whichever is the weaker fit for actual use. Record the choice in the commit body.
-- If Step 9's fallback was used, a narrower option exists: register only
-  `skills/productivity` and symlink the 17 non-colliding engineering skills individually, leaving
-  upstream's `code-review` out entirely. Take this only if disabling one of the two proves awkward.
+- If instead upstream's version is the one wanted, keep it and remember that the bare `code-review`
+  now means upstream's while `code-review:code-review` means the official plugin's. Record whichever
+  way it went in the commit body.
 
-**Description-trigger overlap survives namespacing in both harnesses.** Namespacing fixes
-*addressing*, not *autonomous selection*: upstream's `code-review`, `tdd`, `grilling`, and `research`
-are all model-invoked (no `disable-model-invocation`), so the model still picks among them and their
-neighbours by description. Known overlaps, none requiring action: `grilling` vs
-`superpowers:brainstorming` on "let's think this through before building"; `tdd` vs
-`superpowers:test-driven-development`; `code-review` vs the official `code-review` plugin and
-Claude's built-in `/code-review` on "review this diff". When determinism matters, reach for the
-user-invoked wrapper (`/grill-me`) or the fully-qualified `mattpocock-skills:<name>` form, both of
-which have no competing interpretation.
+**Soft: generic names now global.** `implement`, `research`, `handoff`, `triage`, `prototype`,
+`teach`, `tdd`, and `retro` are ordinary words occupying bare names in every project on the machine,
+not just this repo. Nothing collides today — a scan of `~/.claude/skills/` and `~/.copilot/skills/`
+before Step 7 found no overlap with any of the 37 — but a future skill from another source claiming
+one of these names has no namespace to hide behind. Capture the pre-install listing (Step 7 already
+requires it) so a later collision is diagnosable.
+
+**Description-trigger overlap, unchanged by any of this.** Namespacing only ever fixed *addressing*,
+never *autonomous selection*. Upstream's `code-review`, `tdd`, `grilling`, and `research` are all
+model-invoked (no `disable-model-invocation`), so they compete by description with the official
+`code-review` plugin, `superpowers:brainstorming`, and `superpowers:test-driven-development`
+regardless of how they are named. No action; reach for the user-invoked wrapper (`/grill-me`) when
+determinism matters.
 
 **Unrelated to the collision:** prior guidance on this repo was that `/review` findings should carry
 low/medium/high severity tags and post as inline `gh` PR comments. The vendored `review` never
@@ -475,8 +543,15 @@ installs took effect.
 - *Global install duplicating what is already there.* Both harnesses must be checked from inside a
   project that has no local copies. Run the Step 7 duplicate check from this repo after removal, and
   once from an unrelated directory.
-- *Non-promoted leakage.* If Step 9's symlink fallback is used, confirm nothing from `in-progress/`
-  or `misc/` was linked: `ls ~/.copilot/skills | grep -cE '^(retro|loop-me|setup-pre-commit|migrate-to-shoehorn)$'` → expect `0`.
+- *Install run from inside the repo.* `skills add` infers project scope from the cwd and writes a
+  `skills-lock.json` there. The `cd ~` in Step 7 prevents it; the `test ! -e skills-lock.json` check
+  after Step 7 catches it if the `cd` is dropped.
+- *Idempotency.* Re-run the Step 7 command a second time and confirm `ls ~/.claude/skills | wc -l`
+  is unchanged. A growing count means the install is duplicating rather than overriding.
+- *Symlinks a harness cannot follow.* The CLI symlinks by default. If Step 9's Copilot check returns
+  `0` while `~/.copilot/skills/` visibly contains the entries, re-run Step 7 with `--copy`.
+- *Non-promoted leakage.* Only relevant if Step 8 chose the promoted-25 subset — confirm the 12 are
+  gone: `ls ~/.claude/skills | grep -cE '^(retro|loop-me|setup-pre-commit|migrate-to-shoehorn)$'` → expect `0`. With the default (all 37) this check should return `4`.
 
 ## Acceptance Criteria
 
@@ -488,17 +563,19 @@ installs took effect.
    (`grep -rn "matt-pocock-skills" docs/` returns nothing).
 5. `CLAUDE.md`'s `## Agent skills` block and all three `docs/agents/*.md` files are unchanged
    (`git diff --stat CLAUDE.md docs/agents/` is empty).
-6. `~/.claude/plugins/installed_plugins.json` contains a `mattpocock-skills@claude-plugins-official`
-   entry with `scope: "user"`.
-7. `copilot skill list` reports `ask-matt`, `grilling`, `wayfinder`, `to-spec`, `to-tickets`, and
-   `wizard` — all six, via either Step 8 or Step 9.
-8. Claude Code lists upstream's skills in namespaced form (`mattpocock-skills:code-review` and
-   friends), and no bare project-level duplicate of any of the 25 names remains.
-9. Copilot CLI lists `code-review` exactly once — the collision from Step 10 is resolved, not left
-   in place.
-10. `make lint`, `make test`, `make verify-structure`, `make markdown-lint`, and `make link-check`
+6. `~/.claude/skills/` and `~/.copilot/skills/` each contain the installed upstream skills — 37 by
+   default, or 25 if Step 8 removed the non-promoted set.
+7. Both harnesses resolve the skills: `ls ~/.claude/skills` and Copilot's *Personal skills* section
+   each report `ask-matt`, `grilling`, `wayfinder`, `to-spec`, `to-tickets`, and `wizard`.
+8. No project-level duplicate of any installed name remains under this repo's `.claude/skills/`.
+9. The `code-review` collision from Step 10 is resolved, not left in place: either the bare personal
+   copy was removed, or the choice to keep it is recorded in the commit body.
+10. Re-running the Step 7 install command is a no-op-or-update, not a duplication — the counts in
+    criterion 6 are unchanged after a second run.
+11. No `skills-lock.json` was recreated at this repo's root by the install.
+12. `make lint`, `make test`, `make verify-structure`, `make markdown-lint`, and `make link-check`
     all exit 0.
-11. The change is one conventional commit whose body names the six permanently-deleted skills and
+13. The change is one conventional commit whose body names the six permanently-deleted skills and
     the `c9b0237` recovery point.
 
 ## Validation Commands
@@ -515,36 +592,51 @@ Execute these to validate the task is complete:
 - `make verify-structure` — repository structure gate passes.
 - `make lint` — ruff + basedpyright clean (unchanged; no Python touched).
 - `make test` — `uv run pytest` suite passes.
-- `python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json')));print([k for k in d if 'mattpocock' in k])"` — expect `['mattpocock-skills@claude-plugins-official']`.
-- `copilot skill list 2>&1 | grep -cE '^\s+(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard) '` — expect `6`.
+- `ls ~/.claude/skills | grep -cE '^(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard)$'` — expect `6`; Claude Code's global install landed.
+- `copilot skill list 2>&1 | sed -n '/^Personal skills:/,/^Plugin skills:/p' | grep -cE '^\s+(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard) '` — expect `6`; Copilot resolves them as personal skills.
+- `npx skills@latest ls --global --agent claude-code --agent github-copilot` — both agents listed with the same skill set.
 - `copilot skill list 2>&1 | grep -oE '^\s+[a-z0-9-]+ ' | sort | uniq -d` — expect no output. Copilot renders every skill bare, so any repeated name here is a genuine unaddressable collision.
 - `test $(find .claude/skills -maxdepth 1 -mindepth 1 -type d | wc -l) -eq 3 && echo "only repo-owned skills remain"` — no vendored directory survived the trash step.
+- `test ! -e skills-lock.json && echo "install did not recreate a project lockfile"` — re-check after Step 7, not just after Step 4.
 
 ## Notes
 
-**Why not `scripts/link-skills.sh`.** Upstream ships a symlink installer, and it is tempting because
-it targets `~/.claude/skills` and `~/.agents/skills` — and Copilot reads `~/.agents/skills` as a
-personal source, so one run would appear to cover both harnesses. Three reasons not to use it here:
-its own header states it is *"a dev-only script, intended for use by maintainers of this repo. It is
-not a supported installer"*; it links every non-`deprecated` skill, which is 37 including 12
-non-promoted ones from `in-progress/` and `misc/`; and writing into `~/.claude/skills` would collide
-head-on with the Step 7 plugin install, reproducing exactly the "every skill twice" problem this
-plan exists to remove. Step 9's targeted alternative writes only where Copilot reads and only for
-promoted skills.
+**Why not `scripts/link-skills.sh`.** Upstream ships a symlink installer targeting `~/.claude/skills`
+and `~/.agents/skills`, and Copilot reads `~/.agents/skills` as a personal source, so one run would
+appear to cover both harnesses. Three reasons not to use it: its own header states it is *"a dev-only
+script, intended for use by maintainers of this repo. It is not a supported installer"*; it has no
+selection flags, no update path beyond `git pull`, and no removal story; and it makes the clone
+permanently load-bearing. The `skills` CLI does the same job with explicit scope, agent, and skill
+selection, plus `update` and `remove`.
 
-**What "auto-update" means for the Claude plugin.** The official marketplace listing pins a git SHA,
-not a branch. Updates arrive when upstream cuts a release, not on every commit to `main`. Upstream's
-own ADR 0002 records a case where the listing lagged `main` by two commits. If bleeding-edge is ever
-wanted, the fallback is the repo's own single-plugin marketplace
-(`/plugin marketplace add mattpocock/skills`), which upstream keeps but deliberately does not
-document to users.
+**Why not the Claude Code plugin.** Covered in *Why the `skills` CLI rather than the Claude Code
+plugin* above. Worth recording one property that route had and this one does not: the official
+marketplace listing pins a git SHA, so updates arrive automatically when upstream cuts a release.
+With the `skills` CLI, updates are a deliberate `npx skills update -g -y`. That is a downgrade in
+convenience and an upgrade in control; nothing changes under you unnoticed.
 
-**Clone dependency.** Step 9 (only) makes `/Users/bossjones/dev/mattpocock/skills` load-bearing for
-Copilot: deleting it leaves dangling registrations rather than reverting cleanly. If Step 8 succeeds,
-the clone stays purely a research artifact and can be removed freely.
+**Do not use `--all`.** It expands to `--skill '*' --agent '*' -y`, and `--agent '*'` means all 78
+agents in the CLI's supported table — it would create `~/.aider-desk/skills/`, `~/.codebuddy/skills/`,
+`~/.factory/skills/` and dozens more on a machine that uses none of them. Step 7 names the two wanted
+agents explicitly for exactly this reason. Note `-a/--agent` is repeatable (`-a x -a y`), not
+comma-separated.
 
-**No new dependencies.** Nothing to `uv add`; no Python is touched. `claude` and `copilot` are both
-already on `PATH` (Copilot CLI 1.0.80 at `/opt/homebrew/bin/copilot`).
+**Run installs from outside a repository.** `skills add` and `skills update -y` both infer scope from
+the cwd, defaulting to project when one is detected — and `skills add` at project scope writes a
+`skills-lock.json` into that project. Running Step 7 from inside this repo would recreate the very
+file Step 4 deletes. `cd ~` first; `--global` makes the intent explicit but the cwd still governs
+`update -y`'s auto-detection.
+
+**Clone dependency.** Nothing in the chosen route depends on `/Users/bossjones/dev/mattpocock/skills`
+— the CLI fetches from GitHub. The clone stays purely a research artifact and can be removed freely.
+
+**Telemetry.** The `skills` CLI sends anonymous usage data by default, including repository and skill
+identifiers for repositories GitHub confirms are public. Set `DISABLE_TELEMETRY=1` or `DO_NOT_TRACK=1`
+on the Step 7 command to opt out.
+
+**No new repo dependencies.** Nothing to `uv add`; no Python is touched. `copilot` (1.0.80) is on
+`PATH` at `/opt/homebrew/bin/copilot`; the `skills` CLI runs through `npx` and installs nothing
+permanently.
 
 **Recovery.** Two independent paths. From git:
 `git checkout c9b0237 -- .claude/skills/<name>`. From the Trash: Step 4 moves each directory to
