@@ -98,6 +98,16 @@ Verified directly during research (do not re-derive):
 - `scripts/eval-skills.py` discovers skills under `plugins/` only (`discover_skills()`), so
   `make eval-ci` is unaffected by anything under `.claude/skills/`.
 - `scripts/verify-structure.py` contains no `.claude/skills` references.
+- **Claude Code namespaces plugin skills as `plugin-name:skill-name`.** A live session's skill
+  listing carries the built-in `code-review` and the plugin's `code-review:code-review` as separate
+  entries, plus `superpowers:brainstorming`, `agent-harness:boss-cmux`, and so on. Project-level
+  `.claude/skills/<name>` entries stay bare — which is why this repo's symlinked plugin skills
+  currently appear twice (`boss-cmux` and `agent-harness:boss-cmux`).
+- **Copilot CLI does not namespace.** `copilot skill list` produced zero `plugin:skill` entries
+  across its entire output; `code-review` appears once, bare, under *Plugin skills*.
+- `trash` is macOS `/usr/bin/trash`. It recurses into directories with no `-r` flag (passing one is
+  an error), moves to `~/.Trash`, and exits 0 — but it does **not** update the git index, so staging
+  is a separate step.
 - The only local drift in the 18 vendored skills is cosmetic: commit `98263aa` added blank lines
   after `<vertical-slice-rules>` / `<issue-template>` / `<user-story-example>` in `to-issues` and
   `to-prd` to satisfy `rumdl`. Nothing else has been edited since `c9b0237`.
@@ -203,49 +213,58 @@ IMPORTANT: Execute every step in order, top to bottom.
   legitimate, keep it). Anything else is a new dependency this plan did not anticipate: resolve it
   before continuing.
 
-### 3. Decide the fate of the six upstream-deleted skills
+### 3. The six upstream-deleted skills: delete all of them
 
-Six vendored skills no longer exist upstream under any name: `caveman`, `design-an-interface`,
-`edit-article`, `qa`, `write-a-skill`, `zoom-out`. Deleting them means losing them permanently from
-the working tree (they stay recoverable from `c9b0237`).
+**Decided.** Six vendored skills no longer exist upstream under any name: `caveman`,
+`design-an-interface`, `edit-article`, `qa`, `write-a-skill`, `zoom-out`. All six are deleted along
+with the rest — none is re-homed into `plugins/boss-experimental/`. They are unmaintained upstream,
+unreferenced anywhere in this repo (confirmed in Step 2), and `c9b0237` remains the recovery point
+if that judgement ever needs revisiting.
 
-- Default: delete all six along with the rest. They are unmaintained upstream and unreferenced here.
-- If any is genuinely still wanted, **do not leave it in `.claude/skills/`.** Re-home it as an owned
-  fork under a repo plugin so it gets the repo's normal treatment (`metadata.version`, eval suite,
-  markdown lint, symlink into `.claude/skills/`), per `CLAUDE.md`'s skill layout rules:
+This means Steps 4 and 5 operate on the full 18-name list with no exclusions, and no `plugins/`
+file changes — which is what keeps Step 12's expected outcome at "no version bump".
 
-  ```bash
-  git mv .claude/skills/<name> plugins/boss-experimental/boss-experimental/skills/<name>
-  ```
+### 4. Trash the vendored skills and the lockfile
 
-  Then add `metadata.version` to its frontmatter and a `.claude/skills/<name>` symlink matching the
-  existing pattern (`../../plugins/boss-experimental/boss-experimental/skills/<name>`).
-- Record the decision in the commit body either way.
+Deletion goes through macOS `trash` (`/usr/bin/trash`), not `rm` or `git rm`, so everything lands
+recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
 
-### 4. Delete the vendored skills and the lockfile
-
-- Remove all 18 directories (minus anything re-homed in Step 3) and the lockfile in one shot:
+- Move all 18 directories and the lockfile to the Trash. `trash` recurses into directories on its
+  own — there is no `-r` flag, and passing one is an error:
 
   ```bash
-  git rm -r --quiet skills-lock.json $(while read -r n; do [ -d ".claude/skills/$n" ] && echo ".claude/skills/$n"; done < /tmp/locked.txt)
+  trash -v skills-lock.json $(while read -r n; do [ -d ".claude/skills/$n" ] && echo ".claude/skills/$n"; done < /tmp/locked.txt)
   ```
 
-- Verify what remains under `.claude/skills/` is exactly the three repo-owned directories plus
-  symlinks — no other real directories:
+- **`trash` does not touch the git index** — this is the one real difference from `git rm`. Stage
+  the deletions explicitly or they will not be part of the commit:
+
+  ```bash
+  git add -A .claude/skills skills-lock.json
+  ```
+
+- Confirm git recorded 18 directory deletions plus the lockfile, and nothing else:
+
+  ```bash
+  git diff --cached --name-status | grep -c '^D' && git diff --cached --name-status | grep -v '^D' || echo "only deletions staged"
+  ```
+
+- Verify what remains under `.claude/skills/` is exactly the three repo-owned directories — no other
+  real directories:
 
   ```bash
   find .claude/skills -maxdepth 1 -mindepth 1 -type d
   ```
 
-  Expected output: `doc-generator`, `skill-evals`, `version-bump-reviewer` (plus anything re-homed
-  in Step 3 is now a symlink, so it will not appear here).
+  Expected output: `doc-generator`, `skill-evals`, `version-bump-reviewer`.
 
 ### 5. Remove the stale documentation page
 
-- Delete the catalogue, which documents the pre-rename names and the skills.sh install route:
+- Trash the catalogue, which documents the pre-rename names and the skills.sh install route, then
+  stage the deletion:
 
   ```bash
-  git rm docs/matt-pocock-skills.md
+  trash -v docs/matt-pocock-skills.md && git add -A docs/matt-pocock-skills.md
   ```
 
 - Remove its row from the "Background & reference" table in `docs/README.md` (line 34, between the
@@ -346,27 +365,53 @@ Only if Step 8 came back short.
 
 ### 10. Reconcile the name collisions the install introduces
 
-- `code-review` is the sharp one. Both harnesses already carry a `code-review` skill from
-  `anthropics/claude-plugins-official`, and Claude Code ships a built-in `/code-review` command.
-  Upstream's promoted `code-review` (the former vendored `review`) now makes a third. List them and
-  decide which wins:
+**Claude Code: resolved by namespacing, no action needed.** Claude Code addresses plugin skills as
+`plugin-name:skill-name`, so upstream's skill arrives as `mattpocock-skills:code-review` and cannot
+shadow anything. This is directly observable in a live session's skill list, which carries the
+built-in `code-review` and the plugin's `code-review:code-review` as two separate entries, alongside
+`superpowers:brainstorming`, `agent-harness:boss-cmux`, and every other plugin skill in namespaced
+form. (Note that the background gist claims Claude Code does *not* namespace skill names — that
+claim is wrong; the live skill listing is the authority.)
+
+**Copilot CLI: a real bare-name collision, and the reason Step 8's choice matters.** Verified:
+`copilot skill list` renders every skill bare, with zero `plugin:skill` entries anywhere in its
+output, and `code-review` already appears exactly once under *Plugin skills* from
+`anthropics/claude-plugins-official`. Adding upstream's `code-review` puts two different skills
+under one unqualified name with no way to address them apart.
+
+- Check what Copilot actually ended up with after Step 8 or Step 9:
 
   ```bash
   copilot skill list 2>&1 | grep -nE '^\s+code-review '
   ```
 
-  Options, in order of preference: leave both installed and always reach the upstream one through a
-  fully-qualified invocation; or disable one with `copilot plugins disable <name> --skill`. Record
-  whichever is chosen.
-- Note two description-level overlaps that need no action but are worth knowing: upstream `grilling`
-  competes with `superpowers:brainstorming` for "let's think this through before building" prompts,
-  and upstream `tdd` competes with `superpowers:test-driven-development`. Both pairs push toward the
-  same behavior; reach for the user-invoked wrapper (`/grill-me`) when determinism matters.
-- Separately: prior guidance on this repo was that `/review` findings should carry low/medium/high
-  severity tags and post as inline `gh` PR comments. The vendored `review` never encoded that (it is
-  byte-identical to what `c9b0237` added), and upstream `code-review` does not either. This repo's
-  own `agent-harness:github-pr-review`, `pr-review`, and `add-review-comment` skills already do
-  inline `gh` comments — keep using those for that workflow rather than expecting it from upstream.
+- If two entries appear, pick one and disable the other rather than leaving the ambiguity in place:
+
+  ```bash
+  copilot plugins disable code-review --skill
+  ```
+
+  Prefer disabling whichever is the weaker fit for actual use. Record the choice in the commit body.
+- If Step 9's fallback was used, a narrower option exists: register only
+  `skills/productivity` and symlink the 17 non-colliding engineering skills individually, leaving
+  upstream's `code-review` out entirely. Take this only if disabling one of the two proves awkward.
+
+**Description-trigger overlap survives namespacing in both harnesses.** Namespacing fixes
+*addressing*, not *autonomous selection*: upstream's `code-review`, `tdd`, `grilling`, and `research`
+are all model-invoked (no `disable-model-invocation`), so the model still picks among them and their
+neighbours by description. Known overlaps, none requiring action: `grilling` vs
+`superpowers:brainstorming` on "let's think this through before building"; `tdd` vs
+`superpowers:test-driven-development`; `code-review` vs the official `code-review` plugin and
+Claude's built-in `/code-review` on "review this diff". When determinism matters, reach for the
+user-invoked wrapper (`/grill-me`) or the fully-qualified `mattpocock-skills:<name>` form, both of
+which have no competing interpretation.
+
+**Unrelated to the collision:** prior guidance on this repo was that `/review` findings should carry
+low/medium/high severity tags and post as inline `gh` PR comments. The vendored `review` never
+encoded that (it is byte-identical to what `c9b0237` added), and upstream `code-review` does not
+either. This repo's own `agent-harness:github-pr-review`, `pr-review`, and `add-review-comment`
+skills already do inline `gh` comments — keep using those for that workflow rather than expecting it
+from upstream.
 
 ### 11. Optionally record the decision
 
@@ -385,9 +430,8 @@ Only if Step 8 came back short.
 
 - Run the repo's version-bump review over the uncommitted changes and apply whatever it decides.
   Expectation: **no bump**. None of the 18 removed skills carries `metadata.version` (they are
-  vendored copies, not repo-internal skills), and no file under `plugins/` changed — unless Step 3
-  re-homed a skill into `plugins/boss-experimental/`, which *is* a feature-bearing plugin change and
-  does require a bump.
+  vendored copies, not repo-internal skills), and no file under `plugins/` changed — Step 3 deletes
+  all six upstream-deleted skills rather than re-homing any, so nothing under `plugins/` is touched.
 - Commit as a conventional-commit chore, naming the six permanently-deleted skills and the recovery
   commit in the body so the loss is discoverable from `git log`.
 
@@ -414,10 +458,15 @@ installs took effect.
 
 **Edge cases to check explicitly**
 
-- *Partial deletion.* If `git rm` misses a directory (e.g. an untracked stray file inside one blocks
-  removal), the duplicate check in Step 7 catches it. Run it after Step 4 as well as after Step 7.
-- *Symlink damage.* `git rm -r` on a path list built from `skills-lock.json` cannot touch the 27
-  plugin symlinks, since no locked name matches a symlinked name. Confirm anyway with
+- *Partial deletion.* If `trash` skips a directory, or the follow-up `git add -A` is forgotten so a
+  deletion never reaches the index, the duplicate check in Step 7 catches the first case and
+  `git status` the second. Run the Step 7 duplicate check after Step 4 as well as after Step 7.
+- *`trash` leaving the index untouched.* This is the one behavioural difference from `git rm` and the
+  likeliest mistake: the files vanish from disk, the working tree looks correct, and the commit
+  contains nothing. Step 4's `git diff --cached --name-status` check exists specifically for this.
+- *Symlink damage.* A path list built from `skills-lock.json` cannot touch the 27 plugin symlinks,
+  since no locked name matches a symlinked name. `trash` would also follow rather than delete a
+  symlink target if one were passed. Confirm anyway with
   `find .claude/skills -maxdepth 1 -type l | wc -l` → expect 27 before and after.
 - *Copilot silently installing the plugin but loading zero skills.* This is the whole point of the
   Step 8 grep. A bare `copilot plugin list` showing `mattpocock-skills` is **not** sufficient
@@ -434,8 +483,7 @@ installs took effect.
 1. `skills-lock.json` no longer exists in the working tree or the index.
 2. `find .claude/skills -maxdepth 1 -mindepth 1 -type d` outputs exactly `doc-generator`,
    `skill-evals`, `version-bump-reviewer` — no other real directories.
-3. `find .claude/skills -maxdepth 1 -type l | wc -l` outputs `27` (unchanged), or `27` plus one per
-   skill re-homed in Step 3.
+3. `find .claude/skills -maxdepth 1 -type l | wc -l` outputs `27` (unchanged).
 4. `docs/matt-pocock-skills.md` is deleted and no link to it remains anywhere
    (`grep -rn "matt-pocock-skills" docs/` returns nothing).
 5. `CLAUDE.md`'s `## Agent skills` block and all three `docs/agents/*.md` files are unchanged
@@ -444,10 +492,13 @@ installs took effect.
    entry with `scope: "user"`.
 7. `copilot skill list` reports `ask-matt`, `grilling`, `wayfinder`, `to-spec`, `to-tickets`, and
    `wizard` — all six, via either Step 8 or Step 9.
-8. No skill name appears twice in either harness's listing from inside this repo.
-9. `make lint`, `make test`, `make verify-structure`, `make markdown-lint`, and `make link-check`
-   all exit 0.
-10. The change is one conventional commit whose body names the six permanently-deleted skills and
+8. Claude Code lists upstream's skills in namespaced form (`mattpocock-skills:code-review` and
+   friends), and no bare project-level duplicate of any of the 25 names remains.
+9. Copilot CLI lists `code-review` exactly once — the collision from Step 10 is resolved, not left
+   in place.
+10. `make lint`, `make test`, `make verify-structure`, `make markdown-lint`, and `make link-check`
+    all exit 0.
+11. The change is one conventional commit whose body names the six permanently-deleted skills and
     the `c9b0237` recovery point.
 
 ## Validation Commands
@@ -466,7 +517,8 @@ Execute these to validate the task is complete:
 - `make test` — `uv run pytest` suite passes.
 - `python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json')));print([k for k in d if 'mattpocock' in k])"` — expect `['mattpocock-skills@claude-plugins-official']`.
 - `copilot skill list 2>&1 | grep -cE '^\s+(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard) '` — expect `6`.
-- `copilot skill list 2>&1 | grep -oE '^\s+[a-z0-9-]+ ' | sort | uniq -d` — expect no output (no duplicate skill names).
+- `copilot skill list 2>&1 | grep -oE '^\s+[a-z0-9-]+ ' | sort | uniq -d` — expect no output. Copilot renders every skill bare, so any repeated name here is a genuine unaddressable collision.
+- `test $(find .claude/skills -maxdepth 1 -mindepth 1 -type d | wc -l) -eq 3 && echo "only repo-owned skills remain"` — no vendored directory survived the trash step.
 
 ## Notes
 
@@ -494,6 +546,8 @@ the clone stays purely a research artifact and can be removed freely.
 **No new dependencies.** Nothing to `uv add`; no Python is touched. `claude` and `copilot` are both
 already on `PATH` (Copilot CLI 1.0.80 at `/opt/homebrew/bin/copilot`).
 
-**Recovery.** Anything deleted here is one command away:
-`git checkout c9b0237 -- .claude/skills/<name>`. For the ten skills renamed or deleted upstream, that
-commit is the *only* remaining source — upstream no longer carries those paths.
+**Recovery.** Two independent paths. From git:
+`git checkout c9b0237 -- .claude/skills/<name>`. From the Trash: Step 4 moves each directory to
+`~/.Trash/<name>` (all 18 basenames are distinct, so nothing overwrites anything), recoverable until
+the Trash is emptied. For the ten skills renamed or deleted upstream — including all six deleted in
+Step 3 — `c9b0237` is the *only* durable source; upstream no longer carries those paths.
