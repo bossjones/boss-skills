@@ -159,6 +159,31 @@ Verified directly during research (do not re-derive):
   non-TTY runs. `claude plugin details <name>` prints a plugin's full component inventory (skill
   names included) and its projected per-session token cost — the best single verification that all
   25 skills loaded.
+- **Naming the marketplace changes whether the catalog is refreshed.** Per Claude Code's
+  [discover-plugins docs](https://code.claude.com/docs/en/discover-plugins): installing
+  `plugin-name@marketplace-name` refreshes that marketplace *before* the lookup, whereas
+  `claude plugin install plugin-name` (bare) "reads the cached catalogs without refreshing". Always
+  use the fully-qualified form, or an install can silently resolve against a stale catalog.
+- **Auto-update defaults differ by marketplace origin.** `claude-plugins-official` and most official
+  Anthropic marketplaces have auto-update **on** by default; third-party and local development
+  marketplaces have it **off**. So the official listing keeps itself current, but a
+  `mattpocock` marketplace added by hand would not.
+- **Claude Code's docs state the namespacing rule outright**: "Plugin skills are namespaced by the
+  plugin name", giving `/commit-commands:commit` as the worked example. This corroborates the live
+  skill-listing observation rather than resting on it alone.
+- **Removing a marketplace uninstalls every plugin installed from it** (documented warning). Relevant
+  only to the fallback routes, but destructive enough to note.
+- **A shell `claude plugin install` does not affect the running session.** Plugins load on next
+  start, or on `/reload-plugins` in an open session.
+- **Copilot's default marketplaces do not carry this plugin.** `copilot plugin marketplace list`
+  shows only `copilot-plugins` (github/copilot-plugins) and `awesome-copilot`
+  (github/awesome-copilot); browsing both for "mattpocock" returns zero hits. Any Copilot marketplace
+  route therefore has to add upstream's own marketplace first.
+- **Upstream ships its own single-plugin marketplace.** `.claude-plugin/marketplace.json` declares
+  marketplace `mattpocock` with one plugin, `mattpocock-skills`, `source: "./"`. Upstream keeps it as
+  a fallback and deliberately does not document it. **Caveat:** GitHub's marketplace docs say each
+  plugin entry requires `name`, `description`, `version`, and `source` — and upstream's entry has no
+  `version` field, so Copilot may reject or mis-handle the catalog. Untested; Step 8b finds out.
 - **Copilot's uninstall/update take a plugin name**, not a repo slug: `copilot plugin uninstall
   <plugin-name|plugin-name@marketplace>`, `copilot plugin update <name>` or `--all`.
 - **Escape hatch for the 12 non-promoted skills, if ever wanted** (`npx skills@latest --help`):
@@ -217,9 +242,13 @@ Use these files to complete the task:
 
 **Read for context**
 
-- [`vercel-labs/skills`](https://github.com/vercel-labs/skills) — the `skills` CLI behind `skills.sh`, and the installer this plan uses. Its README is the authority on flags, the supported-agent table (`claude-code` → `~/.claude/skills/`, `github-copilot` → `~/.copilot/skills/`), Skill Discovery, and Plugin Manifest Discovery.
-- `/Users/bossjones/dev/mattpocock/skills/.claude-plugin/plugin.json` — the authoritative 25-skill promoted list, and the manifest the `skills` CLI reads on top of its catalog walk.
-- `/Users/bossjones/dev/mattpocock/skills/.agents/install-block.md` — upstream's canonical install wording.
+- [Claude Code — Discover and install prebuilt plugins](https://code.claude.com/docs/en/discover-plugins) — the authority for Step 7: the official marketplace, the `plugin@marketplace` refresh semantics, auto-update defaults, scopes, `/reload-plugins`, and the explicit statement that plugin skills are namespaced by plugin name.
+- [Copilot CLI — Finding and installing plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing) — the `PLUGIN-NAME@MARKETPLACE-NAME` install form and the list/update/uninstall commands.
+- [Copilot CLI — Plugin marketplaces](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-marketplace) — `marketplace add`, and the required `marketplace.json` fields that upstream's catalog does not fully satisfy (Step 8b).
+- `/Users/bossjones/dev/mattpocock/skills/.claude-plugin/plugin.json` — the authoritative 25-skill promoted list.
+- `/Users/bossjones/dev/mattpocock/skills/.claude-plugin/marketplace.json` — upstream's own single-plugin marketplace (`mattpocock`), the basis for Step 8b. Note its plugin entry has no `version` field.
+- `/Users/bossjones/dev/mattpocock/skills/.agents/install-block.md` — upstream's canonical install wording, which documents the plugin route for Claude Code and states the two routes are exclusive.
+- [`vercel-labs/skills`](https://github.com/vercel-labs/skills) — the `skills` CLI behind `skills.sh`. Not the chosen route; consulted for rung 9b and the non-promoted-skills escape hatch. Its README is the authority on flags and the supported-agent table (`claude-code` → `~/.claude/skills/`, `github-copilot` → `~/.copilot/skills/`).
 - `/Users/bossjones/dev/mattpocock/skills/scripts/link-skills.sh` — read to understand why it is **not** used here (see Notes).
 
 ### New Files
@@ -357,13 +386,30 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
 
 ### 7. Install the plugin at user scope for Claude Code
 
-- Install from the official marketplace. `claude-plugins-official` is registered by default, so there
-  is no marketplace to add first. `--scope user` is the default, but pass it explicitly — this runs
-  from inside a project directory, where `project` and `local` are equally valid scopes and a silent
-  default is the wrong thing to rely on:
+- Confirm the official marketplace is registered. Claude Code adds it automatically on first
+  interactive start, and it is already present here:
 
   ```bash
-  claude plugin install mattpocock-skills --scope user
+  claude plugin marketplace list 2>&1 | grep -A1 claude-plugins-official
+  ```
+
+  If it is ever missing: `claude plugin marketplace add anthropics/claude-plugins-official`.
+
+- Install **fully qualified**, not by bare name. Naming the marketplace makes Claude Code refresh
+  that catalog before the lookup; the bare form reads the cached catalog without refreshing, so it
+  can resolve against a stale listing or miss a recent release outright. Pass `--scope user`
+  explicitly too — it is the default, but this runs from inside a project directory where `project`
+  and `local` are equally valid and a silent default is the wrong thing to rely on:
+
+  ```bash
+  claude plugin install mattpocock-skills@claude-plugins-official --scope user
+  ```
+
+  If the result reports `marketplace not refreshed`, the refresh failed and the install fell back to
+  the cached catalog. Force it and retry:
+
+  ```bash
+  claude plugin marketplace update claude-plugins-official && claude plugin install mattpocock-skills@claude-plugins-official --scope user
   ```
 
 - **Verify with the component inventory, not the JSON.** This is the single best check that the
@@ -384,6 +430,15 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
   claude plugin list 2>&1 | grep -A3 mattpocock
   ```
 
+- A shell `claude plugin install` does not touch an already-running session — the plugin loads on
+  next start, or immediately via `/reload-plugins` in an open session (`--force` if it warns about
+  re-reading the conversation). If skills still fail to appear, the documented remedy is to delete
+  `~/.claude/plugins/cache`, restart Claude Code, and reinstall.
+
+- Auto-update needs no configuration here: `claude-plugins-official` has it enabled by default, so
+  upstream releases arrive on their own. Third-party and local marketplaces default to auto-update
+  **off**, which matters only if a fallback route below is used.
+
 - Verify no duplication: from inside this repo, confirm none of the 25 names resolves to a
   project-level copy — this is what Step 4 guaranteed:
 
@@ -398,38 +453,62 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
 
 **This step decides whether Step 9 is needed.** Copilot recognises the repo as a plugin — that much
 is confirmed — but whether it loads skills declared through `plugin.json`'s `skills` array is the one
-open question in this plan (see *What is verified*).
+open question in this plan (see *What is verified*). There are two independent ways in; try both
+before dropping to the fallback ladder, because they use different discovery paths.
 
-- Install from the GitHub repo directly. Note this tracks the repo's default branch at install time,
-  not the SHA the Claude official listing pins, so the two harnesses can sit on slightly different
-  commits:
+`mattpocock-skills` is in neither of Copilot's two bundled marketplaces (`copilot-plugins`,
+`awesome-copilot`) — browsing both for the name returns nothing — so there is no "official listing"
+equivalent here.
+
+**8a — direct repo install.** Note this tracks the repo's default branch at install time, not the SHA
+Claude's official listing pins, so the two harnesses can sit on different commits:
+
+```bash
+copilot plugin install mattpocock/skills
+```
+
+```bash
+copilot plugin list 2>&1 | grep -i mattpocock
+```
+
+Then run the decisive check below. If it passes, skip 8b and Step 9.
+
+**8b — upstream's own marketplace.** Upstream ships `.claude-plugin/marketplace.json` declaring
+marketplace `mattpocock` with the single plugin `mattpocock-skills`. It keeps this as a fallback and
+does not document it to users, but it is a legitimate second discovery path and may resolve the
+manifest differently from a direct repo install. Only try this if 8a's check came back short —
+uninstall 8a's copy first:
+
+```bash
+copilot plugin uninstall mattpocock-skills
+```
+
+```bash
+copilot plugin marketplace add mattpocock/skills && copilot plugin install mattpocock-skills@mattpocock
+```
+
+**Expect this one to be fragile.** GitHub's marketplace documentation says every plugin entry
+requires `name`, `description`, `version`, and `source` — and upstream's entry carries no `version`
+field. If Copilot validates strictly, the add or the install fails here; that is informative, not a
+bug to work around. Also note that `copilot plugin marketplace remove mattpocock` would uninstall any
+plugin installed from it, so unwind in that order if abandoning this route.
+
+**The decisive check** (run after 8a, and again after 8b if needed). These names exist only upstream,
+so a hit cannot come from anything already installed:
+
+```bash
+copilot skill list 2>&1 | sed -n '/^Plugin skills:/,/^Builtin skills:/p' | grep -cE '^\s+(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard) '
+```
+
+- Result `6` → the plugin route works on Copilot. **Skip Step 9.** Confirm the namespaced form is
+  what the slash picker offers (`/mattpocock-skills:grill-me`); `copilot skill list` prints bare
+  names for every source and is not evidence about naming.
+- Result `0`, or fewer than 6, after **both** 8a and 8b → Copilot registers the plugin but does not
+  load its manifest-declared skills. Remove whatever is installed and work down Step 9's ladder:
 
   ```bash
-  copilot plugin install mattpocock/skills
+  copilot plugin uninstall mattpocock-skills
   ```
-
-- Confirm the plugin registered:
-
-  ```bash
-  copilot plugin list 2>&1 | grep -i mattpocock
-  ```
-
-- **The decisive check.** Names chosen because they exist only upstream, so a hit cannot come from
-  anything already installed:
-
-  ```bash
-  copilot skill list 2>&1 | sed -n '/^Plugin skills:/,/^Builtin skills:/p' | grep -cE '^\s+(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard) '
-  ```
-
-  - Result `6` → the plugin route works on Copilot too. **Skip Step 9.** Confirm the namespaced form
-    is what the slash picker offers (`/mattpocock-skills:grill-me`); `copilot skill list` prints bare
-    names for every source and is not evidence about naming.
-  - Result `0`, or fewer than 6 → Copilot installed the plugin but did not load its manifest-declared
-    skills. Remove it and work down Step 9's ladder:
-
-    ```bash
-    copilot plugin uninstall mattpocock-skills
-    ```
 
 ### 9. Fallback ladder for Copilot CLI
 
@@ -613,6 +692,14 @@ installs took effect.
 - *Rung 9a staged with symlinks.* Plugin installers copy the tree and drop symlinks, so the staging
   script must `copytree`. If Copilot shows the plugin but zero skills after 9a, check for symlinks
   under `~/.local/share/mattpocock-skills-copilot/skills/`.
+- *Bare-name install resolving against a stale catalog.* `claude plugin install <name>` reads cached
+  catalogs without refreshing; only the `<name>@<marketplace>` form forces a refresh first. A missing
+  or outdated plugin here looks like an upstream problem but is a local cache one.
+- *Marketplace validation failing in 8b.* Upstream's `marketplace.json` plugin entry omits the
+  `version` field GitHub's docs list as required. A failure at `marketplace add` or at install is the
+  expected outcome, not something to patch around — record it and move to Step 9.
+- *Unwinding 8b in the wrong order.* Removing a marketplace uninstalls the plugins installed from it.
+  Uninstall the plugin first, then remove the catalog.
 - *Silent version skew.* Claude tracks the marketplace's pinned SHA; Copilot tracks the default
   branch at install time. Not a failure, but check both before attributing a behaviour difference to
   a harness rather than a commit.
@@ -667,14 +754,39 @@ Execute these to validate the task is complete:
 - `make verify-structure` — repository structure gate passes.
 - `make lint` — ruff + basedpyright clean (unchanged; no Python touched).
 - `make test` — `uv run pytest` suite passes.
+- `claude plugin marketplace list 2>&1 | grep -A1 claude-plugins-official` — the official catalog is registered.
 - `claude plugin details mattpocock-skills` — expect `Skills (25)` and `Source: mattpocock-skills@claude-plugins-official`.
 - `claude plugin list 2>&1 | grep -A3 mattpocock` — expect `Scope: user` and `Status: ✔ enabled`.
 - `copilot plugin list 2>&1 | grep -i mattpocock` — the plugin is registered with Copilot.
+- `copilot plugin marketplace list` — records which route Step 8 landed on: a `mattpocock` entry means 8b was used and that catalog needs manual refreshing.
 - `copilot skill list 2>&1 | sed -n '/^Plugin skills:/,/^Builtin skills:/p' | grep -cE '^\s+(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard) '` — expect `6`; Copilot loaded the plugin's skills.
 - `test $(find .claude/skills -maxdepth 1 -mindepth 1 -type d | wc -l) -eq 3 && echo "only repo-owned skills remain"` — no vendored directory survived the trash step.
 - `test ! -e skills-lock.json && echo "no project lockfile"` — re-check after Step 9 if rung 9b was used, not just after Step 4.
 
 ## Notes
+
+**Marketplace command reference.** Both harnesses use the same two-step model — register a catalog,
+then install from it — with different spellings:
+
+| | Claude Code | Copilot CLI |
+|---|---|---|
+| List catalogs | `claude plugin marketplace list` | `copilot plugin marketplace list` |
+| Add | `claude plugin marketplace add <owner/repo\|url\|path>` | `copilot plugin marketplace add <owner/repo\|url\|path>` |
+| Browse | `/plugin` → **Discover** tab | `copilot plugin marketplace browse <name>` |
+| Refresh | `claude plugin marketplace update <name>` | `copilot plugin marketplace update [name]` |
+| Install | `claude plugin install <plugin>@<marketplace> [--scope user\|project\|local]` | `copilot plugin install <plugin>@<marketplace>` |
+| Install direct from repo | n/a — marketplace only | `copilot plugin install <owner/repo>` (also `owner/repo:path`, git URL) |
+| Install from local path | via `marketplace add ./path` first | `copilot plugins install <path>` (**plural**) |
+| Remove catalog | `claude plugin marketplace remove <name>` | `copilot plugin marketplace remove <name>` |
+
+Bundled catalogs: Claude Code auto-registers `claude-plugins-official`
+(`anthropics/claude-plugins-official`); Copilot ships `copilot-plugins` (`github/copilot-plugins`) and
+`awesome-copilot` (`github/awesome-copilot`). `mattpocock-skills` is listed in Claude's official
+marketplace and in **neither** of Copilot's — which is the whole reason Step 8 needs two attempts.
+
+Two traps worth repeating: **removing a marketplace uninstalls every plugin installed from it** on
+Claude Code, so unwind installs before catalogs. And **auto-update is on by default only for official
+Anthropic marketplaces** — a hand-added `mattpocock` catalog (Step 8b) would need refreshing by hand.
 
 **Why not `scripts/link-skills.sh`.** Upstream ships a symlink installer targeting `~/.claude/skills`
 and `~/.agents/skills`, and Copilot reads `~/.agents/skills` as a personal source, so one run would
