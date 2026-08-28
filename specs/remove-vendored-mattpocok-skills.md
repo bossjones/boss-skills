@@ -151,9 +151,7 @@ Verified directly during research (do not re-derive):
 - **Copilot's two install commands accept different sources.** `copilot plugin install` (singular)
   takes `plugin@marketplace`, `owner/repo`, `owner/repo:path`, or `https://…` — **no local path**.
   `copilot plugins install` (plural) additionally accepts a **local path**. Rung 9a stages a plugin
-  on disk, so it must use the plural form. Copilot does parse `.claude-plugin/plugin.json`:
-  `copilot --plugin-dir /Users/bossjones/dev/mattpocock/skills plugin list` reports
-  `mattpocock-skills` under *External Plugins*.
+  on disk, so it must use the plural form.
 - **`claude plugin` and `claude plugins` are aliases** for the same command group. `claude plugin
   install` takes `-s/--scope <user|project|local>`, defaulting to `user`, plus `-y/--yes` for
   non-TTY runs. `claude plugin details <name>` prints a plugin's full component inventory (skill
@@ -231,13 +229,15 @@ Use these files to complete the task:
 
 **Edited**
 
-- `docs/README.md:34` — the "Background & reference" table row linking to `matt-pocock-skills.md`. Must go or `make link-check` fails on a dangling relative link.
+- `docs/README.md:34` — the "Background & reference" table row linking to `matt-pocock-skills.md`. Must go or `make link-check` fails on a dangling relative link; Step 11 adds a replacement row for `external-skills.md`.
+- `docs/agents/domain.md:11,45` — the two bare `/grill-with-docs` references become `/mattpocock-skills:grill-with-docs` (Step 5); the bare name stops resolving after removal.
+- `.claude/settings.json` — only if Step 7's in-repo check shows the project `enabledPlugins` roster suppressing the user-scope install; then it gains a `mattpocock-skills@claude-plugins-official` entry.
 
 **Explicitly untouched (verify, do not change)**
 
 - `.claude/skills/{doc-generator,skill-evals,version-bump-reviewer}/` — repo-owned skills.
 - The 27 `.claude/skills/*` symlinks into `plugins/*/skills/*`.
-- `CLAUDE.md` `## Agent skills` section and `docs/agents/{issue-tracker,triage-labels,domain}.md` — repo configuration consumed by the now-global skills.
+- `CLAUDE.md` `## Agent skills` section and `docs/agents/{issue-tracker,triage-labels}.md` — repo configuration consumed by the now-global skills. `docs/agents/domain.md` is *almost* untouched: its two bare `/grill-with-docs` references become `/mattpocock-skills:grill-with-docs` in Step 5; everything else in it stays frozen.
 - `.rumdl.toml:27`, `.pre-commit-config.yaml:40,57,66`, `Makefile:193-200` — all use generic `.claude/skills/*/SKILL.md` globs. Fewer files match after removal; no edit needed.
 
 **Read for context**
@@ -253,9 +253,10 @@ Use these files to complete the task:
 
 ### New Files
 
-None required. Optional, at the user's discretion (Step 11): a short
-`docs/external-skills.md` recording that mattpocock skills are now a global install rather than a
-vendored dependency, so a future reader does not re-vendor them.
+- `docs/external-skills.md` (**required**, Step 11) — records that mattpocock skills are a
+  machine-level plugin install rather than a vendored dependency, which Copilot rung was used and
+  its update procedure, and the old-name → new-name map that otherwise dies with
+  `docs/matt-pocock-skills.md`. This is what stops a future reader from re-vendoring.
 
 ## Implementation Phases
 
@@ -288,34 +289,46 @@ IMPORTANT: Execute every step in order, top to bottom.
   git log -1 --format='%H %s' c9b0237
   ```
 
-- Confirm the 18 vendored names match `skills-lock.json` exactly, with no extras and no omissions:
+- List the 18 vendored names from `skills-lock.json` to eyeball them (display only — later steps
+  re-derive the list from the lockfile themselves rather than depending on a scratch file
+  surviving between steps):
 
   ```bash
-  python3 -c "import json;print('\n'.join(sorted(json.load(open('skills-lock.json'))['skills'])))" > /tmp/locked.txt && cat /tmp/locked.txt
+  python3 -c "import json;print('\n'.join(sorted(json.load(open('skills-lock.json'))['skills'])))"
   ```
 
 - Confirm every locked name exists as a real directory (not a symlink) under `.claude/skills/`, and
-  that the three repo-owned skills are **not** in that list:
+  that the three repo-owned skills are **not** in the list:
 
   ```bash
-  while read -r n; do [ -d ".claude/skills/$n" ] && [ ! -L ".claude/skills/$n" ] && echo "OK $n" || echo "MISSING $n"; done < /tmp/locked.txt
+  python3 -c "import json;print(' '.join(sorted(json.load(open('skills-lock.json'))['skills'])))" | tr ' ' '\n' | while read -r n; do [ -d ".claude/skills/$n" ] && [ ! -L ".claude/skills/$n" ] && echo "OK $n" || echo "MISSING $n"; done
   ```
 
-- Confirm `doc-generator`, `skill-evals`, and `version-bump-reviewer` are absent from
-  `/tmp/locked.txt`. If any appears, stop — the lockfile is not what this plan assumes.
+- Confirm `doc-generator`, `skill-evals`, and `version-bump-reviewer` are absent from that listing.
+  If any appears, stop — the lockfile is not what this plan assumes.
 
 ### 2. Confirm nothing outside the skills themselves depends on the 18 names
 
-- Search the repo for references, excluding the directories being deleted and the lockfile:
+Seven of the 18 names (`review`, `qa`, `diagnose`, `teach`, `handoff`, `prototype`, `triage`) are
+ordinary English words that appear all over this repo's prose — a bare `\b`-word search for the full
+name list returns hits in ~100 files and is unusable. Search the *reference forms* instead: the 11
+distinctive names as bare words, and all 18 as `.claude/skills/<name>` paths or `/<name>`
+slash-commands. Filter by unanchored path prefix — do **not** anchor on `^\./`, since this machine's
+grep wrapper prints paths without the `./` prefix:
 
   ```bash
-  grep -rnE '\b(caveman|design-an-interface|diagnose|edit-article|grill-me|grill-with-docs|handoff|improve-codebase-architecture|prototype|qa|review|setup-matt-pocock-skills|teach|to-issues|to-prd|triage|write-a-skill|zoom-out)\b' --include="*.md" --include="*.py" --include="*.json" --include="*.toml" --include="*.yaml" --include="*.yml" --include="Makefile" . | grep -v '^\./\.claude/skills/' | grep -v '^\./skills-lock\.json'
+  grep -rnE '(\.claude/skills/|/)(caveman|design-an-interface|diagnose|edit-article|grill-me|grill-with-docs|handoff|improve-codebase-architecture|prototype|qa|review|setup-matt-pocock-skills|teach|to-issues|to-prd|triage|write-a-skill|zoom-out)\b|\b(caveman|design-an-interface|edit-article|grill-me|grill-with-docs|improve-codebase-architecture|setup-matt-pocock-skills|to-issues|to-prd|write-a-skill|zoom-out)\b' --include="*.md" --include="*.py" --include="*.json" --include="*.toml" --include="*.yaml" --include="*.yml" --include="Makefile" . | grep -vE '^(\./)?(\.claude/skills/|skills-lock\.json|specs/)'
   ```
 
-- Expect hits only in `docs/matt-pocock-skills.md`, `docs/README.md:34`, and
-  `docs/agents/triage-labels.md` (which mentions `mattpocock/skills` as a label-vocabulary source —
-  legitimate, keep it). Anything else is a new dependency this plan did not anticipate: resolve it
-  before continuing.
+- Expected actionable hits (verified by running the command above: ~34 hits across 11 files):
+  `docs/matt-pocock-skills.md` (deleted in Step 5), `docs/README.md` (edited in Step 5), and
+  `docs/agents/domain.md:11,45`, which invoke the bare `/grill-with-docs` slash command —
+  **handled in Step 5**, since the bare name stops resolving once the skill moves behind the
+  `mattpocock-skills:` namespace.
+- Inert hits to expect and ignore: matches inside `plugins/boss-dev/agent-harness/` files that
+  concern this repo's *own* `pr-review` skill (the `/review` slash form matches path fragments like
+  `pulls/N/reviews`), and `CLAUDE.md`'s pointer to `docs/agents/triage-labels.md` (the kept file).
+  Anything else is a new dependency this plan did not anticipate: resolve it before continuing.
 
 ### 3. The six upstream-deleted skills: delete all of them
 
@@ -325,20 +338,25 @@ with the rest — none is re-homed into `plugins/boss-experimental/`. They are u
 unreferenced anywhere in this repo (confirmed in Step 2), and `c9b0237` remains the recovery point
 if that judgement ever needs revisiting.
 
-This means Steps 4 and 5 operate on the full 18-name list with no exclusions, and no `plugins/`
-file changes — which is what keeps Step 12's expected outcome at "no version bump".
+This means Steps 4 and 5 operate on the full 18-name list with no exclusions, and nothing under
+`plugins/` is touched.
 
 ### 4. Trash the vendored skills and the lockfile
 
 Deletion goes through macOS `trash` (`/usr/bin/trash`), not `rm` or `git rm`, so everything lands
 recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
 
-- Move all 18 directories and the lockfile to the Trash. `trash` recurses into directories on its
-  own — there is no `-r` flag, and passing one is an error:
+- Move all 18 directories to the Trash, deriving the list directly from `skills-lock.json` — no
+  dependence on any scratch file from Step 1 — and trash the lockfile **last**, since it is the
+  source of the list. `trash` recurses into directories on its own — there is no `-r` flag, and
+  passing one is an error:
 
   ```bash
-  trash -v skills-lock.json $(while read -r n; do [ -d ".claude/skills/$n" ] && echo ".claude/skills/$n"; done < /tmp/locked.txt)
+  for p in $(python3 -c "import json;print(' '.join('.claude/skills/'+n for n in sorted(json.load(open('skills-lock.json'))['skills'])))"); do [ -d "$p" ] && trash -v "$p"; done && trash -v skills-lock.json
   ```
+
+  If `skills-lock.json` is missing, the `python3` call fails loudly and nothing is trashed — that is
+  deliberate; do not work around it by hand-typing the list.
 
 - **`trash` does not touch the git index** — this is the one real difference from `git rm`. Stage
   the deletions explicitly or they will not be part of the commit:
@@ -347,10 +365,14 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
   git add -A .claude/skills skills-lock.json
   ```
 
-- Confirm git recorded 18 directory deletions plus the lockfile, and nothing else:
+- Confirm the staged change is pure deletions and the count is right. Git records **files**, not
+  directories: the 18 skill directories hold 38 tracked files (several ship reference docs and
+  scripts), so with the lockfile the expected count is **39** `D` lines. One awk pass reports both
+  failure modes explicitly — a zero count means `git add` was forgotten, a `MISMATCH` with
+  non-deletions means something else got staged:
 
   ```bash
-  git diff --cached --name-status | grep -c '^D' && git diff --cached --name-status | grep -v '^D' || echo "only deletions staged"
+  git diff --cached --name-status | awk '$1!="D"{bad=1} END{if(NR==39 && !bad) print "OK: 39 deletions staged, nothing else"; else print "MISMATCH: " NR " staged entries (expected 39 pure deletions) - check git add / trash output"}'
   ```
 
 - Verify what remains under `.claude/skills/` is exactly the three repo-owned directories — no other
@@ -373,6 +395,12 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
 
 - Remove its row from the "Background & reference" table in `docs/README.md` (line 34, between the
   `LEARN.md` and `REFERENCES.md` rows). Leave the surrounding table intact.
+
+- Update the two bare slash-command references in `docs/agents/domain.md` (lines 11 and 45):
+  `/grill-with-docs` → `/mattpocock-skills:grill-with-docs`. After Step 4 the bare name no longer
+  resolves in this repo; the namespaced form is how the plugin-installed skill is invoked. This is
+  the **only** edit to `docs/agents/` — the rest of those files, and `CLAUDE.md`'s `## Agent
+  skills` block, stay frozen.
 
 ### 6. Confirm the repo-side removal is clean
 
@@ -424,11 +452,17 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
   screen: 25 skill descriptions are always-on context in every session from here on, so if that
   number looks unacceptable, this is the moment to reconsider scope rather than after the fact.
 
-- Confirm the scope recorded is `user`:
+- Confirm the scope recorded is `user`, **running from inside this repo** — this project's tracked
+  `.claude/settings.json` pins an explicit `enabledPlugins` roster (15 entries), and the check must
+  prove the user-scope install is enabled *here*, not just machine-wide:
 
   ```bash
   claude plugin list 2>&1 | grep -A3 mattpocock
   ```
+
+  Expect `Scope: user` and `Status: ✔ enabled`. If it reports disabled in this repo, the project
+  roster is suppressing it — add `"mattpocock-skills@claude-plugins-official": true` to
+  `enabledPlugins` in `.claude/settings.json` and include that edit in Step 12's commit.
 
 - A shell `claude plugin install` does not touch an already-running session — the plugin loads on
   next start, or immediately via `/reload-plugins` in an open session (`--force` if it warns about
@@ -526,23 +560,26 @@ mkdir -p ~/.local/share/mattpocock-skills-copilot/{.claude-plugin,skills} && git
 
 ```bash
 python3 -c "
-import json,os,shutil,pathlib
-src=pathlib.Path('/Users/bossjones/dev/mattpocock/skills')
-dst=pathlib.Path(os.path.expanduser('~/.local/share/mattpocock-skills-copilot'))
-m=json.load(open(src/'.claude-plugin/plugin.json'))
-for rel in m['skills']:
-    s=src/rel
-    d=dst/'skills'/s.name
+import json,shutil
+from pathlib import Path
+src=Path('/Users/bossjones/dev/mattpocock/skills')
+dst=Path.home()/'.local/share/mattpocock-skills-copilot'
+m=json.loads((src/'.claude-plugin/plugin.json').read_text())
+for rel in m.pop('skills'):
+    s=src/rel; d=dst/'skills'/s.name
     if d.exists(): shutil.rmtree(d)
     shutil.copytree(s,d)
-m['skills']='./skills'
-json.dump(m,open(dst/'.claude-plugin/plugin.json','w'),indent=2)
-print(len(os.listdir(dst/'skills')),'skills staged')
+(dst/'.claude-plugin/plugin.json').write_text(json.dumps(m,indent=2))
+print(len(list((dst/'skills').iterdir())),'skills staged')
 "
 ```
 
-Copy rather than symlink — plugin installers copy the tree and drop symlinks. Then install from the
-local path and re-run Step 8's decisive check:
+Two deliberate choices in that script. It **removes the `skills` key entirely** (`m.pop`) rather
+than rewriting it: every one of the eleven plugins Copilot demonstrably loads has *no* `skills` key
+and relies on auto-discovery of `skills/` — 9a exists to present that exact verified shape, and
+shipping a third unverified form (a string-valued key) would risk failing on the same unknown that
+sank 8a. And it copies rather than symlinks — plugin installers copy the tree and drop symlinks.
+Then install from the local path and re-run Step 8's decisive check:
 
 ```bash
 copilot plugins install ~/.local/share/mattpocock-skills-copilot
@@ -551,7 +588,11 @@ copilot plugins install ~/.local/share/mattpocock-skills-copilot
 **The plural `plugins install` is required here** — the singular `copilot plugin install` accepts
 only `plugin@marketplace`, `owner/repo`, `owner/repo:path`, and `https://…`, and will not take a
 local path. Refreshing later means re-running the staging script after a `git pull`, then
-`copilot plugin update mattpocock-skills`. Record that as the maintenance cost.
+`copilot plugin update mattpocock-skills`. Record that as the maintenance cost — in Step 11's
+required doc, not only the commit body. And if this rung is what ships, file an upstream issue on
+`mattpocock/skills` asking for a Copilot-loadable layout (conventional `skills/` directory or a
+compatible manifest): the per-machine staging script is a bandaid, and the durable fix is one
+upstream change that retires it for every Copilot user at once.
 
 **9b — Personal skills, namespacing sacrificed on Copilot only.** If 9a fails, fall back to the
 `skills` CLI for the Copilot half. Claude Code keeps its namespaced plugin from Step 7; Copilot gets
@@ -566,7 +607,8 @@ would write a `skills-lock.json` there, recreating the file Step 4 deleted. This
 discovered skills (25 promoted + 12 non-promoted) and reintroduces the bare `code-review` collision
 on Copilot, which Step 10 then has to handle for that harness.
 
-- Record which rung was used in the commit body — it determines the update procedure from here on.
+- Record which rung was used in Step 11's required `docs/external-skills.md` (and the commit body) —
+  it determines the update procedure from here on.
 
 ### 10. Reconcile the name collisions the install introduces
 
@@ -609,7 +651,7 @@ time. The two can drift apart. Harmless for skills, but worth knowing before deb
 difference between harnesses:
 
 ```bash
-python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json')));print([e.get('gitCommitSha') for k,v in d.items() if 'mattpocock' in k for e in v])"
+python3 -c "import json;from pathlib import Path;d=json.loads((Path.home()/'.claude/plugins/installed_plugins.json').read_text());print([e.get('gitCommitSha') for k,v in d.items() if 'mattpocock' in k for e in v])"
 ```
 
 **Unrelated to the collision:** prior guidance on this repo was that `/review` findings should carry
@@ -619,12 +661,24 @@ either. This repo's own `agent-harness:github-pr-review`, `pr-review`, and `add-
 skills already do inline `gh` comments — keep using those for that workflow rather than expecting it
 from upstream.
 
-### 11. Optionally record the decision
+### 11. Record the decision in the repo (required)
 
-- If a future reader might re-vendor these, add a short `docs/external-skills.md` stating that
-  mattpocock skills are consumed as a user-scope install (Claude Code plugin + Copilot personal
-  skills) and must not be copied into `.claude/skills/`, and add a row for it to `docs/README.md`.
-- Skip if the commit message is judged sufficient.
+This is not optional. `CLAUDE.md`'s `## Agent skills` section and `docs/agents/*.md` stay in the
+repo documenting a workflow contract whose skills now live entirely outside it — on a fresh clone or
+a second machine, that gap reads as "skills missing, re-vendor them", which is the exact failure
+this plan removes. The commit message is not discoverable at the moment of confusion; a doc is.
+
+- Add `docs/external-skills.md` recording, at minimum:
+  - The topology: `mattpocock-skills` is consumed as a **plugin at user scope on both harnesses**
+    (Claude Code via `claude-plugins-official`; Copilot CLI via the rung Step 8/9 landed on — name
+    it), **never** copied into `.claude/skills/`.
+  - The Copilot update procedure for the recorded rung (for 9a: `git pull` the clone, re-run the
+    staging script, `copilot plugin update mattpocock-skills`).
+  - The old-name → new-name map, which otherwise dies with `docs/matt-pocock-skills.md`:
+    `diagnose`→`diagnosing-bugs`, `to-issues`→`to-tickets`, `to-prd`→`to-spec`,
+    `review`→`code-review`, and the six deleted outright (`caveman`, `design-an-interface`,
+    `edit-article`, `qa`, `write-a-skill`, `zoom-out`; recoverable from `c9b0237` only).
+- Add a row for it to `docs/README.md`'s "Background & reference" table.
 
 ### 12. Validate everything and commit
 
@@ -635,9 +689,10 @@ from upstream.
   ```
 
 - Run the repo's version-bump review over the uncommitted changes and apply whatever it decides.
-  Expectation: **no bump**. None of the 18 removed skills carries `metadata.version` (they are
-  vendored copies, not repo-internal skills), and no file under `plugins/` changed — Step 3 deletes
-  all six upstream-deleted skills rather than re-homing any, so nothing under `plugins/` is touched.
+  Per [`.claude/rules/audit-protocol.md`](../.claude/rules/audit-protocol.md), invoke it
+  **untainted**: hand it the change and nothing else — no expected verdict, no summary of why a
+  bump should or shouldn't be needed, no mention of what was just fixed. Let it reach its own
+  conclusion and apply that.
 - Commit as a conventional-commit chore, naming the six permanently-deleted skills and the recovery
   commit in the body so the loss is discoverable from `git log`.
 
@@ -648,9 +703,11 @@ installs took effect.
 
 **Repo regressions (Step 6 and Step 12)**
 
-- `make markdown-lint` — the `rumdl` globs at `.rumdl.toml:27` and `.pre-commit-config.yaml:40,57,66`
-  match `.claude/skills/*/SKILL.md`. After removal they match 3 files instead of 21; the run must
-  still pass.
+- `make markdown-lint` — two different matching regimes share the `.claude/skills/*/SKILL.md`
+  pattern. The `.pre-commit-config.yaml:40,57,66` regexes see git-tracked paths: 21 tracked
+  `SKILL.md` files today, 3 after removal. The `.rumdl.toml:27` include is a **filesystem glob that
+  also resolves through the 27 plugin symlinks**: 48 files today, 30 after removal (verified). Do
+  not read "not 3" in rumdl output as a failed deletion. The run must still pass.
 - `make link-check` — the highest-signal check. `docs/README.md:34` links to the deleted
   `docs/matt-pocock-skills.md`; a forgotten edit fails here and nowhere else.
 - `make verify-structure` — `scripts/verify-structure.py` has no `.claude/skills` references, so this
@@ -664,9 +721,12 @@ installs took effect.
 
 **Edge cases to check explicitly**
 
-- *Partial deletion.* If `trash` skips a directory, or the follow-up `git add -A` is forgotten so a
-  deletion never reaches the index, the duplicate check in Step 7 catches the first case and
-  `git status` the second. Run the Step 7 duplicate check after Step 4 as well as after Step 7.
+- *Partial deletion.* If `trash` skips a directory, **Step 4's `find` check is the guard that
+  covers all 18 names** — Step 7's duplicate loop enumerates the 25 *upstream* names and therefore
+  misses the 10 vendored names that were renamed or deleted upstream (`diagnose`, `to-issues`,
+  `to-prd`, `review`, `qa`, `caveman`, `design-an-interface`, `edit-article`, `write-a-skill`,
+  `zoom-out`). If the follow-up `git add -A` is forgotten, Step 4's staged-deletion count catches
+  it.
 - *`trash` leaving the index untouched.* This is the one behavioural difference from `git rm` and the
   likeliest mistake: the files vanish from disk, the working tree looks correct, and the commit
   contains nothing. Step 4's `git diff --cached --name-status` check exists specifically for this.
@@ -674,16 +734,12 @@ installs took effect.
   since no locked name matches a symlinked name. `trash` would also follow rather than delete a
   symlink target if one were passed. Confirm anyway with
   `find .claude/skills -maxdepth 1 -type l | wc -l` → expect 27 before and after.
-- *Copilot silently installing the plugin but loading zero skills.* This is the whole point of the
-  Step 8 grep. A bare `copilot plugin list` showing `mattpocock-skills` is **not** sufficient
-  evidence — `--plugin-dir` demonstrated during research that a plugin can be recognized without its
-  skills being loaded.
-- *Global install duplicating what is already there.* Both harnesses must be checked from inside a
-  project that has no local copies. Run the Step 7 duplicate check from this repo after removal, and
-  once from an unrelated directory.
-- *Plugin recognised but skills not loaded.* The whole point of Step 8's grep. `copilot plugin list`
-  showing `mattpocock-skills` is **not** sufficient evidence — `--plugin-dir` already demonstrated
-  that a plugin can be recognised without its skills being enumerated.
+- *Plugin recognised but skills not loaded.* The whole point of Step 8's decisive grep. A bare
+  `copilot plugin list` showing `mattpocock-skills` is **not** sufficient evidence — `--plugin-dir`
+  demonstrated during research that a plugin can be recognised without its skills being enumerated.
+- *Global install duplicating what is already there.* Run the Step 7 duplicate check from inside
+  this repo after removal (the loop tests project-relative `.claude/skills/` paths, so running it
+  from an unrelated directory proves nothing — it passes vacuously there).
 - *Reading `copilot skill list` as evidence about naming.* It prints bare names for every source,
   plugin skills included. Two `code-review` lines there are expected and benign under the plugin
   route. The slash picker is the authority on namespacing.
@@ -721,34 +777,45 @@ installs took effect.
    `skill-evals`, `version-bump-reviewer` — no other real directories.
 3. `find .claude/skills -maxdepth 1 -type l | wc -l` outputs `27` (unchanged).
 4. `docs/matt-pocock-skills.md` is deleted and no link to it remains anywhere
-   (`grep -rn "matt-pocock-skills" docs/` returns nothing).
-5. `CLAUDE.md`'s `## Agent skills` block and all three `docs/agents/*.md` files are unchanged
-   (`git diff --stat CLAUDE.md docs/agents/` is empty).
-6. `claude plugin details mattpocock-skills` reports `Skills (25)`, and `claude plugin list` shows the
-   plugin at `Scope: user`, `Status: ✔ enabled`.
-7. Copilot reports the plugin's skills — `ask-matt`, `grilling`, `wayfinder`, `to-spec`, `to-tickets`,
+   (`grep -rn "matt-pocock-skills.md" docs/` returns nothing).
+5. `CLAUDE.md`'s `## Agent skills` block and `docs/agents/{issue-tracker,triage-labels}.md` are
+   unchanged; the only `docs/agents/` diff is the two `/grill-with-docs` →
+   `/mattpocock-skills:grill-with-docs` pointer updates in `domain.md`
+   (`git diff HEAD --stat CLAUDE.md docs/agents/` shows only that).
+6. `docs/external-skills.md` exists and records the topology, the Copilot rung actually used with
+   its update procedure, and the old-name → new-name map (Step 11 is required, not optional).
+7. `claude plugin details mattpocock-skills` reports `Skills (25)`, and `claude plugin list` — run
+   from inside this repo — shows the plugin at `Scope: user`, `Status: ✔ enabled`.
+8. Copilot reports the plugin's skills — `ask-matt`, `grilling`, `wayfinder`, `to-spec`, `to-tickets`,
    `wizard` all present — via Step 8 or a recorded rung of Step 9.
-8. Skills resolve under the `mattpocock-skills:` namespace on both harnesses (Claude Code's skill
+9. Skills resolve under the `mattpocock-skills:` namespace on both harnesses (Claude Code's skill
    listing; Copilot's slash picker), except on Copilot if Step 9b was the rung used.
-9. No project-level duplicate of any of the 25 names remains under this repo's `.claude/skills/`.
-10. All three `code-review` skills coexist addressably rather than shadowing one another — or, if
+10. No project-level duplicate of any of the 25 names remains under this repo's `.claude/skills/`.
+11. All three `code-review` skills coexist addressably rather than shadowing one another — or, if
     Step 9b was used, Copilot's bare personal copy was removed.
-11. Re-running an install updates in place rather than duplicating, and no `skills-lock.json` was
+12. Re-running an install updates in place rather than duplicating, and no `skills-lock.json` was
     recreated at this repo's root.
-12. `make lint`, `make test`, `make verify-structure`, `make markdown-lint`, and `make link-check`
+13. The deletions are **in the commit**, not just gone from disk: `git ls-files` shows no
+    `skills-lock.json` and no path under the 18 vendored names, and `git status --short` is empty
+    after Step 12's commit.
+14. `make lint`, `make test`, `make verify-structure`, `make markdown-lint`, and `make link-check`
     all exit 0.
-13. The change is one conventional commit whose body names the six permanently-deleted skills and
+15. The change is one conventional commit whose body names the six permanently-deleted skills and
     the `c9b0237` recovery point.
 
 ## Validation Commands
 
 Execute these to validate the task is complete:
 
-- `test ! -e skills-lock.json && echo "lockfile removed"` — lockfile is gone.
+- `test ! -e skills-lock.json && echo "lockfile removed"` — lockfile is gone from the working tree.
+- `git ls-files skills-lock.json | wc -l` — expect `0`; the deletion reached the index, not just the disk.
+- `git ls-files .claude/skills | grep -cE '/(caveman|design-an-interface|diagnose|edit-article|grill-me|grill-with-docs|handoff|improve-codebase-architecture|prototype|qa|review|setup-matt-pocock-skills|teach|to-issues|to-prd|triage|write-a-skill|zoom-out)/'` — expect `0`; no vendored path is still tracked.
+- `git status --short` — expect empty after Step 12's commit; a non-empty result means deletions or doc edits never made it into the commit.
 - `find .claude/skills -maxdepth 1 -mindepth 1 -type d` — expect only `doc-generator`, `skill-evals`, `version-bump-reviewer`.
 - `find .claude/skills -maxdepth 1 -type l | wc -l` — expect `27`.
-- `grep -rn "matt-pocock-skills" docs/ ; echo "exit=$?"` — expect no matches (`exit=1`).
-- `git diff --stat CLAUDE.md docs/agents/` — expect empty output.
+- `grep -rn "matt-pocock-skills.md" docs/ ; echo "exit=$?"` — expect no matches (`exit=1`); the filename form avoids matching `setup-matt-pocock-skills` mentions in the new Step 11 doc.
+- `git diff HEAD --stat CLAUDE.md docs/agents/` — expect only `docs/agents/domain.md` with the two-line pointer update (staged or not, `HEAD`-relative catches both).
+- `test -f docs/external-skills.md && echo "decision recorded"` — Step 11's required doc exists.
 - `make markdown-lint` — markdown ruleset still passes on the reduced file set.
 - `make link-check` — no dangling link to the deleted docs page.
 - `make verify-structure` — repository structure gate passes.
@@ -760,8 +827,6 @@ Execute these to validate the task is complete:
 - `copilot plugin list 2>&1 | grep -i mattpocock` — the plugin is registered with Copilot.
 - `copilot plugin marketplace list` — records which route Step 8 landed on: a `mattpocock` entry means 8b was used and that catalog needs manual refreshing.
 - `copilot skill list 2>&1 | sed -n '/^Plugin skills:/,/^Builtin skills:/p' | grep -cE '^\s+(ask-matt|grilling|wayfinder|to-spec|to-tickets|wizard) '` — expect `6`; Copilot loaded the plugin's skills.
-- `test $(find .claude/skills -maxdepth 1 -mindepth 1 -type d | wc -l) -eq 3 && echo "only repo-owned skills remain"` — no vendored directory survived the trash step.
-- `test ! -e skills-lock.json && echo "no project lockfile"` — re-check after Step 9 if rung 9b was used, not just after Step 4.
 
 ## Notes
 
