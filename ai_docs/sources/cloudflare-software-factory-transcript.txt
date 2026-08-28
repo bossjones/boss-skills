@@ -1,0 +1,1303 @@
+[00:00] Over a single month, Cloudflare ran
+[00:02] 130,000
+[00:04] AI code reviews across 5,000 different
+[00:06] code bases. Guess how much it cost per
+[00:09] review. Just one single dollar. That's
+[00:13] $1 per merge request reviewed by a team
+[00:16] of agents. There's a group of engineers
+[00:18] and investors who think agentic AI isn't
+[00:21] increasing productivity. All I have to
+[00:23] say to that is, are your eyes open?
+[00:26] Cloudflare needs no introduction. Nine
+[00:28] out of 10 devs use and love them for
+[00:31] their networking, CDNs, compute
+[00:33] services, R2 storage, and much, much
+[00:36] more. Cloudflare is trading at all-time
+[00:38] highs and for good reasons. They've got
+[00:41] compute, cracked engineers, and as
+[00:43] you'll see, a new software factory
+[00:46] dedicated to AI code review. I've been
+[00:49] engineering for 15-plus years, building
+[00:51] with agents since the GPT-3.5
+[00:54] Turbo days, and I am going to master
+[00:57] agentic engineering. I'll accomplish
+[00:59] this by studying with the very best
+[01:01] engineers are doing with their precious
+[01:03] time and resources. A few weeks back, we
+[01:06] ranked Stripe's software factory. Now,
+[01:09] it's Cloudflare's turn. We'll be
+[01:11] breaking down how Cloudflare is
+[01:13] orchestrating AI code review at scale.
+[01:16] This is also our very first agentic
+[01:19] engineering tier list. We're ranking
+[01:22] every element of Cloudflare's software
+[01:23] factory after S and an additional
+[01:26] legendary ZTE level, we'll explain
+[01:29] later. If you want to understand what
+[01:31] makes a great software factory for code
+[01:33] review, stick around and let's rank one
+[01:36] of the most important skills of agentic
+[01:38] engineering, tokenomics.
+[01:45] So, tokenomics is the skill of using
+[01:47] tokens, generating value, and then
+[01:49] arbitraging that value for more than it
+[01:52] costs. It's a simple three-tier system.
+[01:54] Use tokens, generate value, capture
+[01:56] revenue, and right away we have to give
+[01:59] Cloudflare an S ranking here for
+[02:02] tokenomics. They spend $1 per merge
+[02:05] request. This is unheard of. Engineers
+[02:08] can spend anywhere from minutes to hours
+[02:10] reviewing code. This means that
+[02:11] Cloudflare has attained a massive token
+[02:14] arbitrage. This is a great place to
+[02:15] start. It's a great headliner for
+[02:17] Cloudflare. Now, let's understand how
+[02:19] they've been able to achieve these
+[02:20] incredible tokenomics of $1 per code
+[02:23] review by breaking down their blog.
+[02:25] Shoutout Ryan Skidmore for a great
+[02:26] write-up. Let's start with the most
+[02:28] important piece, the problem. In
+[02:29] Cloudflare's own words, code review is a
+[02:32] fantastic mechanism for catching bugs
+[02:33] and sharing knowledge, but it's also one
+[02:35] of the most reliable ways to bottleneck
+[02:37] an engineering team. You know this. In
+[02:39] the age of agents, there are two
+[02:40] constraints, planning and reviewing.
+[02:43] Work stacks up at one of these two
+[02:44] levels, but there's an additional
+[02:46] problem here. A merge request sits in a
+[02:48] queue, a reviewer eventually context
+[02:50] switch to read the diff, they leave a
+[02:52] handful of nitpicks, the author
+[02:53] responds, and the cycle repeats. The
+[02:55] median wait time for a first review is
+[02:58] often measured in hours. So, this is the
+[03:01] problem, and it's very easy to visualize
+[03:03] this. Cloudflare is attacking the review
+[03:05] constraint here, not the planning
+[03:07] constraint. And the big problem here is
+[03:09] that it takes hours to days to review,
+[03:12] and it looks like this. You know this
+[03:13] very well. The engineering owner puts up
+[03:15] the merge request, puts up the pull
+[03:17] request, and then every second they have
+[03:18] to wait they're losing context on how
+[03:20] this works. But then, finally, the
+[03:22] reviewer context switch from what
+[03:24] they're doing to review the code.
+[03:25] There's some back and forth here between
+[03:28] these two, and then eventually there's a
+[03:29] merge. Now, with AI review, this
+[03:32] equation changes. The engineering owner
+[03:34] gets an AI review within minutes. That
+[03:36] engineer or a separate engineer reviewer
+[03:39] can come in, review those comments,
+[03:41] understand what's going on, and then
+[03:42] they can get a clean merge. This is
+[03:44] much, much faster to have AI review hard
+[03:46] block or let your work go through, and
+[03:49] that's exactly what Cloudflare has
+[03:51] accomplished here. But there's a journey
+[03:53] to this. They didn't start there. No one
+[03:55] starts with a great code review system.
+[03:57] You have to get there first. How did
+[03:59] they get there? When they started
+[04:00] experimenting with AI code review, they
+[04:01] took the path most do. They tried a few
+[04:03] different AI coding tools. Found a lot
+[04:05] of these tools work pretty well.
+[04:07] Unfortunately, though, one recurring
+[04:09] theme that kept coming up was that they
+[04:11] just didn't offer enough flexibility and
+[04:13] customization for an organization of the
+[04:16] size of Cloudflare. Once again, we have
+[04:19] this theme of specialization. If you're
+[04:21] solving real problems, you have built a
+[04:24] custom solution. Custom solutions are by
+[04:26] nature specialized. Out-of-the-box
+[04:29] solutions, out-of-the-box agents,
+[04:30] out-of-the-box prompt skills, so on and
+[04:32] so forth, it will not solve your problem
+[04:34] like you can solve it. So, what did they
+[04:36] do next? Next, they started vibe coding.
+[04:39] They grabbed the diff, they shove it
+[04:40] into a half-baked prompt, and asked the
+[04:42] language model to find bugs. The results
+[04:44] were exactly as you might expect: noisy,
+[04:46] vague instructions, hallucinated syntax,
+[04:48] and unhelpful advice to consider adding
+[04:51] error handling. So, they realized pretty
+[04:52] quickly naive summarization approach
+[04:54] wasn't going to get them the results
+[04:55] they needed, especially on a complex
+[04:57] code base. Swap the name complex with
+[05:00] specialized. This is where we push into
+[05:02] our rankings. You can see we have a nice
+[05:04] keyword here right away. Open code fans
+[05:06] are going to like this. So, instead of
+[05:07] building a monolithic code review agent
+[05:09] from scratch, we decided to build a CI
+[05:11] native orchestration system. This is
+[05:13] their software factory. The CI kicks it
+[05:15] off, that's the trigger, and then their
+[05:16] orchestration system takes from there.
+[05:18] it around open code. Big shout out to
+[05:20] open code. So, this is big. This means
+[05:22] that we can rank our harness
+[05:24] engineering. So, harness engineering is
+[05:26] about owning and customizing your agent
+[05:28] harness instead of renting a closed one.
+[05:30] When you own your agent harness, you can
+[05:31] control the results, you control the
+[05:32] code underneath it, you control
+[05:34] everything. So, we don't know how good
+[05:35] this is. We're going to start their
+[05:36] agent harness and see, and then we're
+[05:38] going to see where it goes from here,
+[05:40] all right? When an engineer opens a
+[05:41] merge request, they get an initial pass
+[05:43] from a coordinated smorgasbord of AI
+[05:46] agents. A team of agents, right? Rather
+[05:48] than relying on one model with a massive
+[05:50] generic prompt, we launch up to seven
+[05:53] specialized reviewer agents. Very good,
+[05:55] tell me more. They cover security,
+[05:57] performance, code quality,
+[05:58] documentation, release management, and
+[06:00] compliance with their internal
+[06:01] engineering codex. These specialists are
+[06:03] managed by a get this, coordinator
+[06:06] agent. This is also a name for the one
+[06:08] agent to rule them all, the orchestrator
+[06:10] agent that deep deeps their findings,
+[06:12] judges, and then posts a single
+[06:13] structured comment review. Okay, so we
+[06:15] have some more stuff to grade here on
+[06:17] Cloudflare's code review software
+[06:19] factory. We have multi-agent
+[06:21] orchestration. So right away, we can
+[06:23] just jump that into C and we also have
+[06:25] specialized agents. Many specialized
+[06:27] agents always beat one generalist. This
+[06:30] is just a fact, you can look at any
+[06:31] industry and you'll find this to be
+[06:33] true. Right away, we're actually going
+[06:34] to jump up their agent specialization
+[06:35] into B. You see they define specific
+[06:38] roles. Seven specialized agents,
+[06:40] security, performance, documentation,
+[06:41] release management. You can imagine all
+[06:43] of their system prompts inside of their
+[06:45] agent harness that they're running is
+[06:47] specialized. Really, really strong
+[06:48] start. We've been running this system
+[06:49] internally across tens of thousands of
+[06:51] requests. It approves clean code, flags
+[06:54] real bugs, and actively blocks merges
+[06:56] when it finds genuine, serious problems
+[06:59] or security vulnerabilities. This is
+[07:01] incredible. Really, really strong start
+[07:03] by the Cloudflare engineers. Now, let's
+[07:05] talk about their plugin systems. Plugins
+[07:08] all the way to the moon. When I started
+[07:10] reading this, I knew there was something
+[07:11] special here. Let me show you exactly
+[07:13] what's going on here with their plugin
+[07:14] system. They built their system on a
+[07:16] composable plugin architecture where the
+[07:18] entry point delegates all configuration
+[07:20] to plugins that compose together to
+[07:23] define how a review runs. Okay, so this
+[07:26] is a CI-based trigger. They have a
+[07:28] GitLab merge request, CI starts, all
+[07:30] their plugins load, and then each plugin
+[07:32] has a three-step hook that they can plug
+[07:35] into. Bootstrap, configure, and then
+[07:37] post-configure. And they detail that all
+[07:39] here. Each plugin implements review
+[07:41] plugin interface with three life cycle
+[07:43] phases. They have bootstrap, configure,
+[07:45] post-configure that runs after the
+[07:47] configuration is assembled. So, what
+[07:49] does this look like? They have this
+[07:51] plug-in system. This gives them
+[07:53] extensibility and flexibility. We have
+[07:55] plug-ins here, 1 2 3 up to N, and then
+[07:58] they have this three-step workflow that
+[08:00] they can dynamically change per plug-in.
+[08:02] Super super important. And then they
+[08:04] have a .json file that loads all the
+[08:06] configuration right into their agent
+[08:08] harness. This is their agents plus code
+[08:11] pipeline system. I'm going to throw this
+[08:12] into B. We'll move it if we need to, but
+[08:14] this is really powerful. Actually, we're
+[08:16] going to give them an A right away here
+[08:17] because agents plus code is how you
+[08:19] outperform agents alone and how you
+[08:21] outperform code. You need agents and
+[08:23] code so that you can properly manage
+[08:25] both the upside and the downside of the
+[08:28] non-deterministic nature of agents. And
+[08:31] you also want to do this in the most
+[08:32] extensible way, and that ties right into
+[08:35] their extensible factory. They have a
+[08:37] plug-in system that allows them to
+[08:39] quickly update, modify, change, and
+[08:42] configure their system with a variety of
+[08:44] plug-ins across their code bases. Super
+[08:47] super powerful stuff here. This means
+[08:48] that across their 5,000 code bases,
+[08:51] across their massive engineering teams,
+[08:53] they still have customization,
+[08:55] adaptability, and extensibility. These
+[08:57] are key pillars of agentic engineering.
+[09:00] We can also add extensible factory.
+[09:03] We're going to throw that right into A
+[09:04] tier. They're covering a lot of ground
+[09:06] here very, very quickly. So, great they
+[09:08] have a plug-in system. Also important to
+[09:09] mention here, Brain Trust, they have
+[09:11] distributed tracing and observability.
+[09:13] Let's go ahead and just throw
+[09:14] observability, agent observability.
+[09:17] Let's give them B tier right away for
+[09:18] that using great out of the box tooling.
+[09:21] And now we get to some of the juicy
+[09:22] stuff. How they use open code under the
+[09:24] hood. So, what's going on here? By the
+[09:26] way, if this is all making sense, you
+[09:28] know, drop a like. Let the algorithm
+[09:29] know that you're interested in agentic
+[09:31] engineering content like this. We're
+[09:32] going to be covering a lot of software
+[09:34] factories, a lot of great engineering
+[09:36] teams, and understanding what they're
+[09:37] doing so that we can push what we can do
+[09:39] further beyond. These are the type of
+[09:41] valuable deep dives that can really
+[09:43] change what you can do. And we're
+[09:45] continuing down that theme we set at the
+[09:47] end of last year. We're building systems
+[09:48] that we trust to do more on our behalf.
+[09:51] So, join the journey if you're not
+[09:52] already subscribed, like, all that good
+[09:53] stuff. Let's continue. Let's talk about
+[09:55] open code and why they chose this. So,
+[09:57] we picked open code as our coding agent
+[09:59] of choice for a couple of reasons. We
+[10:01] use it extensively internally, meaning
+[10:03] we're already familiar with how it
+[10:04] worked. This is the sign of a great
+[10:06] engineering team. They use tools that
+[10:07] they know, not the new flashy thing.
+[10:09] They use tools that they know and
+[10:11] understand. This is a consistent theme
+[10:12] across great teams. Couple key reasons
+[10:14] here that they chose this, it's open
+[10:15] source, so they can contribute features
+[10:17] upstream. Really importantly here, they
+[10:19] have a great open source SDK, so that
+[10:21] they can create programmatic sessions.
+[10:23] This is just super critical. Any agentic
+[10:25] coding tool that does not have
+[10:26] programmatic access isn't a legitimate
+[10:29] agentic coding tool. Let's go ahead and
+[10:30] bump up their Harness Engineering. They
+[10:32] chose this tool for the right reason.
+[10:33] Let's move Harness Engineering into the
+[10:35] B tier and see what they've done with
+[10:37] their multi-agent orchestration. So,
+[10:39] this is where things get really
+[10:40] interesting. On the channel, we've spent
+[10:41] a decent amount of time here breaking
+[10:42] down different multi-agent orchestration
+[10:44] patterns. They have a nice simple one.
+[10:45] Let's break down how this works. They
+[10:47] run this in two processes. And I've
+[10:48] actually diagrammed this out. Let's just
+[10:50] look at that. They have two layers of
+[10:51] orchestration. They have a review
+[10:53] plugin, which contains all of their
+[10:55] sub-agents. So, this is where all their
+[10:56] specialized sub-agents are. And they
+[10:57] have their coordinator, again, also
+[10:59] known as the orchestrator agent, the one
+[11:01] agent to rule them all. They use
+[11:02] standard in and they write out via JSON
+[11:05] L. Writing out via JSON L is super
+[11:07] important. We'll talk about that in a
+[11:08] moment here, but they have a single
+[11:09] custom tool that they've given their
+[11:11] orchestrator agent called spawn
+[11:12] reviewers. This kicks off an entire
+[11:14] agentic workflow, really. It's not just
+[11:16] kicking off sub-agents, it's kicking off
+[11:18] a bunch of code plus agents together.
+[11:20] Again, we'll dial into that in just a
+[11:22] moment. It's a plugin. So, really great
+[11:23] extensible system here, very
+[11:24] customizable. They have a review plugin
+[11:26] that their spawn reviewers tool call
+[11:28] from their coordinator, aka
+[11:30] orchestrator, calls. Okay, so this is
+[11:31] their orchestration system. It's
+[11:33] beautiful, it's simple, it's tried and
+[11:34] true. You know, you can imagine the
+[11:36] results of the XML come back and are
+[11:38] joined here via what's called a fusion
+[11:40] prompt or a concatenation process where
+[11:42] the orchestrator takes all the results
+[11:44] and fuses them back together. And that's
+[11:46] how it works. You can see their
+[11:47] breakdown here and then you can see that
+[11:49] this is calling that tool that kicks off
+[11:52] their sub agents. So very simple, very
+[11:54] powerful. Let's go ahead and boot up
+[11:56] their multi-agent orchestration. They
+[11:57] clearly know what they're doing here.
+[11:58] We're going to go ahead and move this up
+[11:59] to a B. And we also know that they have
+[12:01] a custom tool. Now, you'll notice that
+[12:03] throughout this they only have a single
+[12:04] custom tool. This is a critique I have.
+[12:06] We'll talk about that later. We're going
+[12:07] to leave custom tools in C. We'll keep
+[12:10] multi-agent orchestration in the B tier
+[12:12] because there's not really anything
+[12:13] special going on here. This is a very
+[12:15] simple orchestration pattern, right?
+[12:17] This is effectively a delegation
+[12:19] pattern. It's a little more complicated
+[12:20] than that, but we'll let them explain
+[12:22] that. So let's go ahead and continue on
+[12:23] here. They spawn their sub reviewers via
+[12:25] the spawn reviewers tool and then they
+[12:27] do something really interesting here.
+[12:28] Sub agents respond in a structured XML,
+[12:30] but also they write their outputs in
+[12:32] JSONL. Why are they writing in JSONL?
+[12:34] Instead of a YAML format, instead of a
+[12:36] JSON format, they write JSONL. What are
+[12:38] the advantages that JSONL gives your
+[12:40] agent? It's very, very simple. With
+[12:42] JSONL, your file is always in a valid
+[12:46] file format. As your agents are
+[12:47] streaming out that JSONL, appending it
+[12:50] to that file, that file is immediately
+[12:52] readable. That JSONL is immediately
+[12:54] streamable. You can operate on that
+[12:56] JSONL and that's exactly what they do.
+[12:57] They act on a few stream triggers like
+[13:00] step finish to give real-time agent
+[13:02] observability and action. They can
+[13:04] actually take action on these different
+[13:06] events streaming. If you're using JSON,
+[13:07] you have to wait for everything to
+[13:09] complete and you risk the fact that JSON
+[13:11] might not complete. The agent might
+[13:13] throw an error. If using JSONL, you
+[13:15] always have valid observability. Super
+[13:18] important, super key. This is, of
+[13:20] course, agent observability. I'm going
+[13:22] to go ahead and boost this up. They
+[13:24] really understand what they're doing
+[13:25] here with their agent observability. And
+[13:27] again, just to mention it, they do have
+[13:28] a observability UI via BrainTrust. This
+[13:31] is a distributed tracing and
+[13:32] observability system. Very powerful,
+[13:34] very capable. So, we're going to boot
+[13:35] that up. They know what they're doing.
+[13:36] They understand that. If you don't
+[13:37] measure what your agents are doing, you
+[13:39] cannot improve that. You need to stream
+[13:41] You need to have real-time updates of
+[13:43] what your agents are doing. And JSONL
+[13:45] lets them do that, okay? So, very
+[13:47] powerful stuff there. This is something
+[13:48] Another great agent harness decision.
+[13:50] Open code already supports this. No need
+[13:52] to reinvent the wheel. And, of course,
+[13:53] this means you don't have to worry about
+[13:55] buffering massive payloads, hoping for
+[13:56] the closing JSON array, as mentioned.
+[13:59] Streaming pipeline stuff here. The
+[14:00] important thing to mention is they wait
+[14:02] on a step finish event to track costs,
+[14:05] to look for errors, to kick off
+[14:07] important retry logic for when the
+[14:09] coordinator or the sub reviewers fail.
+[14:11] When they see the step finish with
+[14:13] reason link, they know that the model
+[14:14] has hit its max tokens and got cut off
+[14:16] mid-sentence, and that they should
+[14:18] trigger a retry. So, another really
+[14:20] important part of your agentic system,
+[14:22] of your software factories, it's not
+[14:23] always going to work. So, you need to
+[14:25] build in resilience into your system. Of
+[14:27] course, this is part of agentic
+[14:29] engineering. If we search for system
+[14:30] resilience, we have it here. I'm going
+[14:31] to right away throw this into B tier for
+[14:33] CloudFlare. They're clearly thinking
+[14:35] about retrying. They're thinking about
+[14:37] failure modes, and they're addressing
+[14:39] them directly in their system. This is
+[14:41] very important. If you're building
+[14:42] one-shot systems that you think are
+[14:43] going to work 100% of the time, you're
+[14:45] just vibe coding, okay? That's not
+[14:46] engineering. This is where things get
+[14:47] interesting. Here we start talking about
+[14:49] prompt engineering, context engineering,
+[14:51] and agent specialization. All topics
+[14:53] we've talked about a lot on this channel
+[14:55] week after week after week for years
+[14:57] now. Instead of asking one model to
+[14:58] review everything, we split them into
+[15:00] domain-specific agents. Yes, yes, yes.
+[15:03] When I read this section, I knew I had
+[15:04] to bring it to the channel and really
+[15:06] talk about why this is so important.
+[15:07] Each agent has a tightly scoped prompt,
+[15:09] or a purpose, a function, and what to
+[15:12] look for, and more importantly, what to
+[15:14] ignore. Very important, very interesting
+[15:16] prompt engineering technique you don't
+[15:18] see a lot. It's not just about what's
+[15:19] good, this is what we want you to do.
+[15:21] It's also about what isn't good. Here's
+[15:24] what I want you to avoid. Don't flag
+[15:26] this stuff. Don't code review these
+[15:27] items. And something that I put in all
+[15:29] my code review agents and pipelines is
+[15:32] like don't nitpick syntax. Don't nitpick
+[15:34] non-functional pieces of the code. I
+[15:37] don't care about that. I care about how
+[15:39] it operates. I care about runtime. I
+[15:41] care about security. And you can see
+[15:42] here that they're calling out these
+[15:44] things exactly. What do we actually care
+[15:47] about and what do we not care about at
+[15:49] all? This is great prompt engineering.
+[15:51] Okay, so let's go ahead and just throw
+[15:52] their prompt engineering. They know what
+[15:53] they're doing here. I'm going to throw
+[15:55] their prompt engineering into an A here
+[15:57] because of something else that they do
+[15:59] as well that we're going to cover in a
+[16:01] moment here. They flag what to look for,
+[16:02] what not to look for. I myself don't
+[16:04] even use that technique enough. It's
+[16:06] great one. Another thing on their prompt
+[16:08] engineering that deserves this A tier is
+[16:10] every reviewer produces findings in a
+[16:12] structured XML format with a severity
+[16:15] classification. Here's another great
+[16:17] section from the Cloudflare team. Here
+[16:18] they talk about model selection. So of
+[16:21] course, everything comes back to the
+[16:22] core four: context, model, prompt,
+[16:25] tools. A lot of engineers just throw the
+[16:27] highest, most powerful model on and they
+[16:28] call it a day. And then they destroy the
+[16:30] economics of their business. They
+[16:32] destroy the tokenomics of their
+[16:34] business. Okay? You cannot use Opus for
+[16:37] everything. And that is just a fact. If
+[16:38] you're doing real out-loop agentic
+[16:41] engineering work where you are not
+[16:43] always there, where your agents are
+[16:44] running the background, where they're
+[16:46] doing work for you while you're AFK, you
+[16:48] cannot use top-tier models. It's just
+[16:50] not going to scale, especially as you
+[16:53] grow, which you want to do, right? You
+[16:54] want to grow your want your company,
+[16:55] your work to be successful. These models
+[16:57] are not sustainable at the large scales.
+[17:00] A lot of companies right now are token
+[17:01] maxing. As mentioned, that is the
+[17:03] lowest-hanging fruit of how to use
+[17:05] tokens. You want to be employing your
+[17:07] tokenomics. Generate tokens, generate
+[17:10] value from the tokens, and then
+[17:11] arbitrage the value generate. But you
+[17:13] can't do that if you're just torching
+[17:15] cash on Opus. So very important stuff
+[17:17] here. Because we split review into
+[17:18] specialized domains, we don't need to
+[17:20] use a super expensive, highly capable
+[17:22] model for every task. Instead, we assign
+[17:24] models based on the complexity of the
+[17:26] agent's job. They have a three-tier
+[17:27] system: top tier, state-of-the-art,
+[17:29] standard workhorses, and then
+[17:31] lightweight tasks. This is fantastic. I
+[17:33] love this. They have a model stack,
+[17:35] something we've talked about on the
+[17:36] channel in the past. They're stacking up
+[17:38] different sets of models. So, not only
+[17:41] do they have multi-agent orchestration,
+[17:42] they have a stack of models. And the
+[17:45] tradeoff here is, as we've discussed in
+[17:47] previous videos, as you move up this
+[17:49] stack here toward the state-of-the-art
+[17:50] models, you're trading cost and speed
+[17:53] for performance. This cannot go on
+[17:56] forever. As we're seeing here, Anthropic
+[17:57] is locking down their subscriptions.
+[18:00] We're going to get like 20 or 200 bucks
+[18:01] a month for SDK usage. That's nothing.
+[18:04] We have to be using these APIs for our
+[18:06] Outloop agentic engineering work. But
+[18:07] the tradeoff here is this. When you get
+[18:09] that state-of-the-art performance, you
+[18:10] trade off speed and cost, most
+[18:12] importantly, the cost. So, what's the
+[18:15] solution? Don't just use
+[18:16] state-of-the-art. Create a tiered stack
+[18:18] of models for standard usage and then
+[18:20] lightweight usage and understand when to
+[18:23] deploy the model. Otherwise, you will
+[18:25] never attain great tokenomics. This is
+[18:28] part of tokenomics. And so, we have an
+[18:30] additional item here for this. This is
+[18:32] called model flexibility. We're going to
+[18:33] throw this right into B tier and we'll
+[18:35] probably move it up in a moment here if
+[18:38] there's nothing negative about their
+[18:39] model flexibility. Okay, so, they have a
+[18:41] tiered system. There's levels to this.
+[18:43] As you'll see in a moment, you can also
+[18:44] read the folks on token caching, which
+[18:46] is something Cloudflare has done. So, we
+[18:47] have a section here on prompt injection
+[18:50] prevention. Not super interesting or
+[18:53] important, but worth a read. Of course,
+[18:55] I'm going to leave this blog link in the
+[18:57] description for you. Here's the more
+[18:58] interesting part. Saving tokens with
+[19:00] shared context. Each sub-reviewer only
+[19:02] reads a patch to the files relevant to
+[19:05] its domain. Once again, specialization.
+[19:07] Once again, doing some great context
+[19:09] engineering here. The systems don't just
+[19:11] read all the diffs into the prompt.
+[19:14] They're not just saying read all this
+[19:15] stuff. They're first saving the diffs of
+[19:18] the PR to a file path. They're doing
+[19:20] some context engineering work here. And
+[19:21] then each sub-reviewer only reads the
+[19:23] patch that's relevant to its domain.
+[19:25] They also have, of course, a shared
+[19:27] context file. This is very, very common.
+[19:29] What this does here is really
+[19:30] incredible. If they duplicated all this,
+[19:32] all of the information inside of a
+[19:34] moderately sized merge request, all that
+[19:36] context, it would multiply their token
+[19:38] cost 7x. At the scale that Cloudflare
+[19:41] operates, they have to consider costs
+[19:43] and value arbitrage of their tokens from
+[19:45] the get-go. This is key to their success
+[19:47] at the scale they're operating. Let's go
+[19:49] ahead and give them an A for context
+[19:50] engineering. Very aware of all the
+[19:53] context flowing in and out of their
+[19:54] system. And as mentioned, you know, with
+[19:56] the plugin system, they can dynamically
+[19:57] change their prompts and change the
+[20:00] context of the code review. Just saving
+[20:02] tokens there, that's fantastic. And then
+[20:04] we get to more multi-agent
+[20:05] orchestration. So, I mentioned the
+[20:07] fusion prompt earlier. What does that
+[20:08] mean? What's that all about? classic
+[20:10] sub-agent multi-agent system, you have
+[20:12] your orchestrator, you have your
+[20:13] sub-agents here, and then you have all
+[20:16] the responses going back to your
+[20:17] orchestrator. Bam, bam, bam, simple fan
+[20:19] out, and then a close in. You can do a
+[20:21] lot of magic at this point of the
+[20:23] process when your results are coming
+[20:25] back into your orchestrator agent. And
+[20:27] so, what are they doing here? They're
+[20:28] de-duping stuff. The orchestrator, or
+[20:30] they call the coordinator, is
+[20:32] recategorizing work. And it's also
+[20:34] making sure that the work that's
+[20:35] mentioned is reasonable. I'm a huge fan
+[20:37] of this. I hate over-detailed nitpick
+[20:40] code reviews. Like, let's just focus on
+[20:41] the value. So, they have a filter inside
+[20:43] of their agentic system to just do this
+[20:45] all the time. They have templated their
+[20:46] engineering into their agentic system,
+[20:49] which is like a core thing we talk about
+[20:51] on the channel all the time. This is a
+[20:52] core thesis inside of tactical agentic
+[20:54] coding. So, this filter looks for
+[20:56] speculative issues, nitpicks, false
+[20:57] positives, and conventions that
+[20:59] contradict findings. Here's an important
+[21:01] part and an expensive part of this. If
+[21:04] the coordinator isn't sure, it uses
+[21:05] tools to read the source directly and
+[21:07] verify. Still important, there's tokens
+[21:09] you just need to spend and they're doing
+[21:10] it here with the coordinator to validate
+[21:12] the work. So, fantastic stuff. You can
+[21:14] see some of the decision rubric they're
+[21:16] setting up here for their coordinator,
+[21:18] the part of the system that combines the
+[21:20] responses from the sub-agents into
+[21:23] primary agent that looks like this. So,
+[21:25] you have that final step here, classic
+[21:27] fusion of all the specialists, of all
+[21:29] your sub-agents. This is what happens
+[21:30] basically anytime you spin up a bunch of
+[21:33] sub-agents under an orchestrator agent.
+[21:35] to combine and understand the results.
+[21:36] Keep this at B, but then bump up their
+[21:39] agent specialization cuz I think that's
+[21:40] really what the value is here. It's not
+[21:42] the fact that their multi-agent
+[21:43] orchestration is that unique or
+[21:45] interesting, it's that their agent
+[21:46] specialization is valuable. This is
+[21:48] where that final decision comes in.
+[21:49] There's approved a merge request getting
+[21:51] agentically approved, saving you and
+[21:54] your team tons of time, approval
+[21:55] comments, approval comments, and then
+[21:57] minor issues, and then significant
+[21:59] concerns. This is what you pay for.
+[22:00] You're really paying for these two. I
+[22:02] really like how Cloudflare has set this
+[22:04] up. This bias is explicitly toward
+[22:07] approval, meaning a warning in an
+[22:09] otherwise clean MR still gets approved
+[22:11] with comments rather than a hard block.
+[22:14] This is super super key. They're pushing
+[22:16] and going in the direction of being more
+[22:18] agent forward, more agentic, and to be
+[22:21] super clear here, why do they have no
+[22:22] ZTE in this rank? This is zero-touch
+[22:25] engineering. This is the North Star for
+[22:27] all agentic engineers. You want to build
+[22:29] systems that operate without you. And
+[22:31] all these elements are interlocked.
+[22:33] These all help you get there. All of
+[22:35] them are important in their own way, but
+[22:37] the North Star of agentic engineering,
+[22:39] which you know, we're going to give them
+[22:40] a final grade at the end here with this
+[22:42] kind of catch-all agentic engineering
+[22:44] item, the North Star is zero-touch
+[22:45] engineering. I like the decision here to
+[22:48] auto-approve these PRs in many
+[22:50] situations, right? Some engineers would
+[22:52] block on some warning. They're not
+[22:54] taking that risk. But the key here is if
+[22:56] there's clearly no production risk,
+[22:58] Cloudflare is going to approve this. I
+[22:59] love this. They're pushing toward being
+[23:01] agent forward, agent first, while
+[23:04] leaving in some great escape hatches.
+[23:06] So, if a human reviewer comments break
+[23:08] glass, the system forces approval
+[23:10] regardless of what the AI found. So,
+[23:12] their AI is never limiting them, it's
+[23:14] never hard blocking them, they can
+[23:15] always get around the system. It's only
+[23:17] a matter of time until you have to break
+[23:18] rule in your system. I love this. I
+[23:20] think this lets us put a couple things
+[23:22] on the map. We have human out the loop.
+[23:24] So, this is the ability of the system to
+[23:26] run without humans. We're going to throw
+[23:28] this in C tier, and you know, maybe we
+[23:30] can push this up to B because they are
+[23:31] letting their agent cover a decent
+[23:33] number of cases here. They're really
+[23:35] letting their agent approve. So, we'll
+[23:36] go ahead and give them a B tier for
+[23:37] human out the loop. If you want to push
+[23:39] toward ZTE, toward that really powerful
+[23:41] agentic system in software factory, you
+[23:44] can't be bottlenecking your agent. It's
+[23:46] only a matter of time. What is the
+[23:48] planning and review constraint? It's us.
+[23:50] It's you and I. We are the constraint
+[23:52] now. So, you want to be pushing yourself
+[23:54] out the loop, not in the loop. And I
+[23:55] know that's hard, and I know especially
+[23:57] at scale, it's really hard to do this in
+[23:59] production systems like Cloudflare.
+[24:01] Like, no one wants Cloudflare to go down
+[24:03] because of some agentic issue. This is a
+[24:05] learning debt of the new skill of
+[24:07] agentic engineering we have to pay down
+[24:08] if you want to push toward the North
+[24:10] Star. So, anyway, we almost have all of
+[24:11] our sections ranked here. Let's keep
+[24:13] looking at what they've done. Another
+[24:15] really, really great piece here. They
+[24:16] have risk tiers. More great context
+[24:19] engineering, more great tokenomics.
+[24:21] Don't send in the dream team to review a
+[24:23] typo fix. So brilliant, so simple. I had
+[24:26] to diagram this out cuz I love the idea
+[24:27] so much. Spend compute by risk level.
+[24:30] You don't deploy the dream team to fix a
+[24:32] one-line readme fix.
+[24:34] You can deploy that to production with
+[24:36] ZTE, frankly, which more teams should
+[24:38] try and experiment with. They have this
+[24:39] great scaling system for trivial changes
+[24:42] with lines less than 10, files less than
+[24:44] 20, they only deploy two of their
+[24:47] agents, right? The coordinator and one
+[24:49] generalized code reviewer agent. What's
+[24:52] the next tier? They have a light tier.
+[24:53] So, lines changed, files changed, and
+[24:56] then number of agents they deploy for
+[24:58] this set. So, if there's less than 100
+[25:00] lines, less than 20 files, they deploy
+[25:02] coordinator, code quality,
+[25:03] documentation, and then one more other
+[25:06] agent, okay? And then there's the full
+[25:07] pipeline, their full agentic system,
+[25:09] their full software factory, where they
+[25:11] deploy all specialists when there's more
+[25:13] than 100 lines or more than 50 files
+[25:16] changed. Then you get the full suite.
+[25:18] Just really, really great. This is like
+[25:20] combination of things, but it's mostly
+[25:21] multi-agent orchestration. I'm going to
+[25:22] go ahead and bump up their multi-agent
+[25:23] orchestration. Really, really great
+[25:25] stuff here with this system. And it's
+[25:26] not because they're using a novel
+[25:28] multi-agent orchestration system, it's
+[25:29] because they're using just the right
+[25:31] amount of compute when they need it.
+[25:33] Again, this all comes back to their
+[25:34] tokenomics. Their tokenomics are
+[25:36] absolutely S-tier, all right? So, we
+[25:38] have more context engineering work here.
+[25:40] They're getting rid of large, loud
+[25:42] files. They don't want the bun lock,
+[25:44] they don't want the men.js files. Save
+[25:46] your agents from mistakenly reading one
+[25:48] of these and blowing up your cost curve.
+[25:50] Looks great. Here's their multi-agent
+[25:51] orchestration system. Again, my problem
+[25:54] with this system and why I'm going to
+[25:55] leave custom tools in C-tier is because
+[25:59] they only have one tool doing all of
+[26:01] this work. So, this single tool does all
+[26:03] of this work. And it's quite a lot of
+[26:05] work. Like, they basically have this
+[26:06] tool to kick off a program. I would
+[26:08] question whether they need this to be a
+[26:10] tool. I would go one of two directions.
+[26:11] Is this actually a tool that your agent
+[26:13] needs to run? Or should this be more
+[26:15] tools? Is this really agentic if it's a
+[26:17] one-off tool that kicks off a bunch of
+[26:19] stuff? This is one of the weaker areas I
+[26:20] see in their agentic layer. So, we're
+[26:23] going to leave custom tools in C. No
+[26:24] system is perfect. Here we do need to
+[26:26] talk about what they have done really,
+[26:29] really well. So, they have timeouts. So,
+[26:31] they have per-task, overall retry
+[26:33] budget. Again, managing tokens. And then
+[26:35] they have resiliency. So, they have a
+[26:37] state diagram here that just makes sure
+[26:39] that the system is running. They also
+[26:41] have this great fallback system for
+[26:44] their models. So, if the system runs
+[26:46] into an issue that's the model's fault,
+[26:48] they fall back on previous models, okay?
+[26:50] So, you can imagine they updated this to
+[26:51] Opus 4.8, but they also have their lower
+[26:54] tiers of models, which are workhorse
+[26:56] models and their light model suites. So,
+[26:58] this is really good system resilience.
+[27:00] Love that they're building this in. And
+[27:02] they also have air classification. So,
+[27:04] if a sub reviewer session fails, the
+[27:05] system needs to decide if it should
+[27:07] trigger a model fallback or if it's a
+[27:08] problem that changing the model won't
+[27:10] fix. So, they have a nice set of errors.
+[27:12] Again, their system resilience is
+[27:14] fantastic. I'm actually going to boot
+[27:15] this up into this next tier here. A lot
+[27:17] of great A tier stuff. Maybe we need to
+[27:19] move a couple things into S tier. Right,
+[27:21] they also have the coordinator level
+[27:22] fallbacks. Looks great. They built
+[27:25] resiliency into the system. Love to see
+[27:27] that. And more resiliency. If a model
+[27:29] provider goes down, they have a system,
+[27:31] a CI job, to just fetch the model
+[27:33] configuration and update it. This means
+[27:35] that they can quickly switch on and off
+[27:37] their different model providers.
+[27:39] Anthropic, Google, Open Readers really,
+[27:41] really good for this. This is super
+[27:42] powerful, right? Again, their system is
+[27:44] very resilient. They're not going to go
+[27:45] down because they're hitting rate
+[27:46] limits. They're not going to go down
+[27:47] because a model provider is down or
+[27:49] having a bad day it might be. Again,
+[27:51] this is another thing that's all part of
+[27:53] Agentic Engineering. It's that full
+[27:55] thought process of will my system go
+[27:58] down? How long can it stay up? What are
+[28:00] all the failure cases I need to build
+[28:02] against? More pipeline details here.
+[28:03] We're going to just kind of gloss over
+[28:04] that. I want to talk about something
+[28:05] really important, which I think is going
+[28:07] to be the nail in the coffin that pushes
+[28:09] their resiliency up to an S tier. Let's
+[28:11] go ahead and do that now. I'm going to
+[28:12] push system resilience into an S tier as
+[28:15] well. Why? It's because they also aren't
+[28:17] wasting time with re-reviews. Often
+[28:19] times, a developer will push new
+[28:21] commits, system reruns, incremental
+[28:22] review. The coordinator receives the
+[28:24] full context of the last review. So,
+[28:26] it's not wasting time. It's not wasting
+[28:28] tokens. Their system is not going to
+[28:29] start from scratch. If they have a
+[28:31] re-review, the agent picks up previous
+[28:32] context. So, they're managing state
+[28:34] really well. Again, they're context
+[28:36] engineering their state. They already
+[28:37] have context engineering in A tier, so
+[28:39] that's good. Sounds about right. This is
+[28:41] really interesting here. User can reply,
+[28:43] "Won't fix." or "Acknowledge." The AI
+[28:45] treats the finding as resolved. If they
+[28:47] reply with disagree the coordinator will
+[28:49] read their judgment
+[28:51] and either resolve or argue back. This
+[28:53] is really cool, right? They're treating
+[28:55] this new compute, these tokens, this
+[28:57] intelligence that we have access to as
+[28:59] actually intelligent. You and I get
+[29:01] stuff wrong all the time. We want to
+[29:03] understand why, we want to learn from
+[29:05] it, we want to understand the pros and
+[29:06] cons. The agent more and more will be
+[29:08] doing more engineering work and this is
+[29:10] part of it. Disagreeing, giving a
+[29:11] different perspective, that's part of
+[29:12] engineering. This is also why model
+[29:14] diversity, having different models in
+[29:16] your model stack is super important as
+[29:17] well. Different models will have
+[29:18] different opinions about the exact same
+[29:20] thing. Here's a really interesting
+[29:21] section here and this is where we get
+[29:22] into self-improving systems. Their
+[29:25] agents rely heavily on agents.md. So
+[29:28] this is a file I'm not a huge fan of
+[29:30] because it applies to every single agent
+[29:32] and often times these files get bloated,
+[29:34] overused, and they grow infinitely. But
+[29:37] they address that directly. These files
+[29:39] rot incredibly quickly. So what do they
+[29:41] do? So they built a specific agent to
+[29:42] assess the materiality of a merge
+[29:45] request and yell at developers if they
+[29:47] make a major architectural change
+[29:49] without updating the AI instructions.
+[29:51] Okay, so a little bit of
+[29:53] self-improvement here but not much at
+[29:56] all. So this system is still relying on
+[29:58] humans. In fact, when you're yelling at
+[30:00] your engineers to do stuff, another
+[30:02] thing that is not good for the system.
+[30:03] I'm going to drop human out the loop
+[30:05] down to C and self-improving is going to
+[30:07] stay in C. Maybe this stays in F tier.
+[30:09] We'll go ahead and give them an F tier,
+[30:10] right? This system isn't self-improving.
+[30:12] This is one of those things that could
+[30:14] be self-improved. You want to yell at
+[30:16] your engineers for fewer things, not
+[30:18] more and agents give us great
+[30:20] opportunity to do that. Let's talk about
+[30:21] the developer experience. How do you
+[30:23] actually use this? This is where
+[30:24] Cloudflare really shines. Configuring
+[30:26] these systems is what they do, so you
+[30:27] can imagine they have great DX. All you
+[30:29] need to do is add a single CI into their
+[30:33] GitHub YAML file. They use GitLab, all
+[30:34] these systems are largely the same. They
+[30:36] include a component for their CI/CD.
+[30:38] Teams can customize behavior by dropping
+[30:41] in their agents.md. I wish this was a
+[30:43] specific file for this process, not the
+[30:46] agents MD. Agents MD is for every agent
+[30:48] that operates in the code base. There's
+[30:50] a little bit of conflation here with
+[30:51] that context, so I don't like that. But
+[30:53] anyway, bunch of other stuff gets
+[30:54] injected and they can also run this
+[30:56] locally via a full review inside the
+[30:59] open code terminal user interface, okay?
+[31:01] A lot of stuff to like, a few things not
+[31:02] to like. Again, their strongest suit
+[31:04] here is their tokenomics. So, show me
+[31:06] the numbers. What's the final results
+[31:07] here? On average, the review costs a
+[31:09] dollar. Just incredible tokenomics and
+[31:12] the median cost is a dollar. And so,
+[31:14] this changes based on the percentile,
+[31:16] right? Based on the P value you're
+[31:17] looking at. Of course, there are always
+[31:18] going to be outliers and specifically, I
+[31:20] think they mentioned this somewhere, the
+[31:22] longer the diff, the longer the context
+[31:24] of the merge requests, the more tokens
+[31:26] it uses, right? Your agents have to read
+[31:28] more. Great stats here. Like I
+[31:29] mentioned, 130 reviews across 50k merge
+[31:32] requests. This is crazy. They're working
+[31:33] across 5,000 repositories, so they're
+[31:35] not even specializing on their code
+[31:37] base. They've just built a code review
+[31:39] system that can operate on all of their
+[31:40] code bases. Very impressive work there.
+[31:42] Also, something that I would like to see
+[31:44] specialized. Maybe they have different
+[31:45] types of code bases. Reviews complete in
+[31:48] 3 minutes. Very, very impressive. The
+[31:50] costs are just fantastic. And here's
+[31:52] what they actually found. What was the
+[31:53] value they got? Doesn't really matter if
+[31:56] you can do a bunch of cool stuff if
+[31:58] you're burning more cash than it cost
+[31:59] you to get the value. Cloudflare is
+[32:01] measuring so that they know where
+[32:02] they're at and how to improve. Okay, so
+[32:04] here's all their findings, right? They
+[32:05] found 8,000 critical issues and then
+[32:07] they found a bunch of suggestions. The
+[32:09] key thing you want to do with your code
+[32:11] review software factory is find the
+[32:13] critical issues that are going to block
+[32:15] or destroy production. The rest of this
+[32:17] is just the journey to get there.
+[32:18] Warnings that could turn into critical
+[32:20] issues are also important, but really
+[32:22] you just want to find the critical
+[32:23] issues. This is the stuff that matters.
+[32:25] This is the value that they're really
+[32:27] paying for with each of these tokens.
+[32:29] Per reviewer, per agent, they're looking
+[32:32] at who found the good stuff. Their most
+[32:35] important agent in terms of performance
+[32:37] is their code quality agent. It found 6K
+[32:39] critical issues. And then security also
+[32:42] going to give them a lot of return on
+[32:43] investment. Found 400 critical issues,
+[32:46] some compliance stuff. When you're
+[32:48] observing your agentic systems, you
+[32:49] really want to know who's paying the
+[32:51] bills.
+[32:53] What agent is actually generating the
+[32:55] value for you? Their security viewer
+[32:57] agent flags the highest proportion of
+[32:59] critical issues. Token usage, 120
+[33:01] billion tokens in total. But here's the
+[33:03] impressive part. Look at the cash reads.
+[33:06] This is something I need to spend more
+[33:07] time with to understand how they were
+[33:09] able to get their cash reads so high.
+[33:11] And again, this is why their tokenomics
+[33:13] sits at the very top of what they're
+[33:15] doing. Great observability work from the
+[33:17] Cloudflare team. They have input output
+[33:19] token and cash read cash write. You can
+[33:22] see that the top-tier models, you know,
+[33:23] once again talking about tokenomics,
+[33:24] talking about context engineering,
+[33:26] prompt engineering, the top-tier models
+[33:28] are using 51% of all of the tokens
+[33:30] spent. You know, notice this, they have
+[33:32] more input, a little bit less output,
+[33:34] more cash reads, more cash writes, but
+[33:36] this is only 46.2% of all their token
+[33:39] usage. Sitting on that lightweight tier,
+[33:42] they have the Kimmy K2.5 with 11 million
+[33:44] tokens and 200 million output using up a
+[33:47] very, very small amount of their token
+[33:49] usage. Per agent token usage, you know,
+[33:52] last week we talked about agent
+[33:54] observability, these are the numbers you
+[33:55] want to be able to pull out of your
+[33:57] observability system. Love to see this.
+[33:59] And then they have their cost by risk
+[34:01] tier. So what does it cost to run their
+[34:04] specific stack of agent team? Really,
+[34:06] really good stuff here. Couple final
+[34:08] notes, here's what a review looks like
+[34:09] for them. We have developer experience
+[34:12] in here. I'm going to have to, you know,
+[34:13] dock some points here.
+[34:15] I'm not sure where this is. Maybe this
+[34:18] is in their GitLab UI, but um the review
+[34:21] itself is good. I'm just complaining
+[34:22] about the DX, right? Like the ideal
+[34:24] developer experience is a unified
+[34:26] interface for all things on the software
+[34:28] factory. So let's go ahead and give them
+[34:30] a ranking here. Their developer
+[34:31] experience, we'll give them a high B
+[34:33] because it's super easy to spin up and
+[34:35] control the review system. They can run
+[34:37] {slash} full review right in the
+[34:39] repository and it hooks up to CI very
+[34:41] easily. And then they have some
+[34:42] limitations that they're super honest
+[34:44] about. The big one here is call size
+[34:46] scales with diff size. There's not
+[34:47] really a way around this in currency
+[34:49] bugs, cross system impact, and then
+[34:51] there is architectural awareness. So,
+[34:54] this is keeping their context
+[34:56] engineering down from that S tier. It is
+[34:58] hard to know exactly how much of the
+[35:01] full context you need for an agent to be
+[35:03] performance. Sometimes it's ultra
+[35:05] valuable to have that full big picture.
+[35:07] Other times you're just burning tokens
+[35:08] and wasting time. Let's go ahead and
+[35:10] rank our final items here, right? This
+[35:11] system is not always on. This is a North
+[35:14] Star. In addition to zero touch
+[35:15] engineering, always on agents is how you
+[35:17] get to zero touch engineering. If your
+[35:19] agents are always on, they're always
+[35:20] operating, they're always giving you
+[35:22] results, you are at the highest levels
+[35:24] of agentic engineering. This is kicked
+[35:25] off via CI and via a slash command. It's
+[35:28] not always on, it's on when it needs to
+[35:30] be, but there's a lot of human in the
+[35:31] loop involved here. So, always on, we're
+[35:33] going to go ahead and drop this into C
+[35:34] tier. And then here's one we can be a
+[35:36] bit critical on, spend to learn. I'm
+[35:38] going to drop this into C tier. Spend to
+[35:40] learn is often at odds with tokenomics.
+[35:44] If you're optimizing your system for
+[35:45] cost, you are by nature not spending a
+[35:48] lot of money to learn how to best
+[35:50] operate your software factories. You
+[35:52] know, these are at odds a little bit. We
+[35:54] have tokenomics at the top. Their system
+[35:55] is very resilient. It'll just keep
+[35:57] rerunning within some good bounds. They
+[35:59] have a great plugin system that combines
+[36:02] agents plus code that is extensible,
+[36:05] right? They built an extensible software
+[36:06] factory. Again, thanks to their plugin
+[36:07] system. They use Brain Trust and they
+[36:09] have, as you can see here, like great
+[36:11] analytics and great agent observability.
+[36:13] They can pull all the stats that matter
+[36:15] out of their agentic system. So, we're
+[36:17] going to give their agent observability
+[36:18] a solid A. They understand some great
+[36:20] prompt engineering. They're prompting
+[36:22] things they want their agents to do.
+[36:23] They're prompting things they don't want
+[36:24] their agents to do. And they're also
+[36:26] injecting prompt context with their
+[36:28] plugin system, right? So, the prompt
+[36:30] engineering is very dynamic. They're
+[36:32] doing some pretty interesting advanced
+[36:34] stuff with their context engineering,
+[36:35] one of them being diff patch files. So,
+[36:38] they're conserving that context window.
+[36:40] They're using agent specialization and
+[36:42] multi-agent orchestration to reduce
+[36:44] their context windows. These are key
+[36:45] ideas we talk about in agentic horizon.
+[36:48] Reduce and delegate R&D is key for
+[36:51] managing your context window. They of
+[36:52] course have seven specialist agents.
+[36:54] Many specialized agents will always
+[36:56] outperform generalist agents, and they
+[36:58] have a decent multi-agent orchestration
+[37:01] system. Their multi-agent orchestration
+[37:03] isn't novel. We've talked about far more
+[37:05] interesting patterns here on the
+[37:06] channel. What is novel is how they're
+[37:08] organizing their teams of agents into
+[37:11] different tiers. Their developer
+[37:13] experience looks okay based on the blog
+[37:16] post. Their harness engineering looks
+[37:17] pretty good. They have a bunch of
+[37:19] plugins, nothing super special. They are
+[37:21] controlling their agent harness to
+[37:23] control their results. You can bet
+[37:25] they're doing things they can't with
+[37:26] Claude Code or with Codex. So, we'll
+[37:28] give them a solid B tier here. Model
+[37:29] flexibility, we are going to move this
+[37:31] up into A tier. I really like how
+[37:33] they're able to change their models very
+[37:36] quickly, and more importantly, I like
+[37:38] their split into their three tiers.
+[37:40] They're really controlling the core four
+[37:42] by owning their agent harness, and then
+[37:44] by creating this tier system of when to
+[37:47] use which model. Because once again,
+[37:49] don't always need state of the art. And
+[37:51] more and more over time, this is going
+[37:53] to become more true. Which means you can
+[37:55] save more money on your tokens and spend
+[37:57] more tokens if you're using standard
+[37:59] tier or even lightweight tier. This is
+[38:02] critical for product engineering work,
+[38:04] and in this case, AI code review,
+[38:06] they're still doing engineering work.
+[38:08] But for any out loop agentic engineering
+[38:10] work, you must be able to flex your
+[38:12] models. Custom tools, again, not super
+[38:14] hyped on their one tool. We're going to
+[38:16] keep this in C tier. Seems like that
+[38:18] should be pulled out into code, or where
+[38:20] should add more tools. To me, it looks
+[38:22] like this is a pretty standard uh
+[38:23] human-in-the-loop process. They're not
+[38:25] doing anything special with keeping
+[38:27] their engineers out the loop outside of
+[38:29] just having the code review get done by
+[38:31] an agent, which is what you would expect
+[38:32] from the system, right? Nothing special.
+[38:34] The system is not always on. It runs
+[38:36] when it needs to. Again, always on is
+[38:38] often times at odds with tokenomics.
+[38:40] This is okay, but we can't give them a
+[38:42] high rank for this. And for the same
+[38:44] reason, they're not aggressively
+[38:46] spending to pay down their learning debt
+[38:48] of this new skill of agentic
+[38:50] engineering, once again often at odds
+[38:52] with tokenomics. Their system is not
+[38:54] self-improving at all. They update this
+[38:55] by hand, which is fine. This is a, you
+[38:58] know, more advanced pattern of agentic
+[39:00] engineering. And so, let's give them a
+[39:01] final grade. As you can see here, we're
+[39:03] going to give them a solid A for their
+[39:06] agentic engineering. They have a lot of
+[39:08] stuff in that A tier. It's looking
+[39:09] really good, and they have a couple S's
+[39:11] here. Something I put in the ZTE,
+[39:13] honestly, is stuff that just pushes us
+[39:15] from phase two of agentic coding, of
+[39:18] building trust with agents, of scaling
+[39:20] your computer, scaling your impact to uh
+[39:22] more zero-touch type of things, where
+[39:24] it's one prompt and that prompt goes to
+[39:26] production. This is one of the advanced
+[39:28] concepts we talk about in tactical
+[39:30] agentic coding in some of our final
+[39:32] lessons. I'll be honest, I haven't seen
+[39:34] anyone doing zero-touch work yet. This
+[39:36] is what I'm starting to consider the
+[39:37] phase three next-generation work, where
+[39:40] we truly go prompt-to-production. Not
+[39:42] because you're vibe coding and you're
+[39:43] not looking, but because you're agentic
+[39:45] engineering and you've built systems
+[39:47] that work so well you don't have to
+[39:49] look. Okay, so very, very different than
+[39:51] vibe coding. They ride on a similar
+[39:52] line, it feels similar from looking on
+[39:54] the outside, but it is a completely
+[39:56] different game, a completely different
+[39:58] monster when you're doing this right.
+[39:59] Okay, so nothing zero-touch engineering
+[40:02] like in the system. It's still early,
+[40:04] and I'm putting this up here just to
+[40:05] mention it, just to start, you know,
+[40:07] spinning your brain on how you can start
+[40:09] thinking through this single idea of
+[40:11] what would it take to build a system
+[40:13] that trust so much that I would write a
+[40:15] single prompt and then work would be
+[40:16] shipped into production. Okay, that's
+[40:18] the ZTE mindset. This is the next phase,
+[40:21] right? That's phase three. We're all in
+[40:22] phase two. Some of us are stuck in phase
+[40:24] one. We're prompting back and forth in
+[40:26] the terminal. That's fine. We're all at
+[40:27] different places. That's part of why I'm
+[40:29] creating this content to kind of share
+[40:30] the spectrum of what's possible by
+[40:32] looking at what the best engineers in
+[40:34] the game are doing with their
+[40:36] engineering, with their agents, with
+[40:38] their orchestrating of intelligence. Big
+[40:41] shout out to Rounskidmore for this great
+[40:42] write-up. Big shout out to all the
+[40:44] Cloudflare engineers. You guys are doing
+[40:45] great work. Love the service. If you're
+[40:47] interested, definitely check out this
+[40:48] blog. I'll leave it linked in the
+[40:50] description. If you want to work at
+[40:51] Cloudflare, reach out. This is not
+[40:52] sponsored. I have not talked to any of
+[40:54] these engineers. They're just doing
+[40:55] great work very clearly. And so, it
+[40:57] looks like a great place to be because
+[40:58] they are agentic engineering. I would
+[41:00] recommend, if you're looking for a job,
+[41:02] avoid every place that isn't AI-first,
+[41:04] AI-forward because you're going to get
+[41:06] cooked by engineers like you and me
+[41:07] orchestrating intelligence to build at
+[41:09] the agentic speed, not the speed of
+[41:11] humans, the speed of agents. Okay? Uh if
+[41:14] you enjoyed this, if you watched to the
+[41:15] end, definitely drop a like. Join the
+[41:17] journey. This is our bread and butter.
+[41:20] As I mentioned in the beginning, I am
+[41:21] going to master agentic engineering. I
+[41:23] deliver weekly videos on these very
+[41:26] ideas every single week. If you want
+[41:27] some extra juice, if you want to pay to
+[41:29] play and get an advantage, check out
+[41:31] tactical agentic coding. This is my take
+[41:33] on how to scale far beyond AI coding and
+[41:35] vibe coding with advanced agentic
+[41:37] engineering so powerful your code base
+[41:39] runs itself. Guess how? ADWs, aka
+[41:43] software factories. Check out the
+[41:44] landing page here, link in the
+[41:46] description. You know where to find me
+[41:47] every single week. Stay focused and keep
+[41:51] building.
