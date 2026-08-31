@@ -23,13 +23,15 @@ the same file under GitHub's slug rules:
 ```bash
 # headings -> their GitHub anchor slugs
 grep -n '^#\{1,6\} ' <file> | sed 's/^\([0-9]*\):#* //' | \
-  tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 -]//g; s/ /-/g'
+  tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 _-]//g; s/ /-/g'
 # every in-file anchor referenced
 grep -o '](#[^)]*)' <file> | sort -u
 ```
 
 Slug rules that matter: lowercase, spaces -> `-`, punctuation dropped, **emoji dropped**, `§`
-dropped. A heading with emoji or a section number needs its slug computed, not guessed.
+dropped - but **`_` and `-` are kept**, so `## update_status_line` slugs to `update_status_line`,
+not `updatestatusline`. Stripping underscores manufactures broken-anchor findings on links that
+resolve fine. A heading with emoji or a section number needs its slug computed, not guessed.
 
 A bare `§12.3` in prose with no link is fine; a `§12.3` that names a section which no longer
 exists is a finding regardless of linking.

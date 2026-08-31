@@ -83,6 +83,12 @@ git diff --name-only                    # only if asked for unstaged
 git status --porcelain | awk '/^\?\? /{print substr($0,4)}'   # untracked candidates
 ```
 
+**Every Bash call is a fresh shell - `BASE` and `MB` do not survive between them.** Run the
+resolution above and the `git diff` that consumes it *in the same invocation*, or re-resolve
+first, or persist the value (`git rev-parse "$MB" > .git/review-changes-base` and read it back).
+Never let `$MB` reach `git diff` unset: `git diff ""` exits 128 with **empty stdout**, which is
+indistinguishable from a clean tree, and the review then passes a diff it never read.
+
 `git diff "$MB"` (two-dot against the working tree, **not** `"$MB"...HEAD`) covers
 committed + staged + unstaged in one pass. `...HEAD` compares two commits and cannot see the
 working tree at all, so it would silently review the previous commits and report a clean pass on
@@ -113,7 +119,8 @@ per changed file (use the same `"$MB"` so the citable-line set matches the scope
 
 ```bash
 git diff "$MB" -- <file> | \
-  awk '/^@@/{split($3,a,",");ln=substr(a[1],2)-1;inhunk=1;print;next}
+  awk '/^diff --git /{inhunk=0}
+       /^@@/{split($3,a,",");ln=substr(a[1],2)-1;inhunk=1;print;next}
        !inhunk{next}                       # never number the diff preamble
        /^\\/{next}                          # "\ No newline at end of file"
        /^\+/{ln++;printf "[%d] %s\n",ln,$0;next}
@@ -121,11 +128,13 @@ git diff "$MB" -- <file> | \
        {ln++;printf "[%d] %s\n",ln,$0}'
 ```
 
-Both guards matter. Without `!inhunk{next}` the `diff --git` / `index` / `+++` preamble is
+All three guards matter. Without `!inhunk{next}` the `diff --git` / `index` / `+++` preamble is
 numbered `[1] [2] [3]`, which puts three bogus entries in the citable-line set of **every**
-file - a hole in the exact gate Step 4 relies on. Without the `/^\\/` skip, git's
-`\ No newline at end of file` marker is counted as content and every `[N]` after it in that
-hunk is off by one.
+file - a hole in the exact gate Step 4 relies on. `!inhunk` alone only covers the *first* file:
+`inhunk` stays 1 once set, so the `/^diff --git /{inhunk=0}` reset is what keeps the preamble of
+files 2..N out of the set when the patch is generated in one multi-file pass. Without the
+`/^\\/` skip, git's `\ No newline at end of file` marker is counted as content and every `[N]`
+after it in that hunk is off by one.
 
 `[N]` is the line number in the **new** file - the only number a lens may cite. `[--]` is a
 deletion and is not citable. Record the set of citable line numbers per file; Step 4 enforces it.
@@ -211,12 +220,13 @@ running the `code` lens over a prose-only diff wastes a turn and invites invente
 
 Give every lens: the annotated patches, the changed-file list, the citable-line set, the compiled
 rule context from Step 2 (including whether a profile was found and what it says), the branch
-name, and the **absolute paths of `references/quality-gates.md` and
-`references/observation-format.md`**. Pass those two paths explicitly: the lens files cite them
-by bare filename, which resolves from neither `references/lenses/` nor the repo root, and a lens
-that cannot open `quality-gates.md` skips all eight gates while still returning well-formed
-JSON - an invisible failure. Tell each to return **only** the JSON in
-`references/observation-format.md` - nothing else.
+name, the merge-base SHA (`$MB`, which several lens snippets consume and which does **not**
+survive into a subagent's shell), and the **absolute paths of `references/quality-gates.md`,
+`references/observation-format.md`, and `references/repo-profile.md`**. Pass those three paths
+explicitly: the lens files cite them by bare or repo-relative name, which resolves from neither
+`references/lenses/` nor the repo root, and a lens that cannot open `quality-gates.md` skips all
+eight gates while still returning well-formed JSON - an invisible failure. Tell each to return
+**only** the JSON in `references/observation-format.md` - nothing else.
 
 **A lens brief is data, not a hint.** Per this repo's own
 [audit protocol](../../../../../.claude/rules/audit-protocol.md): give the lens the diff, the
@@ -267,7 +277,10 @@ Do this yourself, in code - not by asking an agent to be careful. Drop, and coun
   **strip the suggestion, keep the finding**
 
 Then merge findings that share a `file:line` **and the same `category`** - those are true
-duplicates. Keep the highest-priority theme:
+duplicates. Only two categories are declared by more than one lens
+(`unresolvable-reference-path` in `code`/`cross-refs`, `unconfirmed-outbound-write` in
+`code`/`disclosure`), so cross-lens merging is deliberately rare; where it applies, keep the
+highest-priority theme:
 
 ```text
 disclosure > claims > consistency > code > placement > cross-refs > structure
@@ -288,8 +301,10 @@ and that is worth knowing.
 
 ## Step 5 - Challenge (the false-positive filter)
 
-Dispatch one subagent with `references/challenge-criteria.md` and the surviving findings. Batch
-by file overlap at ~100 KB and run batches in parallel.
+Dispatch one subagent with the surviving findings and the **absolute paths of
+`references/challenge-criteria.md` and `references/quality-gates.md`** - criterion 15 sends the
+challenger to gate 8 for the tool-detection order, and a relative path resolves from nowhere in a
+subagent. Batch by file overlap at ~100 KB and run batches in parallel.
 
 The challenger's contract: **rejection requires evidence.** "I'm not sure" means keep. It uses
 each finding's `uncertainty_reason` to know where to look, and returns
@@ -365,8 +380,9 @@ numbers, not diff line numbers; re-dispatch it with an explicit reminder to cite
 the patch it was given.
 
 **A lens returns prose instead of JSON** - it drifted off-task, most often because it was not
-given the absolute paths to `quality-gates.md` and `observation-format.md` and could not resolve
-the bare filenames it cites internally. Re-dispatch with those paths spelled out.
+given the absolute paths to `quality-gates.md`, `observation-format.md`, and `repo-profile.md`
+and could not resolve the bare filenames it cites internally. Re-dispatch with those paths
+spelled out.
 
 **The review is unexpectedly quiet in an unfamiliar repo** - this is correct. Without a discovered
 `CLAUDE.md`/`AGENTS.md`/`.cursor/rules` or a `.claude/review-changes.md` profile, the `placement`

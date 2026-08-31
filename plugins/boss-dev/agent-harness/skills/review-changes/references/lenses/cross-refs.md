@@ -18,7 +18,10 @@ given, from the linking file's directory. A doc that moved and left its inbound 
 the same defect. Check both directions when the diff renames or moves a file:
 
 ```bash
-git diff "$MB" --name-status | grep -E '^R'      # renames
+# $MB is the merge-base SHA handed to you in the dispatch brief - it is NOT set in your
+# shell. Substitute the literal value; `git diff ""` exits 128 with empty output, which
+# reads as "no renames" and silently skips this whole check.
+git diff <merge-base-sha> --name-status | grep -E '^R'      # renames
 grep -rn "old/path/name.md" --include=*.md .     # who still points at it
 ```
 
