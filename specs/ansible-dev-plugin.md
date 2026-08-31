@@ -28,7 +28,16 @@ plugin](https://github.com/basher83/lunar-claude/tree/main/plugins/infrastructur
 The testing strategy is layered as a **Docker → Multipass → real-host**
 progression: fast container/`delegated` loops for the inner loop, an **ephemeral
 Multipass Ubuntu VM** as the full-OS-fidelity "real live machine" rung to validate
-provisioning before it touches the homelab, then real homelab hosts last.
+provisioning before it touches the homelab, then real homelab hosts last. The
+Multipass rung is driven **Ansible-natively** via the
+[`theko2fi.multipass`](https://github.com/theko2fi/ansible-multipass-collection)
+collection (see [Manage your Multipass VMs with
+Ansible](https://theko2fi.medium.com/manage-your-multipass-vms-with-ansible-a84cdd7bcbe8)):
+its `multipass_vm` / `multipass_vm_info` / `multipass_vm_purge` modules launch and
+tear down the VM, and the module's `cloud_init:` parameter injects the host's
+default SSH public key so the harness connects over **standard SSH** (not the
+collection's `multipass exec` connection plugin). The canonical CI/Molecule
+instance is named **`ci-boss-skills`**.
 
 Content and recommendations are grounded in
 `ai_docs/ansible_tips_and_tricks.md` (facts tuning, the 2026 testing pyramid,
@@ -89,9 +98,14 @@ The revised testing pyramid the spec documents:
 1. **Lint / syntax** — `lint_report.py`, `syntax_check.py`.
 2. **Container integration + idempotence** — Molecule Docker/Podman, or
    `delegated` against a static host (fast; the default loop).
-3. **Live-VM provisioning (the "real live machine" rung)** — `multipass_provision.py`
-   launches an ephemeral Ubuntu VM and runs the playbook + idempotence against it
-   over real SSH; full systemd / reboot / sudo fidelity.
+3. **Live-VM provisioning (the "real live machine" rung)** — an ephemeral Ubuntu VM
+   named **`ci-boss-skills`** launched via the `theko2fi.multipass` collection
+   (`multipass_vm` + `cloud_init` SSH-key injection), then the playbook +
+   idempotence run against it over **real SSH** (`ansible_connection=ssh`,
+   `ansible_user=ubuntu`); full systemd / reboot / sudo fidelity. Two entrypoints
+   share this rung: the standalone `multipass_provision.py` tool (harness
+   autonomous loop) and the `molecule-multipass` scenario's create/destroy
+   playbooks (guided/Molecule loop).
 4. **Pre-production** — run against real homelab hosts (`--check`/`--diff` first).
 
 On top of that, layer an orchestrated **multi-agent pipeline**: slash commands
@@ -212,11 +226,12 @@ plugins/boss-homelab/ansible-dev/
     │   ├── SKILL.md                 # testing pyramid + ansible-lint + review report
     │   ├── reference/{testing-pyramid.md, molecule.md, verifiers.md,
     │   │              ci-ephemeral-infra.md, macos-drivers.md, multipass-lab.md,
-    │   │              homelab-targets.md, ansible-lint-config.md,
-    │   │              review-report-format.md}
+    │   │              multipass-collection.md, homelab-targets.md,
+    │   │              ansible-lint-config.md, review-report-format.md}
     │   ├── examples/{molecule-docker/molecule.yml, molecule-delegated/molecule.yml,
-    │   │             molecule-multipass/molecule.yml, multipass/cloud-init.yaml,
-    │   │             testinfra/test_example.py}
+    │   │             molecule-multipass/{molecule.yml, create.yml, destroy.yml,
+    │   │                                converge.yml, requirements.yml},
+    │   │             multipass/cloud-init.yaml, testinfra/test_example.py}
     │   ├── workflows/{dev-feedback-loop.md, pre-production-checklist.md}
     │   ├── anti-patterns/testing-mistakes.md
     │   └── tools/{lint_report.py, syntax_check.py, molecule_run.py,
@@ -359,16 +374,34 @@ IMPORTANT: Execute every step in order, top to bottom.
   `testing-pyramid.md`.
 - `ansible-testing/reference/multipass-lab.md` (the live-VM rung): install
   (`brew install --cask multipass` preferred, or the official `.pkg`; macOS 13.3+;
-  QEMU backend over Apple's `Hypervisor.framework`); why/when (full-OS-fidelity
-  rung between containers and real hosts; Ubuntu/Debian images match homelab
-  VM/LXC guests; **Ubuntu-only** limitation → use Tart/Lima for RHEL/Rocky/Fedora);
-  lifecycle command reference (`launch`, `list`, `info`, `exec`, `shell`, `mount`,
-  `transfer`, `stop`/`start`, `delete`, `purge`); the **cloud-init + standard-SSH
-  connection model** with a worked inventory + cloud-init example (inject host
-  pubkey into `ubuntu`, connect via `ansible_user=ubuntu` + key file, passwordless
-  sudo become); `multipass_provision.py` usage and the dev-loop workflow; ephemeral
-  VM naming + `multipass delete --purge` cleanup discipline; cross-refs to
-  `macos-drivers.md` (Molecule matrix) and `homelab-targets.md`.
+  set the QEMU backend on Apple Silicon with `multipass set local.driver=qemu`);
+  why/when (full-OS-fidelity rung between containers and real hosts; Ubuntu/Debian
+  images match homelab VM/LXC guests; **Ubuntu-only** limitation → use Tart/Lima
+  for RHEL/Rocky/Fedora); lifecycle command reference (`launch`, `list`, `info`,
+  `exec`, `shell`, `mount`, `transfer`, `stop`/`start`, `delete`, `purge`); the
+  **cloud-init + standard-SSH connection model** with a worked inventory +
+  cloud-init example (inject the host's default pubkey into the `ubuntu` user,
+  connect via `ansible_user=ubuntu` + private key file, passwordless sudo become);
+  the canonical CI/Molecule instance name **`ci-boss-skills`**; `multipass_provision.py`
+  usage and the dev-loop workflow; ephemeral VM naming + `multipass delete --purge`
+  cleanup discipline; cross-refs to `multipass-collection.md`, `macos-drivers.md`
+  (Molecule matrix), and `homelab-targets.md`.
+- `ansible-testing/reference/multipass-collection.md` (the Ansible-native driver):
+  the `theko2fi.multipass` collection as the **recommended** way to drive the
+  Multipass rung from Ansible/Molecule instead of the sparsely-maintained
+  `molecule-multipass` pip driver. Cover: install via `ansible-galaxy collection
+  install theko2fi.multipass` / a `requirements.yml`; the module set (`multipass_vm`,
+  `multipass_vm_info`, `multipass_vm_exec`, `multipass_vm_purge`,
+  `multipass_vm_transfer_into`, `multipass_mount`); `multipass_vm` options
+  (`name`, `image` default `ubuntu-lts`, `cpus`, `memory`, `disk`, `state`
+  present|started|absent|stopped, and **`cloud_init:` — a path or URL to user-data**);
+  the SSH-key-injection pattern (render a `#cloud-config` with the host pubkey to a
+  temp file, pass it as `cloud_init:`, launch `name: ci-boss-skills`, read the VM IP
+  via `multipass_vm_info`, then connect over **standard SSH**); an explicit note that
+  the collection **also** ships a `theko2fi.multipass.multipass` connection plugin
+  that tunnels via `multipass exec` (no SSH) — we deliberately prefer real SSH for
+  homelab fidelity, but document the connection plugin as an alternative for hosts
+  with no reachable IP. Link the Medium walkthrough and the Galaxy/GitHub docs.
 
 ### 6. Implement PEP 723 JSON tools
 
@@ -384,17 +417,23 @@ IMPORTANT: Execute every step in order, top to bottom.
   `multipass_provision.py`).
 - `ansible-testing/tools/multipass_provision.py` (the live-VM rung): shells out to
   `multipass` and `ansible-playbook` (does not import them).
-  - **CLI:** `--playbook <path>` (required); `--name <vm>` (default a derived
-    ephemeral name), `--image <24.04>`, `--cpus`, `--mem`, `--disk`,
-    `--ssh-key <~/.ssh/id_ed25519.pub>`, `--idempotence` (run twice, assert second
-    run `changed==0`), `--keep` (skip teardown), `--extra-args`, `--json`.
+  - **CLI:** `--playbook <path>` (required); `--name <vm>` (**default `ci-boss-skills`**),
+    `--image <24.04>`, `--cpus`, `--mem`, `--disk`,
+    `--ssh-key <path>` (default: autodetect `~/.ssh/id_ed25519.pub` then
+    `~/.ssh/id_rsa.pub`; error with remediation if neither exists — never hardcode a
+    key), `--idempotence` (run twice, assert second run `changed==0`), `--keep`
+    (skip teardown), `--extra-args`, `--json`.
   - **Phases (each a JSON entry):** preflight (is `multipass` installed? → clean
-    no-op + remediation if not) → launch (generated cloud-init writes the host
-    pubkey to `ubuntu`'s `authorized_keys`) → wait-ready + resolve VM IP
+    no-op + remediation if not; resolve the SSH pubkey) → launch (generate a
+    `#cloud-config` that writes the host pubkey to the default `ubuntu` user's
+    `ssh_authorized_keys` + passwordless sudo, then `multipass launch --name
+    ci-boss-skills --cloud-init <file>`; if a stale VM of that name exists, delete
+    `--purge` it first so re-runs are deterministic) → wait-ready + resolve VM IP
     (`multipass info --format json`) → write a temp inventory
-    (`<name> ansible_host=<ip> ansible_user=ubuntu ansible_ssh_private_key_file=...`)
-    → converge (`ansible-playbook -i <inv>`) → optional idempotence run → verify →
-    teardown (`multipass delete <name> --purge`) in a `try/finally` unless `--keep`.
+    (`<name> ansible_host=<ip> ansible_user=ubuntu ansible_connection=ssh
+    ansible_ssh_private_key_file=<key without .pub>`) → converge
+    (`ansible-playbook -i <inv>`) → optional idempotence run → verify → teardown
+    (`multipass delete <name> --purge`) in a `try/finally` unless `--keep`.
   - **JSON:** `{ok, vm_name, image, ip, phases:[{name, ok, summary}], idempotent,
     kept, remediation}`. Teardown is guaranteed even on failure (finally) — no
     orphaned VMs.
@@ -437,12 +476,31 @@ IMPORTANT: Execute every step in order, top to bottom.
 
 - Minimal runnable `examples/` (molecule-docker, molecule-delegated,
   molecule-multipass, testinfra test).
-- `examples/molecule-multipass/molecule.yml`: `pip install molecule-multipass`,
-  `driver.name: multipass`, an Ubuntu platform, plus a note it is Ubuntu-only and
-  complements (not replaces) the standalone `multipass_provision.py` tool.
-- `examples/multipass/cloud-init.yaml`: worked cloud-init that injects the host
-  SSH pubkey into the `ubuntu` user (the connection model `multipass_provision.py`
-  generates), with the matching inventory snippet.
+- `examples/molecule-multipass/`: a **delegated-driver** scenario that owns the VM
+  lifecycle with the `theko2fi.multipass` collection (not the stale
+  `molecule-multipass` pip driver). Ships:
+  - `requirements.yml` — `collections: [{name: theko2fi.multipass, version: ">=0.4.0"},
+    {name: community.general}]` (resolved by molecule's `dependency: galaxy`).
+  - `molecule.yml` — `driver.name: default`, one platform `name: ci-boss-skills`,
+    `provisioner.name: ansible`, `verifier.name: testinfra`.
+  - `create.yml` — render a `#cloud-config` containing the host pubkey
+    (`lookup('file', ssh_pubkey_path)`, path from `MOLECULE_SSH_PUBKEY` env or
+    autodetected) to `molecule_ephemeral_directory`; `theko2fi.multipass.multipass_vm`
+    with `name: ci-boss-skills`, `image: 24.04`, `cloud_init: <rendered file>`,
+    `state: started`; `theko2fi.multipass.multipass_vm_info` to read the IP; then
+    `add_host` with `ansible_connection: ssh`, `ansible_user: ubuntu`,
+    `ansible_ssh_private_key_file: <key without .pub>`.
+  - `destroy.yml` — `theko2fi.multipass.multipass_vm name: ci-boss-skills state: absent`
+    followed by `theko2fi.multipass.multipass_vm_purge` (guaranteed cleanup).
+  - `converge.yml` — import the role/playbook under test.
+  - A header note: Ubuntu-only; connects over real SSH; complements (does not
+    replace) the standalone `multipass_provision.py` autonomous loop.
+- `examples/multipass/cloud-init.yaml`: worked `#cloud-config` that injects the host
+  SSH pubkey into the default `ubuntu` user (`ssh_authorized_keys`), disables SSH
+  password auth (`ssh_pwauth: false`), and grants passwordless sudo — the exact
+  connection model both `multipass_provision.py` and `create.yml` generate — with
+  the matching `ci-boss-skills` inventory snippet. Uses a placeholder pubkey (a real
+  key is rendered at runtime, never committed).
 - `workflows/`: `dev-feedback-loop.md` (show the Docker → Multipass live-VM →
   real-host progression), `pre-production-checklist.md`. `anti-patterns/` for
   fundamentals + testing.
@@ -462,6 +520,50 @@ IMPORTANT: Execute every step in order, top to bottom.
   `make markdown-lint`, `make link-check`, and `make test`; fix every finding
   until clean.
 
+## Improvement Areas Identified
+
+Beyond the original spec, this pass surfaced the following gaps to close during
+implementation:
+
+1. **Prefer the `theko2fi.multipass` collection over `molecule-multipass`.** The
+   `ai_docs` guidance (Option 4) reaches for the `molecule-multipass` pip driver,
+   which is sparsely maintained and pins older Molecule. Standardize on the
+   collection + Molecule's `default` (delegated) driver with `create.yml`/`destroy.yml`.
+   Update `ai_docs/ansible_tips_and_tricks.md` Option 4 to cross-reference
+   `multipass-collection.md` rather than leaving the stale recommendation
+   authoritative.
+2. **Connection model must be SSH, not `multipass exec`.** The collection ships a
+   `theko2fi.multipass.multipass` connection plugin that tunnels via `multipass
+   exec` — convenient but *not* SSH, so it hides real auth/network behavior. The
+   user requirement is genuine SSH: create the VM with the collection + inject the
+   pubkey via `cloud_init`, then connect with `ansible_connection=ssh`. Document the
+   exec plugin only as a fallback.
+3. **SSH key resolution, never hardcoded.** Both entrypoints must autodetect the
+   host default pubkey (`id_ed25519.pub` → `id_rsa.pub`), fail with actionable
+   remediation if absent, and honor an override (`--ssh-key` / `MOLECULE_SSH_PUBKEY`).
+   The committed `cloud-init.yaml` uses a placeholder; the real key is templated at
+   runtime and never committed.
+4. **Deterministic instance name + collision handling.** The CI/Molecule instance is
+   `ci-boss-skills`. Because that name is stable (not random), launch must delete any
+   pre-existing `ci-boss-skills` (`--purge`) before creating, and teardown must run
+   in `finally` / molecule `destroy` even on failure — no orphaned VMs, no
+   "instance already exists" flakes.
+5. **Add a Galaxy `requirements.yml`.** The spec had no collection-requirements
+   file; molecule's `dependency: galaxy` and local runs need one pinning
+   `theko2fi.multipass` (+ `community.general`, `community.docker` as used).
+6. **CI feasibility of the Multipass rung.** The `ci-boss-skills` name implies CI,
+   but GitHub-hosted macOS runners cannot reliably nest Multipass VMs (nested-virt
+   limits). Document that the Multipass rung targets **local dev and self-hosted
+   runners**; keep Docker/Podman + `delegated` as the hosted-CI default. Fold this
+   into `ci-ephemeral-infra.md`.
+7. **Apple-Silicon backend note.** Record `multipass set local.driver=qemu` (and
+   macOS 13.3+) in `multipass-lab.md`; the default VZ backend has cloud-init/mount
+   quirks that break the key-injection flow.
+8. **New-plugin publish parity.** Adding `ansible-dev` is a new `plugins[]` entry;
+   `plugin.json.version` and `marketplace.json[].version` must match at `0.1.0` and
+   pass `verify-structure.py --strict` (the `version-bump-reviewer` skill validates
+   this as an initial publish, not a bump).
+
 ## Testing Strategy
 
 - **Structure**: `scripts/verify-structure.py` must pass (manifest schema, SKILL.md
@@ -478,10 +580,17 @@ IMPORTANT: Execute every step in order, top to bottom.
   correct top-level `ok` boolean for both passing and intentionally-broken input.
 - **Live-VM (manual)**: against a sample playbook,
   `uv run .../tools/multipass_provision.py --playbook ... --idempotence --json`
-  launches an ephemeral Ubuntu VM, runs the play (+ idempotence) over SSH, tears it
-  down (`multipass list` shows no leftover), and emits valid `{ok:...}` JSON; with
-  `multipass` absent it returns a clean no-op + remediation (top-level `ok:false`,
-  preflight phase failed) and creates no VM.
+  launches the `ci-boss-skills` Ubuntu VM (cloud-init injects the host pubkey),
+  connects over **SSH** as `ubuntu`, runs the play (+ idempotence), tears it down
+  (`multipass list` shows no leftover `ci-boss-skills`), and emits valid `{ok:...}`
+  JSON; with `multipass` absent it returns a clean no-op + remediation (top-level
+  `ok:false`, preflight phase failed) and creates no VM; re-running when a stale
+  `ci-boss-skills` exists recreates cleanly rather than erroring.
+- **Molecule live-VM (manual)**: in `examples/molecule-multipass/`,
+  `molecule test` resolves `theko2fi.multipass` via `requirements.yml`, `create.yml`
+  launches `ci-boss-skills` with cloud-init SSH-key injection, `converge`/`verify`
+  run over SSH, and `destroy.yml` (`multipass_vm state=absent` + `multipass_vm_purge`)
+  leaves no VM behind even on failure.
 - **Hook (manual)**: `scripts/lint.sh` no-ops gracefully when `ansible-lint`/`uvx`
   is absent and lints when present; `check-pipeline-state.py` returns `{}` with no
   state file and `{"decision":"block", ...}` when a pipeline is active;
@@ -509,12 +618,15 @@ IMPORTANT: Execute every step in order, top to bottom.
   `ansible-secrets` is vault-first; `ansible-proxmox` cross-references
   `proxmox-infra` (no Terraform duplication); no `mise`/Infisical-required
   assumptions.
-- Testing skill ships `multipass-lab.md`, `multipass_provision.py` (full VM
-  lifecycle, cloud-init SSH-key injection, `{ok:...}` JSON, guaranteed
-  `try/finally` teardown), and a `molecule-multipass` example; Multipass is
-  positioned as the **ephemeral live-VM rung** for provisioning against a real
-  machine (not the multi-distro matrix path, which stays with Tart/Lima), with its
-  Ubuntu-only limitation stated.
+- Testing skill ships `multipass-lab.md`, `multipass-collection.md`,
+  `multipass_provision.py` (full VM lifecycle, cloud-init SSH-key injection over
+  **real SSH**, `{ok:...}` JSON, guaranteed `try/finally` teardown), and a
+  `molecule-multipass` example that drives the VM via the **`theko2fi.multipass`**
+  collection (`create.yml`/`destroy.yml`, `requirements.yml`) rather than the stale
+  `molecule-multipass` pip driver; the canonical instance is named **`ci-boss-skills`**
+  and connects as `ubuntu` over SSH. Multipass is positioned as the **ephemeral
+  live-VM rung** for provisioning against a real machine (not the multi-distro
+  matrix path, which stays with Tart/Lima), with its Ubuntu-only limitation stated.
 - No exclamation-mark + backtick / `@` patterns in any SKILL.md (parser-bug safe).
 - `verify-structure.py`, `make lint`, `make markdown-lint`, `make link-check`,
   and `make test` all pass.
@@ -548,11 +660,13 @@ IMPORTANT: Execute every step in order, top to bottom.
   rather than duplicating.
 - **Test-driver split** (confirmed): three complementary tiers —
   Docker/Podman + `delegated` (fast default inner loop); **Multipass (the ephemeral
-  live-VM sandbox — Ubuntu-only, matching homelab VM/LXC guests; QEMU over Apple's
-  `Hypervisor.framework`; `brew install --cask multipass`; SSH via cloud-init key
-  injection for real-host fidelity)** for provisioning against a real machine;
-  Tart/Lima for multi-distro (RHEL/Rocky/Fedora) VM matrices. `multipass_provision.py`
-  owns the standalone live-VM loop; `molecule-multipass` covers the in-Molecule path.
+  live-VM sandbox — Ubuntu-only, matching homelab VM/LXC guests; QEMU backend
+  (`multipass set local.driver=qemu`); `brew install --cask multipass`; instance
+  `ci-boss-skills`; SSH via cloud-init key injection for real-host fidelity)** for
+  provisioning against a real machine; Tart/Lima for multi-distro (RHEL/Rocky/Fedora)
+  VM matrices. `multipass_provision.py` owns the standalone live-VM loop; the
+  `molecule-multipass` scenario covers the in-Molecule path and drives the VM with
+  the `theko2fi.multipass` Ansible collection (`multipass_vm` + `cloud_init`).
 - **Hybrid design** (confirmed): two modes share one plugin — autonomous
   JSON-tool self-correction (our differentiator from upstream `lunar-claude`,
   which ships content + agents but no machine-readable tool layer) **and** the
@@ -564,4 +678,12 @@ IMPORTANT: Execute every step in order, top to bottom.
 - **Source material**: `ai_docs/ansible_tips_and_tricks.md` +
   `basher83/lunar-claude` `ansible-workflows` (fetch via
   `gh api repos/basher83/lunar-claude/contents/...` during implementation, then
-  apply the Adaptation rules).
+  apply the Adaptation rules). Multipass rung grounded in the
+  [`theko2fi/ansible-multipass-collection`](https://github.com/theko2fi/ansible-multipass-collection)
+  (Galaxy: `theko2fi.multipass`) and its walkthrough,
+  [Manage your Multipass VMs with Ansible](https://theko2fi.medium.com/manage-your-multipass-vms-with-ansible-a84cdd7bcbe8).
+  Key facts: modules `multipass_vm` (options `name`, `image` [default `ubuntu-lts`],
+  `cpus`, `memory`, `disk`, `state`, **`cloud_init`** [path/URL to user-data]),
+  `multipass_vm_info`, `multipass_vm_exec`, `multipass_vm_purge`,
+  `multipass_vm_transfer_into`, `multipass_mount`; plus a `multipass` connection
+  plugin (used only as an SSH fallback).
