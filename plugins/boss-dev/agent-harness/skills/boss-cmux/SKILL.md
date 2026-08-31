@@ -167,7 +167,7 @@ generated config file). Without a working hook, an agent stays silent and you're
 to polling. **Claude Code is not in this list and is not covered by `cmux hooks
 setup`** — see the next section. Full per-agent integration matrix (installed files,
 session-restore command, Feed bridge):
-https://github.com/manaflow-ai/cmux/blob/main/docs/agent-hooks.md
+<https://github.com/manaflow-ai/cmux/blob/main/docs/agent-hooks.md>
 
 **What an agent emits when its turn ends** — one event per completed turn:
 

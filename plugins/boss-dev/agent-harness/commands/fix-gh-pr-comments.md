@@ -18,7 +18,8 @@ Argument: optional PR number (`/agent-harness:fix-gh-pr-comments 42`). If omitte
 - **Max 3 outer cycles** (fetch → fix → push → reply and resolve → poll). If reviewers keep returning new actionable comments after 3 cycles, stop and ask the user for direction.
 - **Max 3 inner iterations** for local validation per cycle.
 - **Reply on each thread**, not as a top-level PR comment. The endpoint is `POST /repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies`.
-- **Resolve each handled thread after its reply succeeds.** The `resolveReviewThread` mutation must return `isResolved: true`; stop and surface the failure if either the reply or resolution fails.
+- **Resolve each handled thread after its reply succeeds — always, via the GraphQL `resolveReviewThread` mutation.** Replying alone is not done; a run that ends with handled-but-unresolved threads is a failed run. The mutation must return `isResolved: true`; stop and surface the failure if either the reply or resolution fails.
+- **Self-authored threads are handled, not skipped.** Findings posted under the current user's login (e.g. by `/code-review --comment`) are excluded from the fix loop but must still be replied to (with the fixing commit SHAs) and resolved once addressed — see Phase 1. Never end a run leaving your own already-addressed findings threads open.
 - **No performative agreement** in replies. Acknowledge what was fixed (or push back) with the commit SHA. Never write "Thanks", "Great catch", or similar — actions speak via the diff.
 - **Filter out comments authored by the current GitHub user** when polling, to avoid self-reply loops.
 - **Auto-sync PR title/description on push.** After pushing to an existing PR, check whether the title/body still reflect the PR's actual scope. If this cycle's fixes changed that (new category of fix, e.g. security/bug fix not mentioned in a docs-only title; new files/areas not covered by the body's Summary), update both immediately with `gh pr edit` — do not ask the user first. If the existing title/body still accurately describe the PR, leave them untouched.
@@ -94,11 +95,36 @@ jq --arg me "$ME" '
   ]
 ' /tmp/pr_threads.json > /tmp/pr_top_comments.json
 jq 'length' /tmp/pr_top_comments.json
+
+# Self-authored unresolved threads (e.g. /code-review --comment findings posted
+# under the current user's login) are excluded above so they never enter the FIX
+# loop — but they MUST NOT be left open. Collect them separately:
+jq --arg me "$ME" '
+  [
+    .[]
+    | .data.repository.pullRequest.reviewThreads.nodes[]
+    | select(.isResolved == false and (.comments.nodes | length > 0))
+    | . as $thread
+    | $thread.comments.nodes[0]
+    | select(.author.login == $me)
+    | { thread_id: $thread.id, id: .databaseId, path, line, body }
+  ]
+' /tmp/pr_threads.json > /tmp/pr_self_threads.json
+jq 'length' /tmp/pr_self_threads.json
 ```
 
 GraphQL is required because only review threads expose both their unresolved state and the opaque
 `thread_id` needed to resolve them. For each comment, preserve `thread_id`, `id`, `path`, `line`,
-`user`, and `body`. Group by file path. Within each file, prioritize:
+`user`, and `body`.
+
+**Self-authored threads** (`/tmp/pr_self_threads.json`) get no Phase 2–5 treatment — do not
+re-fix them. For each one, check whether commits on the branch already addressed the finding: if
+yes, reply on the thread naming the fixing SHA(s) and resolve it in Phase 6 exactly like any other
+handled thread; if a finding is genuinely still unaddressed, treat it as an actionable comment and
+route it through Phase 2. A run is not complete while any self-authored thread for an
+already-fixed finding remains unresolved.
+
+Group the third-party comments by file path. Within each file, prioritize:
 
 1. **Security** (auth, injection, secrets exposure) — fix first.
 2. **Bugs / robustness** (crashes, race conditions, data corruption).
@@ -217,7 +243,10 @@ Preserve the original body's structure (Summary/Test plan) — amend in place an
 
 For every comment you handled (applied, pushed back, or deferred), POST a reply on its thread.
 **Do not** post a top-level PR comment. Keep the matching `thread_id` from Phase 1, then resolve
-that thread only after the reply succeeds.
+that thread only after the reply succeeds. This phase also covers the **self-authored** threads
+from `/tmp/pr_self_threads.json` whose findings are already addressed — reply with the fixing
+SHA(s) and resolve them the same way. Resolution via the GraphQL mutation is **mandatory** for
+every handled thread, every run — never leave it to a follow-up request.
 
 ```bash
 gh api -X POST "repos/$OWNER_REPO/pulls/$PR_NUMBER/comments/<id>/replies" \

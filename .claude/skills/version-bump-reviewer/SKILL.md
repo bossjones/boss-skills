@@ -53,11 +53,9 @@ when `plugin.json.version` (or the `plugins[].version` in `marketplace.json`) is
 
   The hook runs alongside `skill-edit-review.py`; both fire independently. Address
   `plugin-dev:skill-reviewer` findings first, then run this skill.
-
 - **Model-invoked** when the user asks to bump a version, cut a release, prepare a skill
   for merge, introduce/publish a new plugin, verify whether a change needs a bump, or
   sync a plugin's package version.
-
 - Skip when no feature-bearing file is in the working tree (nothing drives a bump).
 - Skip when the diff is an empty touch with no real content change.
 - Skip when only non-behavior files changed (README.md, LICENSE, .gitignore, `tests/**`).
