@@ -33,6 +33,8 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
   - [`boss-cmux-team`](#boss-cmux-team)
 - [Security review](#security-review)
   - [`boss-security-review`](#boss-security-review)
+- [Change review](#change-review)
+  - [`review-changes`](#review-changes)
 - [Planning](#planning)
   - [`planf3`](#planf3)
 - [Dependencies](#dependencies)
@@ -56,6 +58,7 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 | [`setup-second-brain`](#setup-second-brain) | explicit | Install/configure obsidian-wiki + optional QMD semantic search | `uv`, `node`≥22 for QMD |
 | [`pyrefly-typing`](#pyrefly-typing) | explicit | Adopt Pyrefly into a *target* repo as a non-blocking typing feedback loop | `uv` |
 | [`boss-security-review`](#boss-security-review) | model-invoked | Security-review changed code (or a path/whole repo) → severity-graded report | `git` |
+| [`review-changes`](#review-changes) | model-invoked | Multi-lens review of the working tree before you commit or open a PR | `git` |
 | [`boss-cmux`](#boss-cmux) | model-invoked | Drive cmux windows/workspaces/panes/surfaces from natural language | cmux (macOS) |
 | [`boss-cmux-team`](#boss-cmux-team) | model-invoked | Spawn/orient/drive a config-driven multi-agent team in cmux | `uv`, cmux (macOS) |
 | [`planf3`](#planf3) | explicit | Write/maintain HTML plans with diagrams and a create/update/build lifecycle | `uv`, `OPENAI_API_KEY` optional |
@@ -432,6 +435,36 @@ for the full `OBSIDIAN_*`/`QMD_*` variable tables.
 
 ---
 
+## Change review
+
+### `review-changes`
+
+- **Invocation:** model-invoked (or `/agent-harness:review-changes`). Triggers on requests like
+  "review my changes", "review this before I push", "pre-flight check", or before committing a
+  unit of work.
+- **What it does:** Dispatches parallel reviewer lenses (claims, consistency, structure,
+  cross-refs, placement, disclosure, code) over an annotated diff of the current working tree,
+  validates every finding mechanically against a citable-line set so a finding cannot cite a
+  line that was not actually changed, then runs an adversarial challenge pass to strip false
+  positives before anything is reported. Findings go to chat only — it never writes a report
+  file, and it never approves or blocks a change; it reports and lets the human decide.
+- **Target:** everything on the current branch including staged, unstaged, and untracked
+  changes by default; narrow to `staged`, `unstaged`, an explicit path list, or opt into
+  `full <path>` to sweep a whole file.
+- **Portable by construction:** learns the target repo's own rules by discovery at the
+  merge-base SHA (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules/`, nested READMEs, declared
+  entrypoints, already-enforced CI/lint config) plus an optional `.claude/review-changes.md`
+  profile, so it stays quiet rather than inventing findings in a repo whose conventions it
+  cannot establish.
+- **Source:** [`skills/review-changes/SKILL.md`](../skills/review-changes/SKILL.md) · references
+  [`observation-format.md`](../skills/review-changes/references/observation-format.md),
+  [`quality-gates.md`](../skills/review-changes/references/quality-gates.md),
+  [`challenge-criteria.md`](../skills/review-changes/references/challenge-criteria.md),
+  [`repo-profile.md`](../skills/review-changes/references/repo-profile.md), and one file per
+  lens under [`references/lenses/`](../skills/review-changes/references/lenses/)
+
+---
+
 ## cmux orchestration
 
 Drive [cmux](https://cmux.com) — a native macOS terminal (Homebrew cask `manaflow-ai/cmux`) that
@@ -528,7 +561,9 @@ with cmux installed. New to cmux? Start with the hands-on [cmux tutorial](./cmux
 - **`node` ≥ 22 + `npm`** — only for the optional QMD step of `setup-second-brain`
   (`npm install -g @tobilu/qmd`). Everything else works without Node; QMD degrades to Grep.
 - **`gh`** (authenticated) or **`GH_TOKEN`** — for all GitHub-touching skills.
-- **`git` 2.5.0+** — for the worktree suite.
+- **`git` 2.5.0+** — for the worktree suite and for `review-changes` (diff scoping, rule
+  discovery at the merge-base SHA). `gh` is optional for `review-changes` — used to probe repo
+  visibility for the `disclosure` lens when available, with no hard dependency on it.
 - **`OPENAI_API_KEY`** — optional, only used by `planf3`'s image-generation sub-workflow. Without it,
   plans still save correctly with their `{{...IMAGE}}` slots left as placeholder comments.
 

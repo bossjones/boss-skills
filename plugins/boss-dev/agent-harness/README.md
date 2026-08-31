@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · **v0.31.3** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.32.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
@@ -19,7 +19,7 @@ of lifecycle hooks, output styles, and status lines.
 
 | Component | Count | Auto-active on install? | Invoked as |
 | --- | --- | --- | --- |
-| [Skills](#skills) | 20 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
+| [Skills](#skills) | 22 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
 | [Commands](#commands) | 17 | ✅ Yes | `/agent-harness:<name>` |
 | [Agents](#agents) | 6 | ✅ Yes | Dispatched via the `Agent`/`Task` tool |
 | [Output styles](#output-styles) | 8 | ✅ Yes | `/output-style` |
@@ -73,6 +73,12 @@ Apache-2.0):
 | Skill | Description |
 | --- | --- |
 | `boss-security-review` | Review changed code (or a named path / whole repo) against a bundled security rubric — and the target repo's `.cursor/rules/security-*` when present — and write a severity-graded findings report to `specs/security-review.md` (path overridable), citing the rule each finding triggered. Portable: bundles verbatim rule copies so it works in any repo. |
+
+**Change review:**
+
+| Skill | Description |
+| --- | --- |
+| `review-changes` | Multi-lens review of the current working tree — docs, config, and code — before you commit or open a PR. Fans out parallel reviewer lenses over an annotated diff, validates every finding against a citable-line set, then runs an adversarial challenge pass to strip false positives. Portable: discovers each repo's own rules at the merge-base SHA plus an optional `.claude/review-changes.md` profile, and stays quiet rather than inventing findings where none can be established. |
 
 **Planning:**
 
@@ -377,7 +383,7 @@ Hooks are already wired by `hooks/hooks.json`. Status lines are the opt-in compo
 
 ## Status
 
-Plugin version **v0.31.3**. Skills, commands, agents, output styles, and all 20 hook events are
+Plugin version **v0.32.0**. Skills, commands, agents, output styles, and all 20 hook events are
 auto-discovered and active on `/plugin install`. Status lines require a `statusLine` setting.
 
 ## See also
