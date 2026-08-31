@@ -196,11 +196,12 @@ Verified directly during research (do not re-derive):
   after `<vertical-slice-rules>` / `<issue-template>` / `<user-story-example>` in `to-issues` and
   `to-prd` to satisfy `rumdl`. Nothing else has been edited since `c9b0237`.
 
-**Not verified, and Step 8 must resolve it before the Copilot half of this plan is real:** whether an
+**Not verified at planning time — RESOLVED during execution (2026-08-31, Step 8a):** whether an
 *installed* Copilot plugin surfaces skills declared through `plugin.json`'s explicit `skills` array of
 bucketed paths (`./skills/engineering/…`) rather than a conventional flat `skills/` directory.
-
-Every avenue short of a real install was tried and none settles it:
+The install reported "Installed 25 skills" and the decisive grep returned 6/6 — Copilot **does**
+load the manifest's `skills` array, and Step 9's fallback ladder went unused. The planning-time
+analysis below is kept for the record of why a real install was the only way to find out:
 
 - `--plugin-dir` does not feed skill enumeration at all — neither `copilot skill list` nor
   `copilot plugins list --kind skill`. A control run with this repo's own
@@ -352,11 +353,15 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
   passing one is an error:
 
   ```bash
-  for p in $(python3 -c "import json;print(' '.join('.claude/skills/'+n for n in sorted(json.load(open('skills-lock.json'))['skills'])))"); do [ -d "$p" ] && trash -v "$p"; done && trash -v skills-lock.json
+  names=$(python3 -c "import json;print(' '.join('.claude/skills/'+n for n in sorted(json.load(open('skills-lock.json'))['skills'])))") || exit 1; for p in $names; do [ -d "$p" ] && trash -v "$p"; done; trash -v skills-lock.json
   ```
 
-  If `skills-lock.json` is missing, the `python3` call fails loudly and nothing is trashed — that is
-  deliberate; do not work around it by hand-typing the list.
+  The `python3` exit status is checked **explicitly** (`|| exit 1`) — a zero-iteration `for` loop
+  exits 0, so chaining the lockfile deletion onto the loop with `&&` would trash the lockfile even
+  when the list came back empty, and would conversely *skip* the lockfile silently on a re-run
+  where the loop's last `[ -d ]` test fails. With the guard, a missing or malformed
+  `skills-lock.json` aborts before anything is trashed; the lockfile deletion then runs as its own
+  unconditional statement after the loop. Do not work around a failure by hand-typing the list.
 
 - **`trash` does not touch the git index** — this is the one real difference from `git rm`. Stage
   the deletions explicitly or they will not be part of the commit:
@@ -372,8 +377,11 @@ recoverably in `~/.Trash` on top of the `c9b0237` git recovery path.
   non-deletions means something else got staged:
 
   ```bash
-  git diff --cached --name-status | awk '$1!="D"{bad=1} END{if(NR==39 && !bad) print "OK: 39 deletions staged, nothing else"; else print "MISMATCH: " NR " staged entries (expected 39 pure deletions) - check git add / trash output"}'
+  git diff --cached --name-status -- .claude/skills skills-lock.json | awk '$1!="D"{bad=1} END{if(NR==39 && !bad) print "OK: 39 deletions staged, nothing else"; else print "MISMATCH: " NR " staged entries (expected 39 pure deletions) - check git add / trash output"}'
   ```
+
+  The pathspec matters: without `-- .claude/skills skills-lock.json` the check reads the entire
+  index, and any unrelated staged change produces a false MISMATCH that blames `git add` / `trash`.
 
 - Verify what remains under `.claude/skills/` is exactly the three repo-owned directories — no other
   real directories:
@@ -748,8 +756,9 @@ installs took effect.
   this repo after removal (the loop tests project-relative `.claude/skills/` paths, so running it
   from an unrelated directory proves nothing — it passes vacuously there).
 - *Reading `copilot skill list` as evidence about naming.* It prints bare names for every source,
-  plugin skills included. Two `code-review` lines there are expected and benign under the plugin
-  route. The slash picker is the authority on namespacing.
+  plugin skills included — and it **dedupes**: after install the listing shows one `code-review`
+  line, not two (verified during execution; mattpocock's displaces the official plugin's from the
+  display). The slash picker is the authority on namespacing.
 - *Rung 9b silently reintroducing a lockfile.* Only 9b runs `skills add`, which infers project scope
   from the cwd. The `cd ~` guards it; the `test ! -e skills-lock.json` check catches a dropped `cd`.
 - *Rung 9a staged with symlinks.* Plugin installers copy the tree and drop symlinks, so the staging
