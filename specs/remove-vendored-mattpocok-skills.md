@@ -495,7 +495,11 @@ before dropping to the fallback ladder, because they use different discovery pat
 equivalent here.
 
 **8a — direct repo install.** Note this tracks the repo's default branch at install time, not the SHA
-Claude's official listing pins, so the two harnesses can sit on different commits:
+Claude's official listing pins, so the two harnesses can sit on different commits. Execution note
+(2026-08-31): this succeeded — "Installed 25 skills" — settling the open question; Copilot **does**
+load `plugin.json`'s explicit `skills` array. Copilot also warned that direct installs (repos,
+URLs, local paths) are deprecated in favor of `plugin@marketplace`, so 8b becomes the required form
+in some future release:
 
 ```bash
 copilot plugin install mattpocock/skills
@@ -629,8 +633,11 @@ No removal, no disabling.
   copilot skill list 2>&1 | grep -cE '^\s+code-review '
   ```
 
-  `copilot skill list` prints bare names for every source, so a count of `2` here is expected and
-  benign under the plugin route — the picker disambiguates. It is only a problem if Step 9b was used.
+  Execution result (2026-08-31): the count is **`1`**, not 2 — Copilot's `skill list` *dedupes*
+  bare names, and mattpocock's `code-review` displaces the official plugin's from the listing.
+  Display-only as far as could be verified non-interactively; address each via its namespaced
+  picker form (`/mattpocock-skills:code-review` vs `/code-review:code-review`) and confirm both
+  appear there. Only a genuine problem if Step 9b was used.
 - **If Step 9b was used**, Copilot's copy is a bare personal skill and genuinely collides. Drop just
   that one and keep reaching the official plugin's version by its namespaced name:
 
@@ -651,7 +658,7 @@ time. The two can drift apart. Harmless for skills, but worth knowing before deb
 difference between harnesses:
 
 ```bash
-python3 -c "import json;from pathlib import Path;d=json.loads((Path.home()/'.claude/plugins/installed_plugins.json').read_text());print([e.get('gitCommitSha') for k,v in d.items() if 'mattpocock' in k for e in v])"
+python3 -c "import json;from pathlib import Path;d=json.loads((Path.home()/'.claude/plugins/installed_plugins.json').read_text());print([e.get('gitCommitSha') for k,v in d['plugins'].items() if 'mattpocock' in k for e in v])"
 ```
 
 **Unrelated to the collision:** prior guidance on this repo was that `/review` findings should carry

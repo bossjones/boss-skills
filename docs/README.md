@@ -31,5 +31,5 @@ Start at the [root README](../README.md) for the plugin catalog and install inst
 | Doc | What's there |
 |-----|--------------|
 | [LEARN.md](LEARN.md) | Primer on Claude Code tools, thinking modes, hooks, subagents, and skills |
-| [matt-pocock-skills.md](matt-pocock-skills.md) | Overview of the ported engineering skills (diagnose, grill-me, prototype, …) |
+| [external-skills.md](external-skills.md) | Where the mattpocock skills live now (user-scope plugin, both harnesses) + old-name → new-name map |
 | [REFERENCES.md](REFERENCES.md) | VS Code snippets for agentic engineering + external links |

@@ -74,6 +74,7 @@ Create grader scripts under `{skill_path}/eval/graders/`. Each grader must:
 **Reuse these patterns where possible** — read the reference graders at `references/graders/` (within this skill) before writing new ones. Only create a new grader when the reference patterns don't fit.
 
 Available reference graders:
+
 - `check-fail-present.js <pattern> <output-file>` — asserts FAIL appears for a named check.
 - `check-no-fails.js <output-file>` — asserts zero FAILs (for positive controls).
 - `check-warn-or-fail-present.js <pattern> <output-file>` — asserts WARN or FAIL for a named check.

@@ -24,6 +24,7 @@ Run evals against a skill two ways, sharing one `eval.yaml`:
   npm CLI for N trials against a pass-rate threshold (needs `ANTHROPIC_API_KEY`).
 
 Skills:
+
 - **`/scaffold-skill-eval <skill-path>`** — generates a complete `eval/` (fixtures + Node
   graders + `eval.yaml` + `run_eval.sh`) from a target `SKILL.md`.
 - **`/run-skill-eval <skill-path>`** — executes a skill's `eval/` locally, prints a per-task
