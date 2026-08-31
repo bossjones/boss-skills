@@ -31,5 +31,6 @@ Start at the [root README](../README.md) for the plugin catalog and install inst
 | Doc | What's there |
 |-----|--------------|
 | [LEARN.md](LEARN.md) | Primer on Claude Code tools, thinking modes, hooks, subagents, and skills |
+| [companion-ecosystem.md](companion-ecosystem.md) | Marketplaces and third-party plugins that complement this repo, incl. the project's pinned `enabledPlugins` roster |
 | [external-skills.md](external-skills.md) | Where the mattpocock skills live now (user-scope plugin, both harnesses) + old-name → new-name map |
 | [REFERENCES.md](REFERENCES.md) | VS Code snippets for agentic engineering + external links |
