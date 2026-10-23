@@ -1,12 +1,12 @@
 # agent-harness
 
-> `boss-dev` · **v0.31.3** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v0.33.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
-Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
+Agent harness tooling for Claude Code: subagents, commands, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
 workflow, a git-worktree lifecycle, a release-notes generator, and a portable security-review
 skill — alongside planning, priming, and shipping commands, a roster of subagents, and a library
-of lifecycle hooks, output styles, and status lines.
+of output styles and status lines.
 
 ## Installation
 
@@ -20,13 +20,12 @@ of lifecycle hooks, output styles, and status lines.
 | Component | Count | Auto-active on install? | Invoked as |
 | --- | --- | --- | --- |
 | [Skills](#skills) | 20 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
-| [Commands](#commands) | 17 | ✅ Yes | `/agent-harness:<name>` |
+| [Commands](#commands) | 16 | ✅ Yes | `/agent-harness:<name>` |
 | [Agents](#agents) | 6 | ✅ Yes | Dispatched via the `Agent`/`Task` tool |
-| [Output styles](#output-styles) | 8 | ✅ Yes | `/output-style` |
-| [Hooks](#hooks) | 20 events | ✅ Yes | Lifecycle events and JSONL audit logs |
+| [Output styles](#output-styles) | 7 | ✅ Yes | `/output-style` |
 | [Status lines](#status-lines) | 10 | ⚙️ Manual wiring | `statusLine` setting |
 
-Skills, commands, agents, output styles, and hooks are discovered and active immediately after
+Skills, commands, agents, and output styles are discovered and active immediately after
 `/plugin install`. Status lines ship as a library and require a one-time
 [manual wiring](#manual-wiring) step before they take effect.
 
@@ -87,7 +86,7 @@ setup.
 
 ## Commands
 
-Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
+Sixteen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
 `/agent-harness:<name>`.
 
 | Command | Arguments | Purpose |
@@ -104,8 +103,11 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 | `install_status_line` | `[--check\|--uninstall\|--restore]` | Install the status line into this project's `.claude/settings.local.json` (backed up, reversible). |
 | `update_status_line` | `<session_id> <key> <value>` | Upsert a key/value pair into a session's status-line data file. |
 | `all_tools` | — | List every available tool as TypeScript-style signatures with purposes. |
-| `sentient` | — | Demo command that triggers the `rm -rf` guard in `pre_tool_use.py`. |
+| `validate-unicode-hygiene` | `[paths...] [--strict] [--warn-only]` | Scan files for invisible or visually-spoofed Unicode. |
 | `docs-tutorial` | `[what to document]` | Generate a tutorial/doc by delegating to `/documentation-generation:doc-generate` with the correct fully-qualified tutorial-engineer subagent; defaults to the current branch's features. |
+| `cmux-fresh` | — | Clear cmux's saved session so it boots blank. |
+| `cmux-spawn-team` | `[team-name] [feature...] [--config PATH]` | Boot a multi-agent team as a cmux workspace. |
+| `cmux-did-spawn` | `<spawn-file path>` | Orient onto a just-spawned team and drive its lead. |
 
 ## Agents
 
@@ -123,9 +125,9 @@ Six subagent definitions under `agents/`, auto-discovered on `/plugin install` a
 
 `team/builder` and `team/validator` back the `/agent-harness:plan_w_team` orchestration workflow.
 `meta-agent`, `llm-ai-agents-and-eng-research`, and `work-completion-summary` reference external MCP
-tools (firecrawl, ElevenLabs) that must be configured separately. Note that Claude Code ignores
-`hooks`/`mcpServers` frontmatter on plugin-shipped agents for security, so `team/builder`'s inline
-lint and type-check hooks take effect only when that agent file is used outside the plugin.
+tools (Firecrawl, ElevenLabs) that must be configured separately. Note that Claude Code ignores
+`mcpServers` frontmatter on plugin-shipped agents for security, so MCP servers must be configured in
+your own settings.
 
 ## Workflows
 
@@ -188,147 +190,9 @@ uv run "${CLAUDE_SKILL_DIR}/scripts/fetch_diff.py" --help
 /agent-harness:fix-gh-pr-comments 142  # apply, reply to, and resolve unresolved review comments
 ```
 
-## Hooks
-
-`hooks/hooks.json` enables **20 lifecycle events** on install. Each event includes the universal,
-fail-open `log_event.py` through `uv-guard.sh`; it appends one redacted, schema-versioned JSONL
-record without blocking Claude. Behavior hooks run separately for guards, notifications, formatting,
-and other opt-in behavior.
-
-Event records are project-scoped rather than cwd-scoped:
-
-```text
-<project>/.{plugin-repo}/
-├── logs/<session_id>/<Event>.jsonl
-├── data/sessions/<session_id>.json
-└── cache/
-```
-
-The root is named for the marketplace repository shipping this plugin (`.boss-skills/` when
-installed from the `boss-skills` marketplace), so the same directory name appears in every project
-and worktree. `data/` holds live state that status lines and `/agent-harness:update_status_line`
-read back; `cache/` is regenerable. Use the [hooks reference](./docs/hooks.md) for the event
-matrix, JSONL schema, redaction, path overrides, retention, and deferred-event rationale.
-
-| Script | Event | Purpose |
-| --- | --- | --- |
-| `session_start.py` | SessionStart | Log start; optionally inject git/project context or announce via TTS. |
-| `snyk_agent_scan.py` | SessionStart | Opt-in advisory Snyk agent-scan of this project's SKILL.md artifacts (see below). |
-| `setup.py` | Setup | Check dependencies, detect project type, install packages for CI/`--init` runs. |
-| `user_prompt_submit.py` | UserPromptSubmit | Log prompts, manage session metadata, optionally name the agent via an LLM. |
-| `pre_tool_use.py` | PreToolUse | Block dangerous `rm -rf` and `.env` access; log tool calls. |
-| `permission_request.py` | PermissionRequest | Auto-allow read-only operations; log permission requests. |
-| `post_tool_use.py` | PostToolUse | Log successful tool executions. |
-| `post_tool_use_failure.py` | PostToolUseFailure | Log tool failures with error detail. |
-| `notification.py` | Notification | Log notifications; optionally announce via TTS. |
-| `tmux_notify.py` | Notification (filtered), Stop, StopFailure | Opt-in tmux-aware desktop notification that jumps to the waiting pane on click (see below). |
-| `subagent_start.py` | SubagentStart | Log subagent spawns; optional TTS announcement. |
-| `subagent_stop.py` | SubagentStop | Log subagent completion; summarize and announce via TTS. |
-| `pre_compact.py` | PreCompact | Log compaction; optionally back up the transcript. |
-| `stop.py` | Stop | Log session stop; optional transcript export and TTS completion message. |
-| `session_end.py` | SessionEnd | Log session end; optionally clean up stale temp files. |
-
-Supporting modules:
-
-- `hooks/validators/` — PostToolUse and Stop validators: `ruff_validator.py` and `ty_validator.py`
-  lint and type-check Python after writes; `validate_new_file.py` and `validate_file_contains.py`
-  assert a file was created or contains expected content.
-- `hooks/utils/llm/` — pluggable LLM backends (`oai.py`, `anth.py`, `ollama.py`) and
-  `task_summarizer.py` for generating completion messages.
-- `hooks/utils/tts/` — text-to-speech backends (`pyttsx3_tts.py`, `openai_tts.py`,
-  `elevenlabs_tts.py`) and `tts_queue.py`, a file-lock queue that serializes overlapping
-  announcements.
-- `hooks/utils/snyk.py` — shared Snyk agent-scan helper (target resolution, scan invocation,
-  severity parsing) used by both `snyk_agent_scan.py` and the repo's pre-commit hook.
-
-The currently enabled events are `SessionStart`, `SessionEnd`, `Setup`, `UserPromptSubmit`,
-`PreToolUse`, `PermissionRequest`, `PostToolUse`, `PostToolUseFailure`, `SubagentStart`,
-`SubagentStop`, `Stop`, `StopFailure`, `PreCompact`, `Notification`, `PostCompact`,
-`UserPromptExpansion`, `PermissionDenied`, `PostToolBatch`, `TaskCreated`, and `TaskCompleted`.
-`MessageDisplay` is intentionally deferred pending a measured `log_event.py` cold-start p95 against
-its 10-second budget; it is **not enabled**.
-
-### tmux desktop notifications (opt-in)
-
-Claude Code's built-in desktop notifications don't survive **tmux** (it emits plain OSC sequences;
-tmux needs DCS passthrough). `tmux_notify.py` sidesteps that: wired in parallel under three events,
-it fires a desktop notification in the situations that matter, and on macOS attaches a click action
-that runs `tmux switch-client` / `select-window` to jump you straight to the exact `session:window`
-where Claude is waiting.
-
-| Event | When it fires | Notification |
-| --- | --- | --- |
-| `Notification` (filtered) | `permission_prompt`, `idle_prompt`, or `elicitation_dialog` only — not `auth_success` or elicitation echo events | "Claude Code — Waiting for you: &lt;message&gt;" |
-| `Stop` | Claude finishes responding normally | "Claude Code — Response finished" |
-| `StopFailure` | Turn ends on an API error (rate_limit, overloaded, server_error, …) | "Claude Code — Turn failed: &lt;error_type: error_message&gt;" |
-
-**Default off.** Enable it via the plugin's `userConfig` (configured at `/plugin install` /
-`/plugin config`, no manual `settings.json` editing):
-
-| Config key | Type | Default | Purpose |
-| --- | --- | --- | --- |
-| `tmux_notifications` | boolean | `false` | Master toggle. Off → the hook is a silent no-op. |
-| `tmux_notify_activate_bundle_id` | string | `com.mitchellh.ghostty` | macOS bundle id of your terminal to raise on click. Blank → skip activation. |
-| `tmux_notify_sound` | boolean | `false` | Play the default notification sound (macOS). |
-
-These export to the hook as `CLAUDE_PLUGIN_OPTION_TMUX_NOTIFICATIONS`,
-`CLAUDE_PLUGIN_OPTION_TMUX_NOTIFY_ACTIVATE_BUNDLE_ID`, and `CLAUDE_PLUGIN_OPTION_TMUX_NOTIFY_SOUND`.
-
-**Prerequisites:** `tmux`, plus a notifier —
-
-```bash
-brew install terminal-notifier   # macOS
-sudo apt install libnotify-bin    # Linux (provides notify-send)
-```
-
-Example terminal bundle ids: `com.mitchellh.ghostty`, `com.googlecode.iterm2`, `dev.warp.Warp`,
-`com.apple.Terminal`.
-
-**Graceful degradation.** With the toggle off (or on an older Claude Code that ignores
-`userConfig`), the hook exits immediately and does nothing. When on: outside tmux it still notifies,
-just without the click-to-jump action; if `terminal-notifier` is missing it falls back to
-`notify-send`, then to a terminal bell. The script always exits `0` and never blocks the hook chain.
-
-**Limitations:** Linux click-to-jump is not supported (`notify-send` action buttons need a running
-listener) — the tmux target is shown in the notification body instead. There is no bats/pytest
-harness for this script in this release.
-
-### Snyk agent-scan (opt-in, advisory)
-
-[Snyk `agent-scan`](https://github.com/snyk/agent-scan) is an AI-agent supply-chain scanner for
-skill/agent artifacts — it flags prompt injection, tool poisoning, and hidden-Unicode obfuscation
-in `SKILL.md` files. `snyk_agent_scan.py` runs it at `SessionStart` against the current project's
-skill artifacts and, separately, a repo-local pre-commit hook (`scripts/snyk-agent-scan.py`) runs
-it over staged `SKILL.md` files.
-
-**Default off**, and fail-open throughout — disabled, no token, no targets, or a scanner
-error/timeout all silently no-op; neither hook ever blocks a session or a commit by default.
-
-| Config key | Type | Default | Purpose |
-| --- | --- | --- | --- |
-| `ENABLE_SNYK_AGENT_SCAN` | boolean | `false` | Master toggle. Off → both hooks are a silent no-op. |
-| `SNYK_TOKEN` | string | _(empty)_ | Snyk API token. Falls back to a bare `SNYK_TOKEN` env var / `.env` if unset here. |
-
-Both resolve through the same `CLAUDE_PLUGIN_OPTION_<KEY>` → bare-env-var resolution order as
-`ENABLE_TTS`/`ENGINEER_NAME` above.
-
-**Scope.** Only `SKILL.md` files are scanned — the scanner treats any other markdown path (an
-`agents/*.md` or `commands/*.md` file) as an MCP JSON config and fails to parse it, so those paths
-are never worth passing to it. Neither hook ever passes `--ci` or `--dangerously-run-mcp-servers`,
-so scanning never launches an MCP stdio server.
-
-**SessionStart** is always advisory: it injects a one-line findings summary as
-`additionalContext` when Critical/High/Medium/Low findings are present, stays silent on a clean
-scan, and throttles re-scans of the same project to once every 6 hours.
-
-**Pre-commit** is advisory by default (prints findings, exits `0`) unless
-`SNYK_AGENT_SCAN_ENFORCE=1`, in which case it exits `1` when Critical/High findings are staged.
-Exit codes from the scanner itself are never trusted for gating — empirically it exits `0` even
-with High-risk findings present — so both hooks parse `--json` severities directly.
-
 ## Output styles
 
-Eight output styles under `output-styles/*.md`, auto-discovered on `/plugin install` and selectable
+Seven output styles under `output-styles/*.md`, auto-discovered on `/plugin install` and selectable
 with `/output-style`.
 
 | Style | Description |
@@ -340,7 +204,6 @@ with `/output-style`.
 | `yaml-structured` | Machine-readable YAML with hierarchical key/value blocks. |
 | `html-structured` | Semantic HTML5 with data attributes for programmatic use. |
 | `genui` | Generative UI — writes a styled, self-contained HTML page to `/tmp/` and opens it. |
-| `tts-summary` | Announces task completion as audio (experimental). |
 
 ## Status lines
 
@@ -363,8 +226,7 @@ setting at one to use it.
 
 ## Manual wiring
 
-Hooks are already wired by `hooks/hooks.json`. Status lines are the opt-in component: point your
-`statusLine` setting at one of the scripts:
+Status lines are the opt-in component: point your `statusLine` setting at one of the scripts:
 
 ```json
 {
@@ -377,7 +239,7 @@ Hooks are already wired by `hooks/hooks.json`. Status lines are the opt-in compo
 
 ## Status
 
-Plugin version **v0.31.3**. Skills, commands, agents, output styles, and all 20 hook events are
+Plugin version **v0.33.0**. Skills, commands, agents, and output styles are
 auto-discovered and active on `/plugin install`. Status lines require a `statusLine` setting.
 
 ## See also

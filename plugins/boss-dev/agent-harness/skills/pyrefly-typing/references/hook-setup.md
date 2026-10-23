@@ -30,21 +30,15 @@ This gets appended to the `"Stop"` array in the **target repo's own**
 `merge_stop_hook()` dedupes by exact `command` string, so re-running `apply --with-stop-hook` is
 idempotent.
 
-## This is *not* the same mechanism as this plugin's own hooks
+## Target-repo scope
 
-`agent-harness`'s own `hooks/hooks.json` wires **this repo's** lifecycle hooks statically, at
-plugin-install time, via `${CLAUDE_PLUGIN_ROOT}`-relative script paths — see
-`plugins/boss-dev/agent-harness/hooks/hooks.json` and `docs/hooks.md`. That mechanism is completely
-separate from what this skill does.
-
-`pyrefly-typing` instead **generates a hook entry at runtime** into a *different*, arbitrary target
+`pyrefly-typing` **generates a hook entry at runtime** into a *different*, arbitrary target
 repo's `.claude/settings.json`. There is no `${CLAUDE_PLUGIN_ROOT}` involved — the hook's `command`
 is a plain shell command (`cd "$CLAUDE_PROJECT_DIR" && uv run pyrefly check ...`) that only assumes
 `uv` and a `pyrefly-baseline.json` exist in that target repo.
 
-**Do not** add a `pyrefly`-related entry to `plugins/boss-dev/agent-harness/hooks/hooks.json` — that
-would only make sense if `boss-skills` itself became a Pyrefly target, which it isn't (it has no
-`[tool.pyrefly]` and doesn't need one).
+**Do not** configure `boss-skills` itself as a Pyrefly target unless explicitly asked — `boss-skills`
+has no `[tool.pyrefly]` and uses `basedpyright` + `ty`.
 
 ## Opt-in, and how to disable
 

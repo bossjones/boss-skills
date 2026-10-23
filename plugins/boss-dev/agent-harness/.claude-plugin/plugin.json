@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-harness",
   "displayName": "Agent Harness",
-  "version": "0.32.0",
-  "description": "Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build and operate agentic dev workflows.",
+  "version": "0.33.0",
+  "description": "Agent harness tooling for Claude Code: subagents, commands, skills, and scripts that build and operate agentic dev workflows.",
   "author": {
     "name": "Malcolm Jones",
     "email": "bossjones@theblacktonystark.com",
@@ -24,73 +24,10 @@
   ],
   "skills": "./skills/",
   "userConfig": {
-    "ENABLE_TTS": {
-      "type": "boolean",
-      "title": "Enable spoken announcements (TTS)",
-      "description": "Speak completion and notification messages aloud. Disable to silence all TTS (Stop, SubagentStop, Notification).",
-      "default": true,
-      "required": false
-    },
     "ENGINEER_NAME": {
       "type": "string",
       "title": "Your name",
-      "description": "Used in ~30% of spoken completion and notification messages. Leave blank to stay generic.",
-      "default": "",
-      "required": false
-    },
-    "HARNESS_DIR": {
-      "type": "string",
-      "title": "Agent-harness runtime directory",
-      "description": "Optional project-relative or absolute root for agent-harness logs, session data, and cache. Leave blank to use the .{plugin-repo} directory named for the marketplace this plugin ships from.",
-      "default": "",
-      "required": false
-    },
-    "HOOKS_LOG_RETENTION_DAYS": {
-      "type": "number",
-      "title": "Hook log retention (days)",
-      "description": "Delete session log directories and cache entries older than this many days when SessionEnd runs. Session data is retained while its log directory exists.",
-      "default": 7,
-      "required": false
-    },
-    "HOOKS_LOG_RETENTION_MAX_MB": {
-      "type": "number",
-      "title": "Hook log and cache size limit (MB)",
-      "description": "Maximum combined size of hook session logs and cache. The oldest entries are deleted when SessionEnd runs.",
-      "default": 100,
-      "required": false
-    },
-    "tmux_notifications": {
-      "type": "boolean",
-      "title": "tmux desktop notifications",
-      "description": "Fire a clickable macOS/Linux desktop notification when the agent needs input or finishes, that jumps you to the exact tmux session:window. Requires tmux and terminal-notifier (macOS) or notify-send (Linux). Default off.",
-      "default": false,
-      "required": false
-    },
-    "tmux_notify_activate_bundle_id": {
-      "type": "string",
-      "title": "Terminal app bundle id (macOS)",
-      "description": "macOS bundle identifier of your terminal so the notification raises it on click (e.g. com.mitchellh.ghostty, com.googlecode.iterm2, dev.warp.Warp, com.apple.Terminal). Leave blank to skip activation.",
-      "default": "com.mitchellh.ghostty",
-      "required": false
-    },
-    "tmux_notify_sound": {
-      "type": "boolean",
-      "title": "Play notification sound",
-      "description": "Play the default notification sound (macOS terminal-notifier -sound default). Off keeps notifications silent.",
-      "default": false,
-      "required": false
-    },
-    "ENABLE_SNYK_AGENT_SCAN": {
-      "type": "boolean",
-      "title": "Enable Snyk agent-scan",
-      "description": "Scan skill artifacts (SKILL.md) for prompt injection, tool poisoning, and hidden-Unicode obfuscation via Snyk agent-scan. Advisory only unless SNYK_AGENT_SCAN_ENFORCE=1. Requires SNYK_TOKEN.",
-      "default": false,
-      "required": false
-    },
-    "SNYK_TOKEN": {
-      "type": "string",
-      "title": "Snyk API token",
-      "description": "Token for Snyk agent-scan. Falls back to the SNYK_TOKEN environment variable / .env if unset here.",
+      "description": "Used by agents that personalize completion summaries. Leave blank to stay generic.",
       "default": "",
       "required": false
     },

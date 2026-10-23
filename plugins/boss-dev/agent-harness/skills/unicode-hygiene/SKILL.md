@@ -68,9 +68,5 @@ non-zero when a BLOCKER is found (or a MAJOR under `--strict`).
 
 ## Related
 
-The `agent-harness` PreToolUse hook (`hooks/pre_tool_use.py`) performs a
-lightweight inline BLOCKER-only scan of `Write`/`Edit` content using the same two
-codepoint sets, blocking edits that introduce tag characters or bidi controls
-before they ever reach a file. Those two sets are defined canonically in
-`scripts/validate-unicode-hygiene.py` (`TAG_RANGE` and `BIDI_CONTROLS`); keep the
-hook in sync with the script.
+The codepoint sets (`TAG_RANGE` and `BIDI_CONTROLS`) are defined canonically in
+`scripts/validate-unicode-hygiene.py` and enforced in pre-commit and CI.

@@ -15,7 +15,7 @@ are triggered proactively, others are deployed by the `plan_w_team` workflow.
 - [The team (used by `plan_w_team`)](#the-team-used-by-plan_w_team)
   - [`team/builder`](#teambuilder)
   - [`team/validator`](#teamvalidator)
-- [Important caveat: plugin-shipped agent hooks](#important-caveat-plugin-shipped-agent-hooks)
+- [Important caveat: plugin-shipped agent MCP servers](#important-caveat-plugin-shipped-agent-mcp-servers)
 
 ## At a glance
 
@@ -67,8 +67,7 @@ are triggered proactively, others are deployed by the `plan_w_team` workflow.
   "tts summary", or "audio summary".
 - **What it does:** Converts the result you describe into a very short spoken message, synthesizes
   audio, and plays it. It has **no prior conversation context**, so the prompting agent must tell it
-  exactly what to say. Addresses the user by the `ENGINEER_NAME` plugin user-config value (or
-  `ENGINEER_NAME` env var as fallback).
+  exactly what to say. Addresses the user by the `ENGINEER_NAME` plugin user-config value.
 - **External deps:** ElevenLabs MCP server configured separately.
 - **Source:** [`agents/work-completion-summary.md`](../agents/work-completion-summary.md)
 
@@ -118,16 +117,9 @@ The planning command acts as team lead and deploys them as `agent-harness:team:b
 
 ---
 
-## Important caveat: plugin-shipped agent hooks
+## Important caveat: plugin-shipped agent MCP servers
 
-`team/builder` declares inline `PostToolUse` hooks (ruff + `ty` validators), and some agents declare
-`mcpServers`/`hooks` frontmatter. **Claude Code ignores `hooks` and `mcpServers` frontmatter on
-plugin-shipped agents for security.** So:
-
-- `team/builder`'s inline lint/type-check hooks take effect only when that file is used **outside**
-  the plugin (e.g. copied into a project's `.claude/agents/`). Inside the plugin, rely on the
-  plugin-level [hooks](./hooks.md) instead.
-- MCP-dependent agents (`meta-agent`, `llm-ai-agents-and-eng-research`, `work-completion-summary`)
-  need their MCP servers (Firecrawl, ElevenLabs) configured in your own settings — the agent
-  frontmatter alone won't register them.
+Claude Code ignores `mcpServers` frontmatter on plugin-shipped agents for security. MCP-dependent
+agents (`meta-agent`, `llm-ai-agents-and-eng-research`, `work-completion-summary`) need their MCP
+servers (Firecrawl, ElevenLabs) configured in your own settings.
 </content>

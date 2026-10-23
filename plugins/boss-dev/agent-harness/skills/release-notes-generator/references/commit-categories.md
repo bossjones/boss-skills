@@ -39,7 +39,7 @@ This document defines how to categorize commits based on Conventional Commits fo
 **CHANGELOG**: Technical Improvements > Architecture
 **Slack**: No
 **Examples**:
-- `refactor(hooks): migrate to new pattern`
+- `refactor(react): migrate state handling to a new pattern`
 - `refactor(permissions): extract to service layer`
 
 ### Documentation (`docs:`)

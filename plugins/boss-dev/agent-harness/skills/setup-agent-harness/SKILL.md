@@ -12,7 +12,7 @@ effort: low
 # Setup agent-harness
 
 Prepares a repository to use the agent-harness plugin without risking committed
-hook output or hand-edited JSON. It does two things, each preceded by a
+runtime output or hand-edited JSON. It does two things, each preceded by a
 timestamped backup:
 
 1. Adds or refreshes a managed block in `.gitignore` covering the harness runtime
@@ -61,8 +61,8 @@ Ask only for what `detect` shows is undecided:
   set, ask Keep existing / Overwrite (never overwrite silently).
 - **outputStyle** — offer the available styles plus Skip:
   `bullet-points, genui, html-structured, markdown-focused, table-based,
-  tts-summary, ultra-concise, yaml-structured`. If one is already set, ask Keep /
-  pick a new one / Skip.
+  ultra-concise, yaml-structured`. If one is already set, ask Keep / pick a new
+  one / Skip.
 - **enable plugin** — if `plugin_enabled` is false, offer to enable
   `agent-harness@boss-skills`.
 

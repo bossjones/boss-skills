@@ -54,6 +54,5 @@
 - Standalone Python scripts use PEP 723 `uv` metadata. Target Python 3.13+ and follow the
   repository's typed-script conventions: `from __future__ import annotations`, absolute imports,
   `pathlib.Path`, modern unions, and `typing_extensions.override` for overrides.
-- When changing `agent-harness`, resolve runtime storage with
-  `hooks/utils/harness_paths.py`. Do not add cwd-relative `logs/` or `.claude/data/` paths, and do
-  not migrate legacy artifacts automatically.
+- `agent-harness` no longer ships lifecycle hooks (`hooks/hooks.json`). Do not add cwd-relative
+  `logs/` or `.claude/data/` paths, and do not migrate legacy artifacts automatically.

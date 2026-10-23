@@ -38,11 +38,22 @@ MAGENTA = "\033[35m"
 RESET = "\033[0m"
 
 
-HOOKS_DIR = Path(__file__).resolve().parent.parent / "hooks"
-if str(HOOKS_DIR) not in sys.path:
-    sys.path.insert(0, str(HOOKS_DIR))
+def _data_dir(project_dir):
+    """Resolve the runtime data directory without requiring hook utilities."""
+    base = Path(project_dir) if project_dir is not None else Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
+    configured = (
+        os.environ.get("CLAUDE_HARNESS_DIR")
+        or os.environ.get("CLAUDE_PLUGIN_OPTION_HARNESS_DIR")
+        or os.environ.get("HARNESS_DIR")
+    )
+    if configured:
+        root = Path(configured) if Path(configured).is_absolute() else base / configured
+    else:
+        root = base / ".boss-skills"
+    return root / "data"
 
-from utils.harness_paths import data_dir
+
+data_dir = _data_dir
 
 
 def _project_dir(input_data):

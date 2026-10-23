@@ -1,7 +1,7 @@
 # Status Lines Reference
 
-The `status_lines/` directory ships **ten** status-line scripts (PEP 723). Unlike commands, skills,
-and hooks, status lines are **not auto-wired** — they're a library you opt into by pointing your
+The `status_lines/` directory ships **ten** status-line scripts (PEP 723). Unlike commands and
+skills, status lines are **not auto-wired** — they're a library you opt into by pointing your
 `statusLine` setting at one. The variants progress from a simple model/branch line to richer
 context-window and cost readouts; pick the one that surfaces what you watch most.
 

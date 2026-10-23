@@ -54,47 +54,50 @@ turn. So a task is **one single-line `send` followed by one `send-key enter`**:
 
 Every worker ends a finished task by printing one line:
 
+```text
+TASK-DONE: <role> #<attempt-id> | <one-line summary>
 ```
-TASK-DONE: <role> | <one-line summary>
-```
 
-Always tell a worker the exact `TASK-DONE` line to print so you can detect completion.
+Each worker role already defines its exact `TASK-DONE` line. Refer to that completion contract
+without repeating the literal sentinel in the dispatched prompt; otherwise the echoed prompt can
+look like a completed task.
 
-## Wait on notifications — do NOT poll
+Workers reuse the same sentinel for every task, and a retry goes to the same worker, so a
+`TASK-DONE:` line from an earlier attempt can still be on its screen. Give every dispatch a fresh
+attempt id, tell the worker to copy it into its completion line, and wait for that exact id.
 
-**Never busy-poll with `read-screen` + `sleep` loops.** cmux *pushes* a notification
-event the instant a worker finishes its turn. **Block on that event, then do a single
-`read-screen`.** Match on the worker's **`workspace_id`** — for hook-emitted
-notifications `surface_id` is usually `null`, but `workspace_id` is always set. Capture
-each worker's `workspace_id` up front (`cmux list-workspaces --json --id-format both`).
+## Wait for the completion sentinel
+
+Use bounded `read-screen` checks for the exact sentinel and attempt id assigned to the worker.
+This works consistently across Copilot CLI and the other supported terminal agents.
 
 ```bash
-WS=<worker-workspace-uuid>
-cmux events --name notification.requested --no-heartbeat --no-ack > /tmp/team.ev &
-EV=$!
-cmux send --surface "<ref>" "<one-line task>. End with exactly: TASK-DONE: build-be | <summary>"
+ID="$(date +%s)-$RANDOM"   # fresh for every dispatch, including retries
+cmux send --surface "<ref>" "<one-line task>. Attempt id: $ID. When finished, use the completion contract from your role instructions."
 cmux send-key --surface "<ref>" enter
-until grep -q "\"workspace_id\":\"$WS\"" /tmp/team.ev; do sleep 1; done
-kill $EV
+for i in $(seq 1 60); do
+  cmux read-screen --surface "<ref>" --lines 5 | grep -Eq "^TASK-DONE: build-be #$ID \| .+" && break
+  sleep 5
+done
 cmux read-screen --surface "<ref>" --scrollback --lines 80 | tail -30
 ```
 
-When you dispatch several workers at once, run one `cmux events` stream and react as
-each notification arrives. After an event, confirm the `TASK-DONE:` line is actually
-present before treating the task as done (an agent may notify because it needs input,
-not because it finished).
+When you dispatch several workers at once, give each its own attempt id and check each surface
+independently using its role-specific sentinel and id. Do not treat a completed turn as success
+until the expected `TASK-DONE:` line with the current attempt id is present and the resulting
+artifacts have been inspected.
 
 ## Workflow
 
 1. **Restate the goal.** Confirm the feature in one sentence. Write it to the
    `## Current feature` section of `.team/backlog.md`.
-2. **Plan.** Dispatch the feature to **plan**. Wait on its notification, then read
+2. **Plan.** Dispatch the feature to **plan**. Wait for its sentinel, then read
    `.team/plan.md`. Turn the plan into a task table in `.team/backlog.md`.
 3. **Build.** Dispatch backend tasks to **build-be** and frontend tasks to **build-fe**
    (they can run in parallel). If the frontend depends on a new endpoint, send build-be
    first and pass build-fe the contract once it lands.
 4. **Verify.** When builds report done, dispatch **test** with the plan's acceptance
-   criteria. Read its `TASK-DONE: test | PASS …` / `FAIL …`.
+   criteria. Read its `TASK-DONE: test #<id> | PASS …` / `FAIL …`.
 5. **Iterate.** On FAIL, route the specific failure back to the responsible builder with
    the test evidence. Repeat until test reports PASS.
 6. **Report up.** Summarize to the orchestrator: what shipped, files touched, the verdict.
@@ -104,5 +107,5 @@ not because it finished).
 - **Never edit the app's source yourself** — that is the builders' job. Read to integrate.
 - Keep `.team/backlog.md` current — it is your shared source of truth.
 - One task per message to a worker, sent as one single-line `send` + one `send-key enter`.
-- **Wait on cmux notifications, never busy-poll.**
+- **Check for the completion sentinel on a bounded interval.**
 - If a worker stalls or drifts out of its lane, redirect it; don't do its work.

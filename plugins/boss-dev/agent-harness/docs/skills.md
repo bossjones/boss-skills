@@ -449,11 +449,11 @@ with cmux installed. New to cmux? Start with the hands-on [cmux tutorial](./cmux
 - **When to use:** Opening, inspecting, prompting, reading, or tearing down cmux surfaces / agent
   sessions; deterministic multi-pane placement and routing.
 - **What it does:** Documents the cmux control loop (`send` types, `send-key enter` submits,
-  `read-screen` observes, `close-surface` tears down), credential injection via `--env-file`, the
-  push-notification wait channel (`cmux events`, matched on `workspace_id`), launching pi/Codex/Claude
+  `read-screen` observes, `close-surface` tears down), credential injection via `--env-file`,
+  bounded `read-screen` completion-marker checks, launching pi/Codex/Claude
   Code in bypass modes, and the settings/reload discipline (`cmux reload-config`, back up `cmux.json`).
   Ships four topology references (handles, windows/workspaces, panes/surfaces, flash & health).
-- **Prerequisites:** `brew install --cask cmux` (macOS 14+), `cmux hooks setup`,
+- **Prerequisites:** `brew install --cask cmux` (macOS 14+),
   `automation.socketControlMode: allowAll`.
 - **Source:** [`skills/boss-cmux/SKILL.md`](../skills/boss-cmux/SKILL.md) · references under
   [`skills/boss-cmux/references/`](../skills/boss-cmux/references/)

@@ -3,26 +3,6 @@ description: Creates a concise engineering implementation plan based on user req
 argument-hint: "[user prompt] [orchestration prompt]"
 model: opus
 disallowed-tools: Task, EnterPlanMode
-hooks:
-  Stop:
-    - hooks:
-        - type: command
-          command: >-
-            uv run ${CLAUDE_PLUGIN_ROOT}/hooks/validators/validate_new_file.py
-            --directory specs
-            --extension .md
-        - type: command
-          command: >-
-            uv run ${CLAUDE_PLUGIN_ROOT}/hooks/validators/validate_file_contains.py
-            --directory specs
-            --extension .md
-            --contains '## Task Description'
-            --contains '## Objective'
-            --contains '## Relevant Files'
-            --contains '## Step by Step Tasks'
-            --contains '## Acceptance Criteria'
-            --contains '## Team Orchestration'
-            --contains '### Team Members'
 ---
 
 # Plan With Team

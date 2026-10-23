@@ -1,1 +1,0 @@
-../../plugins/boss-dev/agent-harness/hooks/user_prompt_submit.py

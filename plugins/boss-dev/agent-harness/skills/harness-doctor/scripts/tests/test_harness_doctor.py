@@ -96,3 +96,16 @@ def test_main_emits_read_only_json(tmp_path: Path, capsys) -> None:
     report = json.loads(capsys.readouterr().out)
     assert report["repo_root"] == str(tmp_path)
     assert report["advisory"] is True
+
+
+def test_doctor_reports_residual_logs_in_legacy_custom_log_dir(tmp_path: Path, monkeypatch) -> None:
+    for relative in (True, False):
+        custom = tmp_path / ("rel-logs" if relative else "abs-logs")
+        custom.mkdir(exist_ok=True)
+        (custom / "events.jsonl").write_bytes(b"12345")
+        monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+        monkeypatch.setenv("CLAUDE_HOOKS_LOG_DIR", "rel-logs" if relative else str(custom))
+
+        report = doctor.build_report(tmp_path)
+
+        assert report["harness_root"]["storage"]["logs"] == {"files": 1, "bytes": 5}

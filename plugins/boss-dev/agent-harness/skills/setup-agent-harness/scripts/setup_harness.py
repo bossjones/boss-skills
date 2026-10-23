@@ -30,24 +30,27 @@ from __future__ import annotations
 
 import argparse
 import difflib
-import importlib.util
 import json
 import os
+import re
 import shutil
+import subprocess
 import sys
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
-from types import ModuleType
 
 # --- Managed .gitignore block -------------------------------------------------
 
 MANAGED_BLOCK_START = "# >>> agent-harness managed (do not edit) >>>"
 MANAGED_BLOCK_END = "# <<< agent-harness managed <<<"
+_MARKETPLACE_MANIFEST = Path(".claude-plugin") / "marketplace.json"
+_NON_ALPHANUMERIC = re.compile(r"[^a-z0-9]+")
+_DEFAULT_NAMESPACE = "boss-skills"
 
-# Runtime artifacts written by agent-harness hooks, plus the backups this script
-# creates. The root name comes from the same helper the hooks use, loaded by path
-# so this standalone script stays free of a package import from the installed
-# plugin — see ``_plugin_namespace``.
+# Runtime artifacts written by agent-harness, plus the backups this script
+# creates. The root name comes from the nearest marketplace manifest above this
+# standalone script — see ``_plugin_namespace``.
 
 # --- settings.local.json shape ------------------------------------------------
 
@@ -82,7 +85,6 @@ OUTPUT_STYLES = [
     "html-structured",
     "markdown-focused",
     "table-based",
-    "tts-summary",
     "ultra-concise",
     "yaml-structured",
 ]
@@ -135,9 +137,30 @@ def _non_comment_lines(text: str) -> set[str]:
     return out
 
 
+def _slug(value: str) -> str:
+    normalized = _NON_ALPHANUMERIC.sub("-", value.lower()).strip(".-")
+    return normalized or _DEFAULT_NAMESPACE
+
+
+@lru_cache(maxsize=1)
 def _plugin_namespace() -> str:
-    """Return the plugin-repository namespace the hooks write their artifacts under."""
-    return str(_shared_hook_util("plugin_namespace").plugin_namespace())
+    """Return the plugin-repository namespace for runtime artifacts."""
+    try:
+        resolved = Path(__file__).resolve()
+    except OSError:
+        return _DEFAULT_NAMESPACE
+
+    for ancestor in resolved.parents:
+        try:
+            if (ancestor / _MARKETPLACE_MANIFEST).is_file():
+                return _slug(ancestor.name)
+        except OSError:
+            continue
+
+    for ancestor in resolved.parents:
+        if ancestor.parent.name == "cache" and ancestor.parent.parent.name == "plugins":
+            return _slug(ancestor.name)
+    return _DEFAULT_NAMESPACE
 
 
 def gitignore_patterns() -> list[str]:
@@ -343,32 +366,39 @@ def apply_settings(
 # --- environment readiness ----------------------------------------------------
 
 
-def _shared_hook_util(name: str) -> ModuleType:
-    """Load a stdlib-only hook utility by path for standalone-skill compatibility."""
-    module_name = f"_agent_harness_{name}"
-    cached = sys.modules.get(module_name)
-    if isinstance(cached, ModuleType):
-        return cached
-
-    path = Path(__file__).resolve().parents[3] / "hooks" / "utils" / f"{name}.py"
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Cannot load shared hook utility: {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def _shared_preflight() -> dict[str, object]:
-    """Return the shared advisory environment checks."""
-    return _shared_hook_util("preflight").check_env()
+def _which(name: str) -> bool:
+    return shutil.which(name) is not None
 
 
 def check_env() -> dict[str, object]:
-    """Return the historic setup-harness env shape via the shared preflight."""
-    shared = _shared_preflight()
-    return {name: shared[name] for name in ("uv", "python3", "gh")}
+    """Report (never block) on tools the harness expects: uv, python, gh."""
+    uv_ok = _which("uv")
+    py_ok = _which("python3")
+    gh_installed = _which("gh")
+    gh_auth_ok = False
+    if gh_installed:
+        try:
+            proc = subprocess.run(
+                ["gh", "auth", "status"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            gh_auth_ok = proc.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            gh_auth_ok = False
+    if not gh_installed:
+        gh_hint: str | None = "install GitHub CLI: https://cli.github.com/"
+    elif not gh_auth_ok:
+        gh_hint = "run `gh auth login` to authenticate"
+    else:
+        gh_hint = None
+    return {
+        "uv": {"ok": uv_ok, "hint": None if uv_ok else "install uv: https://docs.astral.sh/uv/"},
+        "python3": {"ok": py_ok, "hint": None if py_ok else "install Python 3.11+"},
+        "gh": {"installed": gh_installed, "authenticated": gh_auth_ok, "hint": gh_hint},
+    }
 
 
 # --- detect / apply commands --------------------------------------------------

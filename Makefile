@@ -275,7 +275,7 @@ test-twitter-reel: ## Run twitter-to-reel tests
 	@uv run pytest plugins/social-media/twitter-tools/skills/twitter-to-reel/scripts/tests/ -v
 
 .PHONY: test-agent-harness
-test-agent-harness: ## Run agent-harness tests (skills + hooks)
+test-agent-harness: ## Run agent-harness tests (skills)
 	@echo "🚀 Running agent-harness tests"
 	@uv run pytest plugins/boss-dev/agent-harness/ -v
 
