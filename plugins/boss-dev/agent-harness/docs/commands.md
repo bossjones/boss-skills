@@ -1,6 +1,6 @@
 # Commands Reference
 
-Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
+Sixteen slash commands under `commands/*.md`, auto-discovered on `/plugin install` and namespaced as
 `/agent-harness:<name>`. Commands are **user-invoked** — you type them; Claude runs the workflow.
 
 > [!IMPORTANT]
@@ -34,10 +34,9 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
   - [`debug-ci`](#debug-ci)
 - [Hygiene & validation](#hygiene--validation)
   - [`validate-unicode-hygiene`](#validate-unicode-hygiene)
-- [Status line & demos](#status-line--demos)
+- [Status line](#status-line)
   - [`install_status_line`](#install_status_line)
   - [`update_status_line`](#update_status_line)
-  - [`sentient`](#sentient)
 - [Documentation](#documentation)
   - [`docs-tutorial`](#docs-tutorial)
 - [cmux orchestration](#cmux-orchestration)
@@ -62,7 +61,6 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 | [`validate-unicode-hygiene`](#validate-unicode-hygiene) | `[paths...] [--strict] [--warn-only]` | Scan files for invisible / spoofed Unicode | `uv` |
 | [`install_status_line`](#install_status_line) | `[--check\|--uninstall\|--restore]` | Install the status line into `.claude/settings.local.json` (backed up, reversible) | `uv` |
 | [`update_status_line`](#update_status_line) | `<session_id> <key> <value>` | Write custom data into a session status line | — |
-| [`sentient`](#sentient) | — | Demo the `rm -rf` hook guard | — |
 | [`docs-tutorial`](#docs-tutorial) | `[what to document]` | Generate a tutorial/doc via the right tutorial-engineer subagent | — |
 | [`cmux-fresh`](#cmux-fresh) | — | Clear cmux's saved session so it boots blank | cmux (macOS) |
 | [`cmux-spawn-team`](#cmux-spawn-team) | `[team-name] [feature...] [--config PATH]` | Boot a multi-agent team as a cmux workspace | `uv`, cmux (macOS) |
@@ -101,7 +99,7 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 - **What it does:** Adds a `## Team Orchestration` and `### Team Members` section on top of the
   standard plan, defining tasks with IDs, `blockedBy` dependencies, and assignments to the
   [`team/builder`](./agents.md#teambuilder) and [`team/validator`](./agents.md#teamvalidator)
-  subagents (or `general-purpose`). A Stop hook validates the spec contains the required sections.
+  subagents (or `general-purpose`).
 - **Example:**
 
   ```text
@@ -142,7 +140,7 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 - **What it does:** Verifies it's in a linked worktree → loads and restates the spec → implements it
   with project conventions (and TDD if the spec asks) → runs `make lint` / `make test` → then chains
   the existing [`commit-push-pr`](#commit-push-pr) and [`fix-gh-pr-comments`](#fix-gh-pr-comments)
-  commands rather than reimplementing them. Carries its own PostToolUse `ty`/`ruff` validator hooks.
+  commands rather than reimplementing them.
 - **Example:**
 
   ```text
@@ -191,7 +189,7 @@ Seventeen slash commands under `commands/*.md`, auto-discovered on `/plugin inst
 - **Example:**
 
   ```text
-  /agent-harness:question how does the hook logging pipeline write to logs/?
+  /agent-harness:question how does the evaluation runner select test cases?
   ```
 
 - **Source:** [`commands/question.md`](../commands/question.md)
@@ -318,7 +316,7 @@ fails.
 
 ---
 
-## Status line & demos
+## Status line
 
 ### `install_status_line`
 
@@ -365,23 +363,6 @@ fails.
 
 - **Source:** [`commands/update_status_line.md`](../commands/update_status_line.md) · pairs with
   [status-lines.md](./status-lines.md)
-
-### `sentient`
-
-> Demo command that triggers the `rm -rf` guard in the PreToolUse hook.
-
-- **Arguments:** none. Allowed tools: `Bash`. **Demo only.**
-- **When to use:** To see the dangerous-command guard in `pre_tool_use.py` block destructive Bash —
-  a safe way to confirm the hook is active.
-- **What it does:** Attempts three `rm -rf` variations against the repo; the PreToolUse hook blocks
-  them and the command reports the results.
-- **Example:**
-
-  ```text
-  /agent-harness:sentient
-  ```
-
-- **Source:** [`commands/sentient.md`](../commands/sentient.md) · see [hooks.md](./hooks.md)
 
 ---
 

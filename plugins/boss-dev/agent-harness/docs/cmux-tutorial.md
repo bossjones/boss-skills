@@ -291,7 +291,7 @@ passed.
 Once you've sent an agent a task, you need to know when it's done — without burning
 tool calls in a `read-screen` + `sleep` loop. cmux has a push channel for exactly this
 — but it's only a **deterministic** signal for pi/Codex/gemini. For Claude Code, read
-[the subsection below](#claude-code-use-a-completion-marker-not-the-notification-event)
+[the subsection below](#claude-code-use-a-completion-marker)
 before relying on it.
 
 **`cmux events` is the wait channel — not `cmux wait-for`.** `cmux wait-for <name>` is
@@ -352,27 +352,14 @@ your listener), use:
 $ cmux events --cursor-file <path> --reconnect
 ```
 
-### Claude Code: use a completion marker, not the notification event
+### Claude Code: use a completion marker
 
-Claude Code has **no deterministic turn-stop hook** like pi/Codex/gemini —
-`cmux hooks setup` doesn't cover it. cmux instead bridges Claude's own
-model-initiated `PushNotification` tool call through a `PostToolUse` hook into a cmux
-notification (see [cmux's `agent-hooks.md`](https://github.com/manaflow-ai/cmux/blob/main/docs/agent-hooks.md)).
-That only fires if "Claude Code integration" is enabled in cmux's app Settings **and**
-the model itself decides to call `PushNotification` that turn. A scripted,
-task-oriented sub-agent that's never told to proactively "notify the user" typically
-never calls it, so `cmux events` shows heartbeats only, with no
-`notification.requested` ever arriving. That's expected — don't spend time debugging
-hooks setup for it.
-
-Default to a printed completion marker for Claude Code instead — the same contract
-`boss-cmux-team` already uses for its workers:
+Use the same printed completion-marker contract that `boss-cmux-team` uses for its workers:
 
 1. Tell the agent, in its prompt, to end with one distinctive line when truly done,
    e.g. `TASK-DONE: <summary>`.
-2. Poll `read-screen` for that marker on a bounded loop (fine to race it against the
-   notification listener as a free early exit, but the loop's exit condition must not
-   depend on the notification alone):
+2. Poll `read-screen` for that marker on a bounded loop. The loop's exit condition must not
+   depend on the notification alone:
 
    ```bash
    for i in $(seq 1 60); do

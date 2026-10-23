@@ -1,12 +1,12 @@
 # agent-harness
 
-> `boss-dev` · v0.31.3 · [plugin source](../../plugins/boss-dev/agent-harness/)
+> `boss-dev` · v0.33.0 · [plugin source](../../plugins/boss-dev/agent-harness/)
 
-Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that
-build and operate agentic dev workflows. The plugin ships three families of skills — a
+Agent harness tooling for Claude Code: subagents, commands, skills, and scripts that
+build and operate agentic dev workflows. The plugin ships several families of skills — a
 GitHub PR-review workflow, a git-worktree lifecycle, and a release-notes generator —
 alongside planning, priming, and shipping commands, a roster of subagents, and a library of
-lifecycle hooks, output styles, and status lines.
+output styles and status lines.
 
 ## Installation
 
@@ -19,11 +19,10 @@ lifecycle hooks, output styles, and status lines.
 
 | Component | Count | Active on install? |
 |-----------|-------|--------------------|
-| Skills | 14 | Yes |
-| Commands | 13 | Yes |
+| Skills | 20 | Yes |
+| Commands | 16 | Yes |
 | Agents | 6 | Yes |
-| Output styles | 8 | Yes |
-| Hooks | 20 events | Yes |
+| Output styles | 7 | Yes |
 | Status lines | 10 | Manual wiring |
 
 ## Skills
@@ -73,7 +72,7 @@ tutorial.
 
 ## Commands
 
-Twelve slash commands, namespaced `/agent-harness:<command>`.
+Sixteen slash commands, namespaced `/agent-harness:<command>`.
 
 | Command | Description |
 |---------|-------------|
@@ -86,9 +85,14 @@ Twelve slash commands, namespaced `/agent-harness:<command>`.
 | `/agent-harness:commit-push-pr` | Stage specific files, write a conventional commit, push, and open or reuse a GitHub PR. |
 | `/agent-harness:fix-gh-pr-comments` | Triage unresolved PR review comments, apply fixes, push, reply to and resolve each thread, and poll for new ones (≤ 3 cycles). |
 | `/agent-harness:debug-ci` | Diagnose a failed GitHub Actions run, fix locally, push, and poll the new run until green (≤ 3 cycles). |
+| `/agent-harness:install_status_line` | Install the status line into `.claude/settings.local.json` (backed up, reversible). |
 | `/agent-harness:update_status_line` | Upsert a key/value pair into a session's status-line data file. |
 | `/agent-harness:all_tools` | List every tool in the system prompt as TypeScript signatures with each tool's purpose. |
-| `/agent-harness:sentient` | Demo command showing a hook blocking a dangerous `rm -rf`. |
+| `/agent-harness:validate-unicode-hygiene` | Scan files for invisible or visually-spoofed Unicode. |
+| `/agent-harness:docs-tutorial` | Generate a tutorial/doc via the right tutorial-engineer subagent. |
+| `/agent-harness:cmux-fresh` | Clear cmux's saved session so it boots blank. |
+| `/agent-harness:cmux-spawn-team` | Boot a multi-agent team as a cmux workspace. |
+| `/agent-harness:cmux-did-spawn` | Orient onto a just-spawned team and drive its lead. |
 
 ## Agents
 
@@ -100,7 +104,7 @@ Subagents are dispatched via the `Agent`/`Task` tool — by name, or proactively
 | `llm-ai-agents-and-eng-research` | AI research specialist that gathers the latest LLM, agent, and engineering developments. |
 | `work-completion-summary` | Produce a concise audio summary when work completes (triggered by "tts summary"). |
 | `hello-world-agent` | Simple greeting agent (triggered by "hi claude"). |
-| `team/builder` | Generic engineering agent that executes one task at a time; runs ruff + ty hooks after edits. |
+| `team/builder` | Generic engineering agent that executes one task at a time. |
 | `team/validator` | Read-only agent that verifies a builder's task met its acceptance criteria. |
 
 ## Workflows
@@ -209,19 +213,11 @@ Generate release notes for the commits since v0.1.0.
 `release-notes-generator` categorizes the commits and emits a `CHANGELOG.md` section, a PR
 body, and a Slack announcement.
 
-## Hooks and status lines
+## Status lines
 
-All 20 hook events are enabled on install through `hooks/hooks.json`; they use a universal,
-fail-open logger that appends redacted JSONL records at
-`.{plugin-repo}/logs/<session>/<Event>.jsonl`. The same project-local root contains live session
-`data/` and regenerable `cache/`. `MessageDisplay` is intentionally deferred pending a measured
-logger cold-start p95 and is not enabled. See the
-[hooks reference](../../plugins/boss-dev/agent-harness/docs/hooks.md) for the event list,
-retention, configuration, and deferred-event decisions.
-
-Status lines remain opt-in: set `statusLine` to a script under `status_lines/`. Status lines and
-`/agent-harness:update_status_line` read session state from
-`.{plugin-repo}/data/sessions/<session>.json`.
+Status lines are opt-in: set `statusLine` to a script under `status_lines/`, or run
+`/agent-harness:install_status_line`. Status lines and `/agent-harness:update_status_line` read
+session state from `.{plugin-repo}/data/sessions/<session>.json`.
 
 ## See also
 

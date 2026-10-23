@@ -121,7 +121,7 @@ The skill automatically transforms technical language:
 | "AI embeddings implementation with pgvector" | "New intelligent search" |
 | "Fix scope permissions in getPermissionScope()" | "Fixed access permissions bug" |
 | "Migration webpack -> Turbopack" | *Do not communicate* |
-| "React hooks refactoring" | *Do not communicate* |
+| "React state refactoring" | *Do not communicate* |
 | "Fix N+1 in user loaders" | "Performance improvement" |
 | "Add retry logic for DB connection errors" | "Better connection stability" |
 
