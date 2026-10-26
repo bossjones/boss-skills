@@ -65,6 +65,8 @@ look like a completed task.
 Workers reuse the same sentinel for every task, and a retry goes to the same worker, so a
 `TASK-DONE:` line from an earlier attempt can still be on its screen. Give every dispatch a fresh
 attempt id, tell the worker to copy it into its completion line, and wait for that exact id.
+The wait pattern is anchored to the line start, allowing only the pad or bullet (⏺, ●, │) that
+agents render, so a mid-sentence restatement or echoed input (`> …`) never matches.
 
 ## Wait for the completion sentinel
 
@@ -76,7 +78,7 @@ ID="$(date +%s)-$RANDOM"   # fresh for every dispatch, including retries
 cmux send --surface "<ref>" "<one-line task>. Attempt id: $ID. When finished, use the completion contract from your role instructions."
 cmux send-key --surface "<ref>" enter
 for i in $(seq 1 60); do
-  cmux read-screen --surface "<ref>" --lines 40 | grep -Eq "TASK-DONE: build-be #$ID \| .+" && break
+  cmux read-screen --surface "<ref>" --lines 40 | grep -Eq "^[[:space:]⏺●│]*TASK-DONE: build-be #$ID \| .+" && break
   sleep 5
 done
 cmux read-screen --surface "<ref>" --scrollback --lines 80 | tail -30

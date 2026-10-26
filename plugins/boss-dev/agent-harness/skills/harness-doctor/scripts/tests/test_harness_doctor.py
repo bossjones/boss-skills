@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import harness_doctor as doctor
+import pytest
 
 
 def test_directory_size_skips_symlink_targets(tmp_path: Path) -> None:
@@ -98,14 +99,18 @@ def test_main_emits_read_only_json(tmp_path: Path, capsys) -> None:
     assert report["advisory"] is True
 
 
-def test_doctor_reports_residual_logs_in_legacy_custom_log_dir(tmp_path: Path, monkeypatch) -> None:
-    for relative in (True, False):
-        custom = tmp_path / ("rel-logs" if relative else "abs-logs")
-        custom.mkdir(exist_ok=True)
-        (custom / "events.jsonl").write_bytes(b"12345")
-        monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
-        monkeypatch.setenv("CLAUDE_HOOKS_LOG_DIR", "rel-logs" if relative else str(custom))
+@pytest.mark.parametrize("relative", [True, False])
+def test_doctor_reports_residual_logs_in_legacy_custom_log_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: bool
+) -> None:
+    for var in ("CLAUDE_HARNESS_DIR", "CLAUDE_PLUGIN_OPTION_HARNESS_DIR", "HARNESS_DIR"):
+        monkeypatch.delenv(var, raising=False)
+    custom = tmp_path / ("rel-logs" if relative else "abs-logs")
+    custom.mkdir()
+    (custom / "events.jsonl").write_bytes(b"12345")
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_HOOKS_LOG_DIR", "rel-logs" if relative else str(custom))
 
-        report = doctor.build_report(tmp_path)
+    report = doctor.build_report(tmp_path)
 
-        assert report["harness_root"]["storage"]["logs"] == {"files": 1, "bytes": 5}
+    assert report["harness_root"]["storage"]["logs"] == {"files": 1, "bytes": 5}

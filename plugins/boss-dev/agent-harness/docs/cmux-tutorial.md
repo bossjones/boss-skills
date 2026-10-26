@@ -288,7 +288,7 @@ turn.
    cmux send --surface <ref> "<task>. Attempt id: $ID. When done, print one line: TASK-DONE #<attempt id> | <summary>"
    cmux send-key --surface <ref> enter
    for i in $(seq 1 60); do
-     cmux read-screen --surface <ref> --lines 40 | grep -Eq "TASK-DONE #$ID \| .+" && break
+     cmux read-screen --surface <ref> --lines 40 | grep -Eq "^[[:space:]⏺●│]*TASK-DONE #$ID \| .+" && break
      sleep 5
    done
    cmux read-screen --surface <ref> --scrollback --lines 40
@@ -296,8 +296,9 @@ turn.
 
    The attempt id does two jobs. The echoed prompt contains `#<attempt id>`, not the real id,
    so it can never satisfy the check. And a `TASK-DONE` line left on screen by an earlier
-   task carries a different id. Don't anchor the pattern with `^`: agents render output with
-   a leading pad or a bullet such as ⏺ or ●.
+   task carries a different id. The pattern is anchored to the start of the line but allows
+   the leading pad or bullet (⏺, ●, │) that agents render, so a restatement of the marker
+   mid-sentence or in echoed input (`> …`) never counts as completion.
 3. If the marker never appears within the bound, treat it as "possibly slow, or the model
    never got to it," not "cmux is broken" — `read-screen` to see what's actually on screen
    before deciding.
