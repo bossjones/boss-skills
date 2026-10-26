@@ -12,10 +12,10 @@ dependencies = [
     "jsonschema>=4.20.0",
     "rich>=13.0.0",
     "firecrawl-py>=1.0.0",
-    "claude-agent-sdk>=0.1.6",
+    "claude-agent-sdk>=0.2.121",
     "pyyaml>=6.0",
     "funlog>=0.2.1",
-    "pillow>=12.1.0",
+    "pillow>=13.0.0",
     "numpy>=2.4.0",
 ]
 
