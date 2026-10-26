@@ -8,82 +8,172 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
+import re
+import shutil
+import subprocess
 import sys
+from functools import lru_cache
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
-HOOKS_DIR = PLUGIN_ROOT / "hooks"
 PLUGIN_MANIFEST = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
 SETTINGS_PATHS = (Path(".claude") / "settings.local.json", Path(".claude") / "settings.json")
+DEFAULT_NAMESPACE = "boss-skills"
+_MARKETPLACE_MANIFEST = Path(".claude-plugin") / "marketplace.json"
+_NON_ALPHANUMERIC = re.compile(r"[^a-z0-9]+")
+_TOOL_HINTS = {
+    "uv": "install uv: https://docs.astral.sh/uv/",
+    "python3": "install Python 3.11+",
+    "git": "install Git: https://git-scm.com/",
+    "ruff": "install Ruff: https://docs.astral.sh/ruff/installation/",
+    "tmux": "install tmux to enable terminal-session features",
+}
 
 
-def _load_hook_module(name: str) -> ModuleType:
-    """Load a hook utility by path so this standalone skill has no package dependency."""
-    module_name = f"_agent_harness_{name}"
-    cached = sys.modules.get(module_name)
-    if isinstance(cached, ModuleType):
-        return cached
+def slug(value: str) -> str:
+    """Return a filesystem-safe, lowercase name derived from ``value``."""
+    normalized = _NON_ALPHANUMERIC.sub("-", value.lower()).strip(".-")
+    return normalized or DEFAULT_NAMESPACE
 
-    path = HOOKS_DIR / "utils" / f"{name}.py"
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Cannot load agent-harness utility: {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
+
+def namespace_from(start: Path | str) -> tuple[str, Path | None]:
+    """Return the namespace for ``start`` and the marketplace root it came from."""
+    try:
+        resolved = Path(start).resolve()
+    except OSError:
+        return DEFAULT_NAMESPACE, None
+
+    for ancestor in resolved.parents:
+        try:
+            if (ancestor / _MARKETPLACE_MANIFEST).is_file():
+                return slug(ancestor.name), ancestor
+        except OSError:
+            continue
+
+    for ancestor in resolved.parents:
+        if ancestor.parent.name == "cache" and ancestor.parent.parent.name == "plugins":
+            return slug(ancestor.name), None
+    return DEFAULT_NAMESPACE, None
+
+
+@lru_cache(maxsize=1)
+def plugin_namespace() -> str:
+    """Return the namespace for the installed copy of this plugin."""
+    return namespace_from(Path(__file__))[0]
+
+
+def namespace_source() -> Path | None:
+    """Return the marketplace root this plugin resolves its namespace from."""
+    return namespace_from(Path(__file__))[1]
+
+
+def _tool_result(name: str) -> dict[str, bool | str | None]:
+    installed = shutil.which(name) is not None
+    return {
+        "ok": installed,
+        "hint": None if installed else _TOOL_HINTS[name],
+    }
+
+
+def _gh_result() -> dict[str, bool | str | None]:
+    installed = shutil.which("gh") is not None
+    authenticated = False
+    if installed:
+        try:
+            result = subprocess.run(
+                ["gh", "auth", "status"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            authenticated = result.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            authenticated = False
+
+    if not installed:
+        hint: str | None = "install GitHub CLI: https://cli.github.com/"
+    elif not authenticated:
+        hint = "run `gh auth login` to authenticate"
+    else:
+        hint = None
+    return {"installed": installed, "authenticated": authenticated, "hint": hint}
+
+
+def check_env() -> dict[str, dict[str, bool | str | None]]:
+    """Report harness prerequisites; all results are advisory."""
+    return {
+        "uv": _tool_result("uv"),
+        "python3": _tool_result("python3"),
+        "git": _tool_result("git"),
+        "gh": _gh_result(),
+        "ruff": _tool_result("ruff"),
+        "tmux": _tool_result("tmux"),
+    }
 
 
 def _preflight() -> dict[str, dict[str, bool | str | None]]:
     """Return the shared advisory checks."""
-    check_env = getattr(_load_hook_module("preflight"), "check_env")
     return check_env()
 
 
 def _namespace() -> tuple[str, Path | None]:
     """Return the plugin-repository namespace and the marketplace root it came from."""
-    module = _load_hook_module("plugin_namespace")
-    name: str = getattr(module, "plugin_namespace")()
-    source: Path | None = getattr(module, "namespace_source")()
-    return name, source
+    return plugin_namespace(), namespace_source()
 
 
 def _legacy_project_root(repo_root: Path) -> Path:
     """Return the pre-namespace root this repository would have used."""
-    slug = getattr(_load_hook_module("plugin_namespace"), "slug")
     return repo_root / f".{slug(repo_root.name)}"
+
+
+def _project_dir(project_dir: Path | str | None = None) -> Path:
+    if project_dir is not None:
+        return Path(project_dir)
+    if configured := os.environ.get("CLAUDE_PROJECT_DIR"):
+        return Path(configured)
+    return Path.cwd()
+
+
+def _configured_path(configured: str, project: Path) -> Path:
+    path = Path(configured)
+    return path if path.is_absolute() else project / path
+
+
+def resolve_harness_root(project_dir: Path | str | None = None) -> Path:
+    """Resolve the shared harness root without creating directories."""
+    project = _project_dir(project_dir)
+    configured = (
+        os.environ.get("CLAUDE_HARNESS_DIR")
+        or os.environ.get("CLAUDE_PLUGIN_OPTION_HARNESS_DIR")
+        or os.environ.get("HARNESS_DIR")
+    )
+    if configured:
+        return _configured_path(configured, project)
+    return project / f".{plugin_namespace()}"
+
+
+def logs_root(project_dir: Path | str | None = None) -> Path:
+    """Locate residual logs, honoring the legacy ``CLAUDE_HOOKS_LOG_DIR`` override (read-only)."""
+    project = _project_dir(project_dir)
+    if configured := os.environ.get("CLAUDE_HOOKS_LOG_DIR"):
+        return _configured_path(configured, project)
+    return resolve_harness_root(project) / "logs"
+
+
+def data_dir(project_dir: Path | str | None = None) -> Path:
+    return resolve_harness_root(project_dir) / "data"
+
+
+def cache_dir(project_dir: Path | str | None = None) -> Path:
+    return resolve_harness_root(project_dir) / "cache"
 
 
 def _harness_root(repo_root: Path) -> Path:
     """Resolve the harness root through the canonical path helper."""
-    existing_utils = {
-        name: module for name, module in sys.modules.items() if name == "utils" or name.startswith("utils.")
-    }
-    try:
-        for module_name in existing_utils:
-            del sys.modules[module_name]
-        package = ModuleType("utils")
-        package.__path__ = [str(HOOKS_DIR / "utils")]
-        sys.modules["utils"] = package
-
-        path = HOOKS_DIR / "utils" / "harness_paths.py"
-        spec = importlib.util.spec_from_file_location("utils.harness_paths", path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Cannot load harness path helper: {path}")
-        module = importlib.util.module_from_spec(spec)
-        sys.modules["utils.harness_paths"] = module
-        spec.loader.exec_module(module)
-        resolve_harness_root = module.resolve_harness_root
-    finally:
-        for module_name in list(sys.modules):
-            if module_name == "utils" or module_name.startswith("utils."):
-                del sys.modules[module_name]
-        sys.modules.update(existing_utils)
     return resolve_harness_root(project_dir=repo_root)
 
 
@@ -161,7 +251,12 @@ def build_report(repo_root: Path) -> dict[str, Any]:
     """Build the complete read-only doctor report."""
     root = _harness_root(repo_root)
     namespace, namespace_source = _namespace()
-    storage = {name: directory_size(root / name) for name in ("logs", "data", "cache")}
+    storage_paths = {
+        "logs": logs_root(repo_root),
+        "data": data_dir(repo_root),
+        "cache": cache_dir(repo_root),
+    }
+    storage = {name: directory_size(path) for name, path in storage_paths.items()}
 
     stale: dict[str, Any] = {
         "logs": stale_artifact(repo_root / "logs"),

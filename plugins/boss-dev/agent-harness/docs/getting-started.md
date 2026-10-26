@@ -13,7 +13,7 @@ your first command.
 - [Step 4 — Verify it loaded](#step-4--verify-it-loaded)
 - [Step 5 — Run your first command](#step-5--run-your-first-command)
 - [Running autonomous commands (Plan mode + Opus)](#running-autonomous-commands-plan-mode--opus)
-- [Configuring runtime storage, TTS, and desktop notifications](#configuring-runtime-storage-tts-and-desktop-notifications)
+- [Configuring agent personalization and residual storage](#configuring-agent-personalization-and-residual-storage)
 - [Dependency & prerequisite matrix](#dependency--prerequisite-matrix)
 - [Second brain (obsidian-wiki) environment](#second-brain-obsidian-wiki-environment)
 - [Troubleshooting](#troubleshooting)
@@ -33,14 +33,14 @@ That is the whole happy path. Everything below explains each step and what each 
 
 ## Step 1 — Prerequisites
 
-The plugin's commands, agents, and output styles work the moment it installs. Skills, hooks, and
-status lines run small Python scripts via [`uv`](https://docs.astral.sh/uv/), so install `uv` to use
+The plugin's commands, agents, and output styles work the moment it installs. Skills and
+the status line run small Python scripts via [`uv`](https://docs.astral.sh/uv/), so install `uv` to use
 the full feature set. `gh` (the GitHub CLI) is required for the PR- and CI-oriented features.
 
 | Tool | Required for | Install |
 | --- | --- | --- |
 | [Claude Code](https://claude.ai/code) | Everything | Anthropic CLI / desktop / IDE |
-| [`uv`](https://docs.astral.sh/uv/) | Skills, hooks, status lines (any `uv run` script) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| [`uv`](https://docs.astral.sh/uv/) | Skills and the status line (any `uv run` script) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Python 3.13+ | All bundled scripts (PEP 723) | Managed automatically by `uv` |
 | `git` 2.5.0+ | Worktree skills | Preinstalled on most systems |
 | [`gh`](https://cli.github.com/) (authenticated) | PR-review skills, `fix-gh-pr-comments`, `commit-push-pr`, `debug-ci` | `brew install gh && gh auth login` |
@@ -73,10 +73,8 @@ can also point at a local checkout:
 /plugin install agent-harness@boss-skills
 ```
 
-This auto-discovers and activates the plugin's **commands**, **agents**, **skills**, **output
-styles**, and **20 hook events**. Hooks are pre-wired through `hooks/hooks.json`; a universal,
-fail-open logger writes redacted JSONL under `.{plugin-repo}/logs/<session>/<Event>.jsonl`. Status
-lines ship as a library and are opt-in — see [status-lines.md](./status-lines.md).
+This auto-discovers and activates the plugin's **commands**, **agents**, **skills**, and **output
+styles**. The status line is opt-in — see [status-lines.md](./status-lines.md).
 
 ## Step 4 — Verify it loaded
 
@@ -140,60 +138,14 @@ plan is approved into auto mode, a background classifier reviews each action and
 ones (production deploys, force-push, `curl | bash`), so you keep guardrails while skipping routine
 prompts.
 
-## Configuring runtime storage, TTS, and desktop notifications
+## Configuring agent personalization and residual storage
 
-Hook logs, session state, and cache are stored under one project-local root:
+Run `/plugin` → select **agent-harness** → **Configure** to set `ENGINEER_NAME` (used by
+[`work-completion-summary`](./agents.md#work-completion-summary)) and `ENABLE_STATUS_LINE`.
 
-```text
-.{plugin-repo}/
-├── logs/<session_id>/<Event>.jsonl
-├── data/sessions/<session_id>.json
-└── cache/
-```
-
-The root is named for the marketplace repository that ships the plugin, so the same directory
-appears in every project you work in — `.boss-skills/` for a plugin installed from the
-`boss-skills` marketplace. Configure these options in `/plugin` → **Configure** when a project
-needs a different location or retention policy:
-
-| Option | Type | Default | Effect |
-| --- | --- | --- | --- |
-| `HARNESS_DIR` | string | _(empty)_ | Optional project-relative or absolute root; empty uses `.{plugin-repo}`. |
-| `HOOKS_LOG_RETENTION_DAYS` | number | `7` | Retain log directories and cache entries for this many days. |
-| `HOOKS_LOG_RETENTION_MAX_MB` | number | `100` | Combined log/cache limit; oldest entries are evicted first. |
-
-Retention runs at `SessionEnd`. It does not age-prune live session data while the corresponding log
-directory exists. `CLAUDE_HOOKS_LOG_DIR` remains a legacy override for `logs/` only; it does not
-move `data/` or `cache/`. There is no automatic migration of old `logs/` or `.claude/data/`
-directories—run the read-only `harness-doctor` skill to identify stale artifacts before deleting
-them. `MessageDisplay` is intentionally not enabled pending a measured logger cold-start p95 against
-its 10-second budget.
-
-Several hooks and the [`work-completion-summary`](./agents.md#work-completion-summary) agent can
-speak status updates aloud. The TTS backend is **offline `pyttsx3`** — it needs **no API key**. Two
-plugin user-config options control it:
-
-| Option | Type | Default | Effect |
-| --- | --- | --- | --- |
-| `ENABLE_TTS` | boolean | `true` | Speak completion/notification messages aloud. Set to a falsy value (`0`, `false`, `no`, or `off`) to silence **all** TTS (Stop, SubagentStop, Notification). |
-| `ENGINEER_NAME` | string | _(empty)_ | Your name, used in ~30% of spoken messages. Leave blank to stay generic. |
-
-Set them either through `/plugin` → **Configure** (which writes
-`CLAUDE_PLUGIN_OPTION_ENABLE_TTS` / `CLAUDE_PLUGIN_OPTION_ENGINEER_NAME`) or as bare environment
-variables of the same name. The shared resolver at
-[`hooks/utils/config.py`](../hooks/utils/config.py) reads the `CLAUDE_PLUGIN_OPTION_<KEY>` value
-first and falls back to the bare env var, so existing `.env` / `.envrc` setups keep working.
-
-The plugin can also fire **clickable desktop notifications** that jump you back to the exact tmux
-`session:window` when the agent needs input or finishes (via
-[`tmux_notify.py`](../hooks/tmux_notify.py)). These are off by default and gated behind three more
-user-config options:
-
-| Option | Type | Default | Effect |
-| --- | --- | --- | --- |
-| `tmux_notifications` | boolean | `false` | Master switch for tmux desktop notifications. Requires `tmux` and `terminal-notifier` (macOS) or `notify-send` (Linux). |
-| `tmux_notify_activate_bundle_id` | string | `com.mitchellh.ghostty` | macOS bundle id of your terminal so the notification raises it on click (e.g. `com.googlecode.iterm2`, `dev.warp.Warp`, `com.apple.Terminal`). Blank skips activation. |
-| `tmux_notify_sound` | boolean | `false` | Play the default notification sound. Off keeps notifications silent. |
+`agent-harness` no longer ships lifecycle hooks or writes runtime logs. Residual `.boss-skills/`
+directories, repo-root `logs/`, and `.claude/data/` artifacts from earlier versions are not
+migrated or deleted automatically—run the read-only `harness-doctor` skill to inspect them.
 
 ## Dependency & prerequisite matrix
 
@@ -202,22 +154,18 @@ needs so you only install what you'll use.
 
 | Feature | Needs | Notes |
 | --- | --- | --- |
-| Commands `prime`, `question`, `all_tools`, `sentient` | Nothing beyond Claude Code | Read-only / demo |
-| Commands `plan`, `build`, `plan_w_team` | Claude Code (uv for `plan_w_team` validators) | `plan_w_team` runs Stop-hook validators via `uv` |
+| Commands `prime`, `question`, `all_tools` | Nothing beyond Claude Code | Read-only / demo |
+| Commands `plan`, `build`, `plan_w_team` | Claude Code | Planning and implementation workflows |
 | Commands `commit-push-pr`, `fix-gh-pr-comments`, `debug-ci`, `autobuild` | `gh` (authenticated), `git` | Run `gh auth login` first |
 | Command `validate-unicode-hygiene` | `uv` | Runs the repo-root unicode validator |
 | Skills — worktree suite (`git-worktree*`, `worktree-doctor`) | `git` 2.5.0+ | No network needed |
 | Skills — `fetch-diff`, `fetch-unresolved-comments`, `pr-review`, `add-review-comment` | `uv`, `gh` (or `GH_TOKEN`) | PEP 723 deps auto-resolved |
 | Skill — `release-notes-generator` | `git`, `gh` | Reads commits + PR metadata |
 | Skills — `stop-slop`, `unicode-hygiene` | Nothing (uv for the unicode scanner) | Prose hygiene / supply-chain scan |
-| Skill — `setup-second-brain` | `uv` (stdlib-only script); `node` ≥ 22 + `npm` for the optional QMD step | Installs obsidian-wiki; QMD degrades to Grep without Node — see [Second brain environment](#second-brain-obsidian-wiki-environment) |
-| Hooks — logging / guards / auto-format | `uv`; `ruff` on `PATH` or `uvx` (format hook only) | 20 events active on install via `hooks/hooks.json`; format hook runs only in projects with a ruff config |
-| Hooks — LLM agent naming / summaries | `ANTHROPIC_API_KEY` **or** `OPENAI_API_KEY` (or local Ollama) | Optional; degrades gracefully if unset |
-| Hooks / agents — TTS announcements | offline `pyttsx3` (no key), or `OPENAI_API_KEY`, or ElevenLabs | Optional; toggle with `ENABLE_TTS` via `/plugin` → Configure |
-| Hooks — tmux desktop notifications | `tmux` + `terminal-notifier` (macOS) / `notify-send` (Linux) | Off by default; enable `tmux_notifications` |
+| Skills — `setup-agent-harness`, `setup-second-brain`, `harness-doctor` | `uv` (stdlib-only scripts); `node` ≥ 22 + `npm` for the optional QMD step | `setup-second-brain` installs obsidian-wiki; QMD degrades to Grep without Node — see [Second brain environment](#second-brain-obsidian-wiki-environment) |
 | Agent — `work-completion-summary` | ElevenLabs MCP server; `ENGINEER_NAME` plugin user-config (optional) | Configure MCP separately; set name via `/plugin` → Configure |
 | Agents — `meta-agent`, `llm-ai-agents-and-eng-research` | Firecrawl MCP server | Configure MCP separately |
-| Status lines | `uv`, `python-dotenv` (auto), `statusLine` setting | Opt-in; not auto-wired |
+| Status line | `uv`, `python-dotenv` (auto), `statusLine` setting | Opt-in; not auto-wired |
 
 ## Second brain (obsidian-wiki) environment
 
@@ -252,23 +200,17 @@ back to Grep silently when they are unset. The `setup-second-brain` skill writes
 | Symptom | Fix |
 | --- | --- |
 | `/agent-harness:*` commands don't appear | Re-run `/plugin install agent-harness@boss-skills`; check `/plugin` shows it enabled. |
-| A skill or hook errors with "uv: command not found" | Install `uv` (see Step 1) and restart Claude Code. |
+| A skill errors with "uv: command not found" | Install `uv` (see Step 1) and restart Claude Code. |
 | PR/CI commands fail immediately | Run `gh auth login`; commands hard-stop if `gh auth status` fails. |
-| Python auto-format hook does nothing | By design it only runs when the project has a ruff config (`ruff.toml`, `.ruff.toml`, or `[tool.ruff]` in `pyproject.toml`) and `ruff`/`uvx` is available. Add a ruff config to opt in. |
-| TTS still speaks after you wanted silence | Set `ENABLE_TTS` to `0`/`false`/`no`/`off` (via `/plugin` → Configure or env var). |
-| LLM agent-naming / TTS silent | Optional — set `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`, or rely on the offline `pyttsx3` backend. |
+| Completion-summary agent is silent | Configure its ElevenLabs MCP server. |
 
 ## Where to go next
 
 | Doc | What's inside |
 | --- | --- |
-| [commands.md](./commands.md) | All 13 slash commands with args, when-to-use, and examples |
+| [commands.md](./commands.md) | All 16 slash commands with args, when-to-use, and examples |
 | [agents.md](./agents.md) | The 6 subagents and how the builder/validator team works |
-| [skills.md](./skills.md) | The 13 model- and explicitly-invoked skills |
-| [hooks.md](./hooks.md) | The 20 enabled lifecycle events, storage, retention, and deferred-event decisions |
-| [output-styles.md](./output-styles.md) | The 8 response output styles |
-| [status-lines.md](./status-lines.md) | The 10 status-line variants and how to wire one up |
+| [skills.md](./skills.md) | The 21 model- and explicitly-invoked skills |
+| [output-styles.md](./output-styles.md) | The 7 response output styles |
+| [status-lines.md](./status-lines.md) | The v10 status line and how to wire it up |
 | [workflows.md](./workflows.md) | End-to-end recipes that chain the pieces together |
-
-</content>
-</invoke>

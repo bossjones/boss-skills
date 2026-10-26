@@ -27,7 +27,7 @@ Full per-plugin documentation — components, install commands, and usage exampl
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.31.3 | Subagents, commands, hooks, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
+| [agent-harness](#boss-devagent-harness) | `boss-dev` | 1.0.0 | Subagents, commands, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
 | [basedpyright-lsp](#boss-devbasedpyright-lsp) | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [↗](docs/plugins/basedpyright-lsp.md) |
 | python-dev | `boss-dev` | 1.0.0 | Debug GitHub Actions CI and ship conventional-commit PRs | [↗](docs/plugins/python-dev.md) |
 | [github-pr-review](#boss-devgithub-pr-review) | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [↗](docs/plugins/github-pr-review.md) |
@@ -36,7 +36,7 @@ Full per-plugin documentation — components, install commands, and usage exampl
 
 ### boss-dev/agent-harness
 
-Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build
+Agent harness tooling for Claude Code: subagents, commands, skills, and scripts that build
 and operate agentic dev workflows. It bundles a GitHub PR-review workflow, a git-worktree
 lifecycle, and a release-notes generator, plus planning/priming/shipping commands and a roster of
 subagents.
@@ -49,12 +49,11 @@ subagents.
 
 | Component | Count | Active on install? |
 |-----------|-------|--------------------|
-| Skills | 14 | Yes |
-| Commands | 13 | Yes |
+| Skills | 21 | Yes |
+| Commands | 16 | Yes |
 | Agents | 6 | Yes |
-| Output styles | 8 | Yes |
-| Hooks | 20 events | Yes |
-| Status lines | 10 | Manual wiring |
+| Output styles | 7 | Yes |
+| Status line | 1 | Manual wiring |
 
 The planning and shipping commands chain into a single isolated feature loop:
 
@@ -74,11 +73,8 @@ flowchart LR
 /agent-harness:autobuild specs/add-json-flag.md   # run inside a git worktree
 ```
 
-The 20 enabled hook events use a universal, fail-open JSONL logger. Runtime artifacts are scoped to
-`.{plugin-repo}/` in the project (`logs/`, `data/`, and `cache/`), rather than a shared cwd-relative
-directory. `MessageDisplay` is intentionally deferred pending a measured logger cold-start p95; it
-is not enabled. See [`plugins/boss-dev/agent-harness/README.md`](plugins/boss-dev/agent-harness/README.md)
-or the [expanded docs](docs/plugins/agent-harness.md) for configuration, retention, and the full
+See [`plugins/boss-dev/agent-harness/README.md`](plugins/boss-dev/agent-harness/README.md)
+or the [expanded docs](docs/plugins/agent-harness.md) for configuration and the full
 component reference.
 
 ### boss-dev/basedpyright-lsp
@@ -321,7 +317,7 @@ PLUGIN_EVAL_SOURCE='git+https://github.com/wshobson/agents.git@<sha>#subdirector
 boss-skills/
 ├── plugins/
 │   ├── boss-dev/
-│   │   ├── agent-harness/      # subagents, commands, hooks, skills, status lines
+│   │   ├── agent-harness/      # subagents, commands, skills, output styles, status line
 │   │   ├── basedpyright-lsp/   # Python LSP integration (.lsp.json)
 │   │   └── python-dev/         # CI debugging + conventional-commit PR commands
 │   ├── boss-homelab/

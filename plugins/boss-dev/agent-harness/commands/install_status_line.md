@@ -7,10 +7,11 @@ argument-hint: "[--check|--uninstall|--restore]"
 
 ## Purpose
 
-Wire the agent-harness status line (default `status_line_v10.py` — auth badge + context bar +
-cost) into the **current project's** `.claude/settings.local.json`. That file is gitignored and the
+Wire the agent-harness status line (`status_line_v10.py` — auth badge + context bar + cost) into
+the **current project's** `.claude/settings.local.json`. That file is gitignored and the
 highest-precedence settings file, so the status line is scoped to this project and never committed.
-The write is backed up and fully reversible.
+The write is backed up and fully reversible. If an older agent-harness status-line variant is
+already installed, it is replaced with v10 (with a backup).
 
 ## Consent gate
 
@@ -24,13 +25,12 @@ This command writes a settings file, so it only proceeds once you have opted in:
 
 ## Workflow
 
-1. Resolve the variant from `CLAUDE_PLUGIN_OPTION_STATUS_LINE_VARIANT` (default `status_line_v10.py`).
-2. Parse `$ARGUMENTS` for an optional action flag: `--check`, `--uninstall`, or `--restore`
+1. Parse `$ARGUMENTS` for an optional action flag: `--check`, `--uninstall`, or `--restore`
    (no flag = install).
-3. Run the installer script with `uv run`, passing the variant and any action flag:
+2. Run the installer script with `uv run`, passing any action flag:
 
    ```bash
-   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/install_status_line.py" --variant <variant> [action]
+   uv run "${CLAUDE_PLUGIN_ROOT}/scripts/install_status_line.py" [action]
    ```
 
    - Install writes the `statusLine` block into `./.claude/settings.local.json`, backing up any
@@ -45,7 +45,7 @@ This command writes a settings file, so it only proceeds once you have opted in:
    - Add `--force` to replace/remove a third-party statusLine.
    - To install globally instead, pass `--settings ~/.claude/settings.json`.
 
-4. Report the outcome (see Report).
+3. Report the outcome (see Report).
 
 ## Report
 

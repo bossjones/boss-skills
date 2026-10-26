@@ -1,9 +1,8 @@
-"""Tests for the Snyk agent-scan integration.
+"""Tests for the Snyk agent-scan pre-commit integration.
 
 Two templates, per repo convention:
-- Pure-function tests load `hooks/utils/snyk.py` and `scripts/snyk-agent-scan.py`
-  via importlib (both have no import-time side effects beyond the module-level
-  `try/except ImportError` dotenv/utils setup already exercised elsewhere).
+- Pure-function tests load `scripts/snyk-agent-scan.py` via importlib (it has
+  no import-time side effects beyond the optional `load_dotenv()` call).
 - CLI/behavioral tests shell out via subprocess + sys.executable, mirroring
   tests/test_validate_unicode_hygiene.py.
 
@@ -16,7 +15,6 @@ inheriting the real environment, so a developer's real .env never leaks in.
 from __future__ import annotations
 
 import importlib.util
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -25,64 +23,37 @@ from types import ModuleType
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_HOOKS_DIR = REPO_ROOT / "plugins" / "boss-dev" / "agent-harness" / "hooks"
 PRECOMMIT_SCRIPT = REPO_ROOT / "scripts" / "snyk-agent-scan.py"
-SESSIONSTART_SCRIPT = PLUGIN_HOOKS_DIR / "snyk_agent_scan.py"
-SNYK_MODULE_PATH = PLUGIN_HOOKS_DIR / "utils" / "snyk.py"
 FIXTURES = REPO_ROOT / "tests" / "fixtures" / "snyk-agent-scan"
 
 
 def _load(path: Path) -> ModuleType:
-    """Load a script by path, isolating any top-level ``utils`` it pulls in.
-
-    ``scripts/snyk-agent-scan.py`` inserts ``hooks/`` onto ``sys.path`` and imports
-    ``utils.config`` / ``utils.snyk``, which caches a top-level ``utils`` namespace
-    package (``hooks/utils`` has no ``__init__.py``) in ``sys.modules`` for the rest
-    of the pytest session. Left in place, that cached ``utils`` shadows other test
-    suites with their own top-level ``utils`` module (e.g. twitter-to-reel) — see
-    ``plugins/boss-dev/agent-harness/hooks/tests/hook_loader.py`` for the same fix
-    applied to hook-module loading.
-    """
+    """Load `scripts/snyk-agent-scan.py` by path."""
     spec = importlib.util.spec_from_file_location(path.stem.replace("-", "_"), path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-
-    saved_path = list(sys.path)
-    pre_existing = set(sys.modules)
-    try:
-        spec.loader.exec_module(module)
-    finally:
-        sys.path[:] = saved_path
-        for mod_name in set(sys.modules) - pre_existing:
-            if mod_name == "utils" or mod_name.startswith("utils."):
-                del sys.modules[mod_name]
-
+    spec.loader.exec_module(module)
     return module
 
 
-snyk = _load(SNYK_MODULE_PATH)
 precommit = _load(PRECOMMIT_SCRIPT)
+snyk = precommit  # alias used by the scan-helper tests below
 
 
 def _base_env(**extra: str) -> dict[str, str]:
     """A minimal, explicit environment for subprocess tests.
 
-    The scripts under test call `load_dotenv()` with no path argument, which
+    The script under test calls `load_dotenv()` with no path argument, which
     walks up from the *script's own* location (inside this real repo) looking
     for a `.env` file — not from the subprocess `cwd` used by these tests. So a
     developer's real `.env` (with a real SNYK_TOKEN) would otherwise leak into
     every subprocess here. `load_dotenv()` defaults to `override=False`, so
-    pre-setting the *bare* var (even to "") blocks it from ever overwriting it.
-    Only bare names are pre-blocked here — a real .env can only ever populate
-    bare `SNYK_TOKEN`/`ENABLE_SNYK_AGENT_SCAN`, never the CLAUDE_PLUGIN_OPTION_*
-    forms, and `_option()` checks CLAUDE_PLUGIN_OPTION_* first, so pre-setting
-    that form too would shadow a test's deliberate bare-var override.
+    pre-setting each var (even to "") blocks it from ever overwriting it.
     """
     env = {
         "PATH": "/usr/bin:/bin:/usr/local/bin",
         "SNYK_TOKEN": "",
-        "ENABLE_SNYK_AGENT_SCAN": "",
         "SNYK_AGENT_SCAN_ENFORCE": "",
         "SNYK_AGENT_SCAN_CMD": "",
     }
@@ -91,7 +62,7 @@ def _base_env(**extra: str) -> dict[str, str]:
 
 
 # --------------------------------------------------------------------------
-# Pure-function tests: hooks/utils/snyk.py
+# Pure-function tests: scan helpers in scripts/snyk-agent-scan.py
 # --------------------------------------------------------------------------
 
 
@@ -165,26 +136,6 @@ def test_summarize_error() -> None:
 def test_summarize_skip_is_empty() -> None:
     result = snyk.ScanResult(status=snyk.ScanStatus.SKIP)
     assert snyk.summarize(result) == ""
-
-
-def test_resolve_targets(tmp_path: Path) -> None:
-    good1 = tmp_path / ".claude" / "skills" / "foo" / "SKILL.md"
-    good2 = tmp_path / "plugins" / "x" / "skills" / "y" / "SKILL.md"
-    stray = tmp_path / ".claude" / "skills" / "foo" / "README.md"
-    mcp1 = tmp_path / ".claude" / "skills" / "foo" / "mcp.json"
-    mcp2 = tmp_path / ".claude" / "skills" / "foo" / ".mcp.json"
-    fixture_skill = tmp_path / "tests" / "fixtures" / "snyk-agent-scan" / "SKILL.md"
-
-    for path in (good1, good2, stray, mcp1, mcp2, fixture_skill):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("---\nname: x\ndescription: x\n---\n")
-
-    targets = snyk.resolve_targets(tmp_path)
-    assert set(targets) == {good1, good2}
-
-
-def test_resolve_targets_empty_when_no_skills(tmp_path: Path) -> None:
-    assert snyk.resolve_targets(tmp_path) == []
 
 
 def test_parse_json_loose_clean() -> None:
@@ -376,73 +327,3 @@ def test_precommit_no_relevant_files_never_invokes_scanner(tmp_path: Path) -> No
     assert result.returncode == 0
     assert not sentinel.exists()
 
-
-# --------------------------------------------------------------------------
-# CLI/behavioral tests: hooks/snyk_agent_scan.py (SessionStart wrapper)
-# --------------------------------------------------------------------------
-
-
-def _run_sessionstart(tmp_path: Path, **extra_env: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, str(SESSIONSTART_SCRIPT)],
-        input=json.dumps({"session_id": "x", "source": "startup"}),
-        capture_output=True,
-        text=True,
-        cwd=tmp_path,
-        env=_base_env(**extra_env),
-        check=False,
-    )
-
-
-def test_sessionstart_disabled_emits_nothing(tmp_path: Path) -> None:
-    _skill_file(tmp_path)
-    result = _run_sessionstart(tmp_path, SNYK_TOKEN="fake-token")
-    assert result.returncode == 0
-    assert result.stdout.strip() == ""
-
-
-def test_sessionstart_emits_additional_context_on_findings(tmp_path: Path) -> None:
-    _skill_file(tmp_path)
-    result = _run_sessionstart(
-        tmp_path,
-        ENABLE_SNYK_AGENT_SCAN="1",
-        SNYK_TOKEN="fake-token",
-        SNYK_AGENT_SCAN_CMD=f"{sys.executable} {FIXTURES / 'fake_scanner_high.py'}",
-    )
-    assert result.returncode == 0
-    payload = json.loads(result.stdout)
-    assert payload["hookSpecificOutput"]["hookEventName"] == "SessionStart"
-    assert "High" in payload["hookSpecificOutput"]["additionalContext"]
-
-
-def test_sessionstart_clean_scan_emits_nothing(tmp_path: Path) -> None:
-    _skill_file(tmp_path)
-    result = _run_sessionstart(
-        tmp_path,
-        ENABLE_SNYK_AGENT_SCAN="1",
-        SNYK_TOKEN="fake-token",
-        SNYK_AGENT_SCAN_CMD=f"{sys.executable} {FIXTURES / 'fake_scanner_clean.py'}",
-    )
-    assert result.returncode == 0
-    assert result.stdout.strip() == ""
-
-
-def test_sessionstart_throttles_repeat_scans(tmp_path: Path) -> None:
-    _skill_file(tmp_path)
-    sentinel = tmp_path / "sentinel"
-    env = {
-        "ENABLE_SNYK_AGENT_SCAN": "1",
-        "SNYK_TOKEN": "fake-token",
-        "SNYK_AGENT_SCAN_CMD": f"{sys.executable} {FIXTURES / 'fake_scanner_sentinel.py'}",
-        "FAKE_SCANNER_SENTINEL": str(sentinel),
-    }
-    first = _run_sessionstart(tmp_path, **env)
-    assert first.returncode == 0
-    assert sentinel.exists()  # scanner really ran the first time
-    assert list(tmp_path.glob(".*/cache/snyk/*.json"))
-    assert not (tmp_path / "logs").exists()
-
-    sentinel.unlink()
-    second = _run_sessionstart(tmp_path, **env)
-    assert second.returncode == 0
-    assert not sentinel.exists()  # throttled — scanner did not run again

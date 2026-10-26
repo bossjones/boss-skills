@@ -22,6 +22,9 @@ runner, `curl`, a build command, a smoke script).
 - Finish by printing exactly one of:
 
   ```
-  TASK-DONE: test | PASS — <criteria> all green (<evidence>)
-  TASK-DONE: test | FAIL — <which criterion> failed: <evidence for the responsible builder>
+  TASK-DONE: test #<attempt-id> | PASS — <criteria> all green (<evidence>)
+  TASK-DONE: test #<attempt-id> | FAIL — <which criterion> failed: <evidence for the responsible builder>
   ```
+
+  `<attempt-id>` is the attempt id in the lead's task message; copy it verbatim. If the task
+  message has no attempt id, leave out the ` #<attempt-id>` part.
