@@ -36,7 +36,6 @@ Sixteen slash commands under `commands/*.md`, auto-discovered on `/plugin instal
   - [`validate-unicode-hygiene`](#validate-unicode-hygiene)
 - [Status line](#status-line)
   - [`install_status_line`](#install_status_line)
-  - [`update_status_line`](#update_status_line)
 - [Documentation](#documentation)
   - [`docs-tutorial`](#docs-tutorial)
 - [cmux orchestration](#cmux-orchestration)
@@ -60,7 +59,6 @@ Sixteen slash commands under `commands/*.md`, auto-discovered on `/plugin instal
 | [`debug-ci`](#debug-ci) | `[run ID]` | Diagnose and fix a failing GitHub Actions run | `gh` |
 | [`validate-unicode-hygiene`](#validate-unicode-hygiene) | `[paths...] [--strict] [--warn-only]` | Scan files for invisible / spoofed Unicode | `uv` |
 | [`install_status_line`](#install_status_line) | `[--check\|--uninstall\|--restore]` | Install the status line into `.claude/settings.local.json` (backed up, reversible) | `uv` |
-| [`update_status_line`](#update_status_line) | `<session_id> <key> <value>` | Write custom data into a session status line | — |
 | [`docs-tutorial`](#docs-tutorial) | `[what to document]` | Generate a tutorial/doc via the right tutorial-engineer subagent | — |
 | [`cmux-fresh`](#cmux-fresh) | — | Clear cmux's saved session so it boots blank | cmux (macOS) |
 | [`cmux-spawn-team`](#cmux-spawn-team) | `[team-name] [feature...] [--config PATH]` | Boot a multi-agent team as a cmux workspace | `uv`, cmux (macOS) |
@@ -343,27 +341,6 @@ fails.
 - **Source:** [`commands/install_status_line.md`](../commands/install_status_line.md) · pairs with
   [status-lines.md](./status-lines.md)
 
-### `update_status_line`
-
-> Upsert a key/value pair into a session's status-line data file.
-
-- **Arguments:** `<session_id> <key> <value>`.
-- **When to use:** You want a custom field (project name, current status, ticket) to show up in a
-  status line that renders the `extras` object.
-- **What it does:** Loads
-  `.{plugin-repo}/data/sessions/{session_id}.json`, creates an `extras` object if needed, upserts
-  `extras[key] = value`, and writes it back — then reports old/new values and the file path. The
-  harness root sits in the project directory (or wherever `HARNESS_DIR` points), not cwd-relative,
-  and is named for the plugin's marketplace repository.
-- **Example:**
-
-  ```text
-  /agent-harness:update_status_line 4c932bd7-ee06-46e3-b26b-f32f52cc0862 status debugging
-  ```
-
-- **Source:** [`commands/update_status_line.md`](../commands/update_status_line.md) · pairs with
-  [status-lines.md](./status-lines.md)
-
 ---
 
 ## Documentation
@@ -443,4 +420,3 @@ walkthrough, see the [cmux tutorial](./cmux-tutorial.md).
   workspace name, rediscovers current surface refs, confirms the workers reported ready, and drives
   only the lead.
 - **Source:** [`commands/cmux-did-spawn.md`](../commands/cmux-did-spawn.md)
-</content>

@@ -1,12 +1,12 @@
 # agent-harness
 
-> `boss-dev` · v0.33.0 · [plugin source](../../plugins/boss-dev/agent-harness/)
+> `boss-dev` · v1.0.0 · [plugin source](../../plugins/boss-dev/agent-harness/)
 
 Agent harness tooling for Claude Code: subagents, commands, skills, and scripts that
 build and operate agentic dev workflows. The plugin ships several families of skills — a
 GitHub PR-review workflow, a git-worktree lifecycle, and a release-notes generator —
 alongside planning, priming, and shipping commands, a roster of subagents, and a library of
-output styles and status lines.
+output styles and an opt-in status line.
 
 ## Installation
 
@@ -19,11 +19,11 @@ output styles and status lines.
 
 | Component | Count | Active on install? |
 |-----------|-------|--------------------|
-| Skills | 20 | Yes |
+| Skills | 21 | Yes |
 | Commands | 16 | Yes |
 | Agents | 6 | Yes |
 | Output styles | 7 | Yes |
-| Status lines | 10 | Manual wiring |
+| Status line | 1 | Manual wiring |
 
 ## Skills
 
@@ -86,7 +86,6 @@ Sixteen slash commands, namespaced `/agent-harness:<command>`.
 | `/agent-harness:fix-gh-pr-comments` | Triage unresolved PR review comments, apply fixes, push, reply to and resolve each thread, and poll for new ones (≤ 3 cycles). |
 | `/agent-harness:debug-ci` | Diagnose a failed GitHub Actions run, fix locally, push, and poll the new run until green (≤ 3 cycles). |
 | `/agent-harness:install_status_line` | Install the status line into `.claude/settings.local.json` (backed up, reversible). |
-| `/agent-harness:update_status_line` | Upsert a key/value pair into a session's status-line data file. |
 | `/agent-harness:all_tools` | List every tool in the system prompt as TypeScript signatures with each tool's purpose. |
 | `/agent-harness:validate-unicode-hygiene` | Scan files for invisible or visually-spoofed Unicode. |
 | `/agent-harness:docs-tutorial` | Generate a tutorial/doc via the right tutorial-engineer subagent. |
@@ -213,11 +212,11 @@ Generate release notes for the commits since v0.1.0.
 `release-notes-generator` categorizes the commits and emits a `CHANGELOG.md` section, a PR
 body, and a Slack announcement.
 
-## Status lines
+## Status line
 
-Status lines are opt-in: set `statusLine` to a script under `status_lines/`, or run
-`/agent-harness:install_status_line`. Status lines and `/agent-harness:update_status_line` read
-session state from `.{plugin-repo}/data/sessions/<session>.json`.
+The status line is opt-in: run `/agent-harness:install_status_line`, or set `statusLine` to
+`status_lines/status_line_v10.py`. See the
+[status-lines reference](../../plugins/boss-dev/agent-harness/docs/status-lines.md).
 
 ## See also
 

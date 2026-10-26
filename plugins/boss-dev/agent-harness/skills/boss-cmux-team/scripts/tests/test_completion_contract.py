@@ -19,8 +19,9 @@ def _bash(script: str, stdin: str = "") -> subprocess.CompletedProcess[str]:
 
 def _documented_pattern() -> str:
     """The exact double-quoted ``grep -Eq`` pattern from the lead's wait loop."""
-    match = re.search(r'grep -Eq "(\^TASK-DONE: build-be [^"]+)"', LEAD)
+    match = re.search(r'grep -Eq "(TASK-DONE: build-be [^"]+)"', LEAD)
     assert match, "wait-loop grep pattern not found in lead.md"
+    assert not match.group(1).startswith("^"), "agents render output indented or bulleted"
     return match.group(1)
 
 
@@ -55,6 +56,19 @@ def test_marker_for_the_current_attempt_completes_the_wait() -> None:
 
 def test_marker_without_an_attempt_id_never_matches() -> None:
     assert not _matches("TASK-DONE: build-be | shipped\n", "1700000090-222")
+
+
+@pytest.mark.parametrize("prefix", [" ", "  ", "⏺ ", "● ", "│ "])
+def test_marker_rendered_with_agent_prefix_still_matches(prefix: str) -> None:
+    """pi pads assistant text, Claude Code prefixes ``⏺ ``, Copilot CLI prefixes ``● ``."""
+    screen = f"{prefix}TASK-DONE: build-be #1700000090-222 | shipped /health, verified with curl\n"
+    assert _matches(screen, "1700000090-222")
+
+
+def test_wait_loop_reads_enough_lines_to_see_the_marker() -> None:
+    match = re.search(r'read-screen --surface "<ref>" --lines (\d+) \| grep -Eq', LEAD)
+    assert match, "wait-loop read-screen not found in lead.md"
+    assert int(match.group(1)) >= 20
 
 
 def test_marker_from_another_worker_with_the_same_id_does_not_match() -> None:

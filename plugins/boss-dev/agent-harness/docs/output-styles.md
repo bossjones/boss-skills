@@ -40,4 +40,3 @@ Styles persist for the session. Switch back with `/output-style default` (the bu
 | Side-by-side comparisons and checklists | `table-based` |
 | Output another program will parse | `yaml-structured` or `html-structured` |
 | A shareable rendered page | `genui` |
-</content>

@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-harness",
   "displayName": "Agent Harness",
-  "version": "0.33.0",
+  "version": "1.0.0",
   "description": "Agent harness tooling for Claude Code: subagents, commands, skills, and scripts that build and operate agentic dev workflows.",
   "author": {
     "name": "Malcolm Jones",
@@ -36,13 +36,6 @@
       "title": "Enable the agent-harness status line",
       "description": "Authorize /agent-harness:install_status_line to write this project's .claude/settings.local.json (gitignored, backed up first). Off by default; --restore reverts. Nothing is written unattended.",
       "default": false,
-      "required": false
-    },
-    "STATUS_LINE_VARIANT": {
-      "type": "string",
-      "title": "Status-line variant",
-      "description": "Which status_lines/ script to install. Any filename from the plugin's status_lines/ directory is valid (e.g. status_line_v6.py, status_line_v9.py). Defaults to status_line_v10.py (auth badge + context bar + cost).",
-      "default": "status_line_v10.py",
       "required": false
     }
   }

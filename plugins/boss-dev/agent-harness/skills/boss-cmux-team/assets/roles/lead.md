@@ -76,7 +76,7 @@ ID="$(date +%s)-$RANDOM"   # fresh for every dispatch, including retries
 cmux send --surface "<ref>" "<one-line task>. Attempt id: $ID. When finished, use the completion contract from your role instructions."
 cmux send-key --surface "<ref>" enter
 for i in $(seq 1 60); do
-  cmux read-screen --surface "<ref>" --lines 5 | grep -Eq "^TASK-DONE: build-be #$ID \| .+" && break
+  cmux read-screen --surface "<ref>" --lines 40 | grep -Eq "TASK-DONE: build-be #$ID \| .+" && break
   sleep 5
 done
 cmux read-screen --surface "<ref>" --scrollback --lines 80 | tail -30

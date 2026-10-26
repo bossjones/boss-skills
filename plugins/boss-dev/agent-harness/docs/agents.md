@@ -122,4 +122,3 @@ The planning command acts as team lead and deploys them as `agent-harness:team:b
 Claude Code ignores `mcpServers` frontmatter on plugin-shipped agents for security. MCP-dependent
 agents (`meta-agent`, `llm-ai-agents-and-eng-research`, `work-completion-summary`) need their MCP
 servers (Firecrawl, ElevenLabs) configured in your own settings.
-</content>

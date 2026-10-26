@@ -61,7 +61,7 @@ Current skills:
 ### Agent-harness runtime storage
 
 The `agent-harness` plugin no longer ships lifecycle hooks (`hooks/hooks.json` was removed in
-v0.33.0). Residual `.{plugin-repo}/` directories (`.boss-skills/` here), repo-root `logs/`, and
+v1.0.0). Residual `.{plugin-repo}/` directories (`.boss-skills/` here), repo-root `logs/`, and
 `.claude/data/` artifacts from earlier versions are not migrated or deleted automatically:
 `harness-doctor` reports them as stale artifacts for user review.
 

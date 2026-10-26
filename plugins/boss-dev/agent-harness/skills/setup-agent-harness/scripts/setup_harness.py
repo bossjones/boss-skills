@@ -164,7 +164,7 @@ def _plugin_namespace() -> str:
 
 
 def gitignore_patterns() -> list[str]:
-    """Return managed ignores for the harness runtime artifacts written here."""
+    """Return managed ignores for legacy runtime artifacts and this script's backups."""
     return [
         f".{_plugin_namespace()}/",
         "*.log",

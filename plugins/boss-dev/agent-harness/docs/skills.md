@@ -13,6 +13,7 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
   - [`fetch-unresolved-comments`](#fetch-unresolved-comments)
   - [`pr-review`](#pr-review)
   - [`add-review-comment`](#add-review-comment)
+  - [`github-pr-review`](#github-pr-review)
 - [Git worktree lifecycle](#git-worktree-lifecycle)
   - [`git-worktree`](#git-worktree)
   - [`git-worktree-status`](#git-worktree-status)
@@ -26,6 +27,8 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
   - [`unicode-hygiene`](#unicode-hygiene)
 - [Machine setup](#machine-setup)
   - [`setup-second-brain`](#setup-second-brain)
+  - [`setup-agent-harness`](#setup-agent-harness)
+  - [`harness-doctor`](#harness-doctor)
 - [Type checking](#type-checking)
   - [`pyrefly-typing`](#pyrefly-typing)
 - [cmux orchestration](#cmux-orchestration)
@@ -45,6 +48,7 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 | [`fetch-unresolved-comments`](#fetch-unresolved-comments) | model-invoked | Get only open PR review threads | `uv`, `gh` |
 | [`pr-review`](#pr-review) | explicit | Full PR review → local payload (no posting) | `uv`, `gh` |
 | [`add-review-comment`](#add-review-comment) | model-invoked | Post one inline comment to a PR line | `gh` |
+| [`github-pr-review`](#github-pr-review) | model-invoked | Pending review with batched comments and code suggestions | `gh` |
 | [`git-worktree`](#git-worktree) | explicit | Start a feature in an isolated worktree | `git` 2.5+ |
 | [`git-worktree-status`](#git-worktree-status) | explicit | Non-blocking worktree health check | `git` |
 | [`git-worktree-clean`](#git-worktree-clean) | explicit | Batch-clean stale/merged worktrees | `git` |
@@ -53,6 +57,8 @@ for it by name, e.g. "use the git-worktree skill", or `/agent-harness:<name>`).
 | [`release-notes-generator`](#release-notes-generator) | model-invoked | Draft changelog/PR/Slack notes | `git`, `gh` |
 | [`stop-slop`](#stop-slop) | model-invoked | Strip AI writing patterns from prose | — |
 | [`unicode-hygiene`](#unicode-hygiene) | model-invoked | Scan files for invisible / spoofed Unicode | `uv` |
+| [`setup-agent-harness`](#setup-agent-harness) | explicit | Make a repo agent-harness ready (`.gitignore` + `settings.local.json`) | `uv` |
+| [`harness-doctor`](#harness-doctor) | explicit | Read-only environment check and residual-artifact report | `uv` |
 | [`setup-second-brain`](#setup-second-brain) | explicit | Install/configure obsidian-wiki + optional QMD semantic search | `uv`, `node`≥22 for QMD |
 | [`pyrefly-typing`](#pyrefly-typing) | explicit | Adopt Pyrefly into a *target* repo as a non-blocking typing feedback loop | `uv` |
 | [`boss-security-review`](#boss-security-review) | model-invoked | Security-review changed code (or a path/whole repo) → severity-graded report | `git` |
@@ -144,6 +150,17 @@ chain with [`fix-gh-pr-comments`](./commands.md#fix-gh-pr-comments).
   added/modified, LEFT for deleted), optional `start_line`/`start_side` for ranges, and `commit_id`.
   Comments end with `🤖 Generated with Claude`.
 - **Source:** [`skills/add-review-comment/SKILL.md`](../skills/add-review-comment/SKILL.md)
+
+### `github-pr-review`
+
+> Review a GitHub PR with a pending review, batched inline comments, and one-click code suggestions.
+
+- **When to use:** You want the review submitted to GitHub (unlike [`pr-review`](#pr-review), which
+  only writes a local payload), with comments batched into one pending review and an explicit
+  `COMMENT` / `APPROVE` / `REQUEST_CHANGES` decision.
+- **What it does:** Uses `gh api` to create a pending review, add inline comments and `suggestion`
+  blocks, then submits it with the chosen event type after you confirm.
+- **Source:** [`skills/github-pr-review/SKILL.md`](../skills/github-pr-review/SKILL.md)
 
 ---
 
@@ -368,6 +385,31 @@ QMD_CLI_SEARCH_MODE="quality"
 See [Second brain (obsidian-wiki) environment](./getting-started.md#second-brain-obsidian-wiki-environment)
 for the full `OBSIDIAN_*`/`QMD_*` variable tables.
 
+### `setup-agent-harness`
+
+> Make a repo "agent-harness ready" by safely updating `.gitignore` and `.claude/settings.local.json`.
+
+- **Invocation:** explicit (`disable-model-invocation: true`). Arguments: `[--apply | --dry-run]`.
+- **When to use:** Onboarding a repo to the plugin: ignore legacy runtime-artifact paths and the
+  backups this skill creates, and optionally set the `statusLine`, an `outputStyle`, and the
+  `enabledPlugins` entry in the **per-user, git-ignored** `settings.local.json`.
+- **What it does:** Drives a stdlib-only script (`scripts/setup_harness.py`) with `detect` (read-only
+  JSON) and `apply` (backup → edit → validate; `--dry-run` returns a unified diff per file).
+- **Source:** [`skills/setup-agent-harness/SKILL.md`](../skills/setup-agent-harness/SKILL.md)
+
+### `harness-doctor`
+
+> Strictly read-only environment check and residual runtime-artifact report.
+
+- **Invocation:** explicit (`disable-model-invocation: true`) — `/agent-harness:harness-doctor`.
+- **When to use:** Checking tool readiness (`uv`, `python3`, `git`, `gh`, `ruff`, `tmux`), seeing which
+  agent-harness plugin is enabled, or finding leftover `logs/`, `data/`, and `cache/` artifacts from
+  versions that shipped lifecycle hooks.
+- **What it does:** Runs a stdlib-only script that reports file counts and sizes under the
+  plugin-namespaced root (`.<marketplace>/`), repo-root `logs/`, and `.claude/data/`. It never
+  creates, migrates, or deletes files.
+- **Source:** [`skills/harness-doctor/SKILL.md`](../skills/harness-doctor/SKILL.md)
+
 ---
 
 ## Type checking
@@ -533,4 +575,3 @@ with cmux installed. New to cmux? Start with the hands-on [cmux tutorial](./cmux
   plans still save correctly with their `{{...IMAGE}}` slots left as placeholder comments.
 
 `${CLAUDE_SKILL_DIR}` in the examples is set by Claude Code to the skill's own directory at runtime.
-</content>

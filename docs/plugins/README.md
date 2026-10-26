@@ -51,7 +51,7 @@ after the marketplace changes:
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| agent-harness | `boss-dev` | 0.33.0 | Subagents, commands, and skills for agentic dev workflows | [agent-harness.md](agent-harness.md) |
+| agent-harness | `boss-dev` | 1.0.0 | Subagents, commands, and skills for agentic dev workflows | [agent-harness.md](agent-harness.md) |
 | basedpyright-lsp | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [basedpyright-lsp.md](basedpyright-lsp.md) |
 | python-dev | `boss-dev` | 1.0.0 | Debug GitHub Actions CI and ship conventional-commit PRs | [python-dev.md](python-dev.md) |
 | github-pr-review | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [github-pr-review.md](github-pr-review.md) |
@@ -63,7 +63,7 @@ after the marketplace changes:
 ```text
 plugins/
 ├── boss-dev/
-│   ├── agent-harness/      # 20 skills, 16 commands, 6 agents, output styles + status lines
+│   ├── agent-harness/      # 21 skills, 16 commands, 6 agents, 7 output styles, 1 status line
 │   ├── basedpyright-lsp/   # LSP integration (.lsp.json)
 │   └── python-dev/         # 2 commands
 ├── boss-homelab/

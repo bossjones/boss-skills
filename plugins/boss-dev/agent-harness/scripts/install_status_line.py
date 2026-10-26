@@ -34,7 +34,6 @@ Usage:
     install_status_line.py --check             # dry run: print the plan, exit 1 on FOREIGN
     install_status_line.py --uninstall         # remove only our block
     install_status_line.py --restore           # revert the target to its pre-install state
-    install_status_line.py --variant status_line_v6.py
     install_status_line.py --settings ~/.claude/settings.json   # manual global install
 
 Exit codes: 0 success/no-op, non-zero on a refused or aborted write.

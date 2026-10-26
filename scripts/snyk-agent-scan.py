@@ -58,20 +58,10 @@ _SEVERITY_ALIASES: dict[str, str] = {
 
 DEFAULT_CMD: tuple[str, ...] = ("uvx", "snyk-agent-scan@latest")
 
-# Only SKILL.md files are meaningful scan targets — see module docstring.
-TARGET_GLOBS: tuple[str, ...] = (
-    "plugins/**/skills/**/SKILL.md",
-    ".claude/skills/**/SKILL.md",
-)
-
-# Belt-and-suspenders: never scan MCP server config, even if a future glob edit
-# loosens a pattern to also match these. Scanning MCP configs can launch stdio
+# Belt-and-suspenders: never scan MCP server config, even if a future path-filter
+# edit loosens TARGET_RE to also match these. Scanning MCP configs can launch stdio
 # MCP servers, which this integration must never do.
 EXCLUDE_NAMES: frozenset[str] = frozenset({"mcp.json", ".mcp.json"})
-
-# Don't let test fixtures (some of which are deliberately malicious, to exercise the
-# scanner) get swept into a default project-wide scan.
-EXCLUDE_DIR_PREFIXES: tuple[str, ...] = ("tests/fixtures/",)
 
 
 class ScanStatus(Enum):
@@ -98,36 +88,10 @@ class ScanResult:
     error: str | None = None
     targets: list[Path] = field(default_factory=list)
 
-    @property
-    def ok(self) -> bool:
-        return self.status is ScanStatus.OK
-
-    @property
-    def skipped(self) -> bool:
-        return self.status is ScanStatus.SKIP
-
 
 def snyk_token() -> str:
-    """Return the configured Snyk token, or an empty string."""
-    return (os.environ.get("CLAUDE_PLUGIN_OPTION_SNYK_TOKEN") or os.environ.get("SNYK_TOKEN") or "").strip()
-
-
-def resolve_targets(root: Path) -> list[Path]:
-    """Return SKILL.md files under ``root``, excluding MCP configs and test fixtures."""
-    seen: set[Path] = set()
-    targets: list[Path] = []
-    for pattern in TARGET_GLOBS:
-        for path in sorted(root.glob(pattern)):
-            if not path.is_file() or path.name in EXCLUDE_NAMES:
-                continue
-            rel = path.relative_to(root).as_posix()
-            if any(rel.startswith(prefix) for prefix in EXCLUDE_DIR_PREFIXES):
-                continue
-            if path in seen:
-                continue
-            seen.add(path)
-            targets.append(path)
-    return targets
+    """Return the configured Snyk token (``SNYK_TOKEN``), or an empty string."""
+    return (os.environ.get("SNYK_TOKEN") or "").strip()
 
 
 def _resolve_cmd(cmd_override: Sequence[str] | None) -> list[str]:

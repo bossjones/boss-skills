@@ -34,13 +34,13 @@ That is the whole happy path. Everything below explains each step and what each 
 ## Step 1 — Prerequisites
 
 The plugin's commands, agents, and output styles work the moment it installs. Skills and
-status lines run small Python scripts via [`uv`](https://docs.astral.sh/uv/), so install `uv` to use
+the status line run small Python scripts via [`uv`](https://docs.astral.sh/uv/), so install `uv` to use
 the full feature set. `gh` (the GitHub CLI) is required for the PR- and CI-oriented features.
 
 | Tool | Required for | Install |
 | --- | --- | --- |
 | [Claude Code](https://claude.ai/code) | Everything | Anthropic CLI / desktop / IDE |
-| [`uv`](https://docs.astral.sh/uv/) | Skills and status lines (any `uv run` script) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| [`uv`](https://docs.astral.sh/uv/) | Skills and the status line (any `uv run` script) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Python 3.13+ | All bundled scripts (PEP 723) | Managed automatically by `uv` |
 | `git` 2.5.0+ | Worktree skills | Preinstalled on most systems |
 | [`gh`](https://cli.github.com/) (authenticated) | PR-review skills, `fix-gh-pr-comments`, `commit-push-pr`, `debug-ci` | `brew install gh && gh auth login` |
@@ -74,7 +74,7 @@ can also point at a local checkout:
 ```
 
 This auto-discovers and activates the plugin's **commands**, **agents**, **skills**, and **output
-styles**. Status lines ship as a library and are opt-in — see [status-lines.md](./status-lines.md).
+styles**. The status line is opt-in — see [status-lines.md](./status-lines.md).
 
 ## Step 4 — Verify it loaded
 
@@ -141,8 +141,7 @@ prompts.
 ## Configuring agent personalization and residual storage
 
 Run `/plugin` → select **agent-harness** → **Configure** to set `ENGINEER_NAME` (used by
-[`work-completion-summary`](./agents.md#work-completion-summary)), `ENABLE_STATUS_LINE`, and
-`STATUS_LINE_VARIANT`.
+[`work-completion-summary`](./agents.md#work-completion-summary)) and `ENABLE_STATUS_LINE`.
 
 `agent-harness` no longer ships lifecycle hooks or writes runtime logs. Residual `.boss-skills/`
 directories, repo-root `logs/`, and `.claude/data/` artifacts from earlier versions are not
@@ -166,7 +165,7 @@ needs so you only install what you'll use.
 | Skills — `setup-agent-harness`, `setup-second-brain`, `harness-doctor` | `uv` (stdlib-only scripts); `node` ≥ 22 + `npm` for the optional QMD step | `setup-second-brain` installs obsidian-wiki; QMD degrades to Grep without Node — see [Second brain environment](#second-brain-obsidian-wiki-environment) |
 | Agent — `work-completion-summary` | ElevenLabs MCP server; `ENGINEER_NAME` plugin user-config (optional) | Configure MCP separately; set name via `/plugin` → Configure |
 | Agents — `meta-agent`, `llm-ai-agents-and-eng-research` | Firecrawl MCP server | Configure MCP separately |
-| Status lines | `uv`, `python-dotenv` (auto), `statusLine` setting | Opt-in; not auto-wired |
+| Status line | `uv`, `python-dotenv` (auto), `statusLine` setting | Opt-in; not auto-wired |
 
 ## Second brain (obsidian-wiki) environment
 
@@ -211,10 +210,7 @@ back to Grep silently when they are unset. The `setup-second-brain` skill writes
 | --- | --- |
 | [commands.md](./commands.md) | All 16 slash commands with args, when-to-use, and examples |
 | [agents.md](./agents.md) | The 6 subagents and how the builder/validator team works |
-| [skills.md](./skills.md) | The 20 model- and explicitly-invoked skills |
+| [skills.md](./skills.md) | The 21 model- and explicitly-invoked skills |
 | [output-styles.md](./output-styles.md) | The 7 response output styles |
-| [status-lines.md](./status-lines.md) | The 10 status-line variants and how to wire one up |
+| [status-lines.md](./status-lines.md) | The v10 status line and how to wire it up |
 | [workflows.md](./workflows.md) | End-to-end recipes that chain the pieces together |
-
-</content>
-</invoke>

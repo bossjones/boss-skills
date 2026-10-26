@@ -113,8 +113,8 @@ cmux workspace create --name <name> --cwd <dir> --env-file .env --json
   present without revealing it, and `[ -n "$VAR" ]` confirms it is non-empty.
   Report the masked/presence result, never the secret itself.
 - **Define completion before sending a prompt.** Tell the agent to end with one
-  distinctive line, such as `TASK-DONE: <summary>`, so completion can be checked
-  consistently across supported terminal agents.
+  distinctive, attempt-correlated line, such as `TASK-DONE #<attempt id> | <summary>`, so
+  completion can be checked consistently across supported terminal agents.
 
 ### The control loop
 
@@ -130,18 +130,25 @@ You operate surfaces the way a person would, but over the CLI:
 Use the same completion contract for Copilot CLI, Codex, Claude Code, and other
 terminal agents:
 
-1. Tell the agent, in its prompt, to end with one distinctive line when truly done,
-   e.g. `TASK-DONE: <summary>`.
-2. Check `read-screen` for that marker on a bounded interval:
+1. Give the dispatch a fresh attempt id and tell the agent, in its prompt, to end with one
+   distinctive line containing it when truly done.
+2. Check `read-screen` for that exact marker on a bounded interval:
 
    ```bash
+   ID="$(date +%s)-$RANDOM"   # fresh for every dispatch, including retries
+   cmux send --surface <ref> "<task>. Attempt id: $ID. When done, print one line: TASK-DONE #<attempt id> | <summary>"
+   cmux send-key --surface <ref> enter
    for i in $(seq 1 60); do
-     cmux read-screen --surface <ref> --lines 5 | grep -q "TASK-DONE:" && break
+     cmux read-screen --surface <ref> --lines 40 | grep -Eq "TASK-DONE #$ID \| .+" && break
      sleep 5
    done
    cmux read-screen --surface <ref> --scrollback --lines 40
    ```
 
+   The attempt id does two jobs. The echoed prompt contains `#<attempt id>`, not the real id,
+   so it can never satisfy the check. And a `TASK-DONE` line left on screen by an earlier
+   task carries a different id. Don't anchor the pattern with `^`: agents render output with
+   a leading pad or a bullet such as ⏺ or ●.
 3. If the marker never appears within the bound, treat it as "possibly slow, or the
    model never got to it," not "cmux is broken" — `read-screen` to see what's
    actually on screen before deciding.

@@ -108,9 +108,12 @@ def test_plan_current_when_identical() -> None:
     assert isl.plan({"statusLine": dict(desired)}, desired).kind == isl.CURRENT
 
 
-def test_plan_replace_ours_when_different_variant() -> None:
-    settings = {"statusLine": _desired("status_line_v6.py")}
-    assert isl.plan(settings, _desired("status_line_v10.py")).kind == isl.REPLACE_OURS
+def test_plan_replace_ours_when_legacy_variant_installed() -> None:
+    """A previously installed, since-removed variant (v1-v9) is still recognized as ours."""
+    legacy = _desired().copy()
+    legacy["command"] = legacy["command"].replace("status_line_v10.py", "status_line_v6.py")
+    settings = {"statusLine": legacy}
+    assert isl.plan(settings, _desired()).kind == isl.REPLACE_OURS
 
 
 def test_plan_foreign_when_third_party() -> None:

@@ -50,10 +50,10 @@ this skill.
 - Missing `uv`, `python3`, `git`, `gh`, `ruff`, or `tmux` is advisory. Explain
   the affected capability and its reported hint.
 - If GitHub CLI is installed but unauthenticated, suggest `$ gh auth login`.
-- If the resolved root is unexpected, inspect `CLAUDE_HARNESS_DIR` and
-  `CLAUDE_PLUGIN_OPTION_HARNESS_DIR`; `CLAUDE_HOOKS_LOG_DIR` only overrides
-  the logs subtree. A `namespace_source` of `null` means no marketplace
-  manifest was found above the plugin, so the root falls back to
-  `.agent-harness`.
+- If the resolved root is unexpected, inspect the `CLAUDE_HARNESS_DIR`,
+  `HARNESS_DIR`, and `CLAUDE_PLUGIN_OPTION_HARNESS_DIR` overrides that older
+  versions honored; `CLAUDE_HOOKS_LOG_DIR` only overrides the logs subtree. A
+  `namespace_source` of `null` means no marketplace manifest was found above the
+  plugin, so the root falls back to `.boss-skills`.
 - Use `/setup-agent-harness` only when the user wants to update repository
   settings or the managed `.gitignore` block.

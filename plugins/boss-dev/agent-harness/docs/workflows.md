@@ -137,4 +137,3 @@ When the PR's CI goes red:
 ```
 
 See [`debug-ci`](./commands.md#debug-ci).
-</content>

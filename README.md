@@ -27,7 +27,7 @@ Full per-plugin documentation — components, install commands, and usage exampl
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| [agent-harness](#boss-devagent-harness) | `boss-dev` | 0.33.0 | Subagents, commands, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
+| [agent-harness](#boss-devagent-harness) | `boss-dev` | 1.0.0 | Subagents, commands, and skills for agentic dev workflows | [↗](docs/plugins/agent-harness.md) |
 | [basedpyright-lsp](#boss-devbasedpyright-lsp) | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [↗](docs/plugins/basedpyright-lsp.md) |
 | python-dev | `boss-dev` | 1.0.0 | Debug GitHub Actions CI and ship conventional-commit PRs | [↗](docs/plugins/python-dev.md) |
 | [github-pr-review](#boss-devgithub-pr-review) | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [↗](docs/plugins/github-pr-review.md) |
@@ -49,11 +49,11 @@ subagents.
 
 | Component | Count | Active on install? |
 |-----------|-------|--------------------|
-| Skills | 20 | Yes |
+| Skills | 21 | Yes |
 | Commands | 16 | Yes |
 | Agents | 6 | Yes |
 | Output styles | 7 | Yes |
-| Status lines | 10 | Manual wiring |
+| Status line | 1 | Manual wiring |
 
 The planning and shipping commands chain into a single isolated feature loop:
 
@@ -317,7 +317,7 @@ PLUGIN_EVAL_SOURCE='git+https://github.com/wshobson/agents.git@<sha>#subdirector
 boss-skills/
 ├── plugins/
 │   ├── boss-dev/
-│   │   ├── agent-harness/      # subagents, commands, hooks, skills, status lines
+│   │   ├── agent-harness/      # subagents, commands, skills, output styles, status line
 │   │   ├── basedpyright-lsp/   # Python LSP integration (.lsp.json)
 │   │   └── python-dev/         # CI debugging + conventional-commit PR commands
 │   ├── boss-homelab/

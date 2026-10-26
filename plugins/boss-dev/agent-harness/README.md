@@ -1,12 +1,12 @@
 # agent-harness
 
-> `boss-dev` · **v0.33.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
+> `boss-dev` · **v1.0.0** · MIT · part of the [`boss-skills`](../../../README.md) marketplace
 
 Agent harness tooling for Claude Code: subagents, commands, skills, and scripts that build
 and operate agentic dev workflows. It bundles several families of skills — a GitHub PR-review
 workflow, a git-worktree lifecycle, a release-notes generator, and a portable security-review
 skill — alongside planning, priming, and shipping commands, a roster of subagents, and a library
-of output styles and status lines.
+of output styles and an opt-in status line.
 
 ## Installation
 
@@ -19,15 +19,15 @@ of output styles and status lines.
 
 | Component | Count | Auto-active on install? | Invoked as |
 | --- | --- | --- | --- |
-| [Skills](#skills) | 20 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
+| [Skills](#skills) | 21 | ✅ Yes | Loaded by Claude when relevant, or `/<skill>` |
 | [Commands](#commands) | 16 | ✅ Yes | `/agent-harness:<name>` |
 | [Agents](#agents) | 6 | ✅ Yes | Dispatched via the `Agent`/`Task` tool |
 | [Output styles](#output-styles) | 7 | ✅ Yes | `/output-style` |
-| [Status lines](#status-lines) | 10 | ⚙️ Manual wiring | `statusLine` setting |
+| [Status lines](#status-lines) | 1 | ⚙️ Manual wiring | `statusLine` setting |
 
 Skills, commands, agents, and output styles are discovered and active immediately after
-`/plugin install`. Status lines ship as a library and require a one-time
-[manual wiring](#manual-wiring) step before they take effect.
+`/plugin install`. The status line is opt-in and requires a one-time
+[manual wiring](#manual-wiring) step before it takes effect.
 
 ## Skills
 
@@ -101,7 +101,6 @@ Sixteen slash commands under `commands/*.md`, auto-discovered on `/plugin instal
 | `fix-gh-pr-comments` | `[pr-number]` | Triage unresolved PR review comments, apply fixes, push, reply and resolve each thread, and poll for new comments (≤ 3 cycles). |
 | `debug-ci` | `[run-id]` | Diagnose a failed GitHub Actions run, fix locally, push, and poll the new run until green (≤ 3 cycles). |
 | `install_status_line` | `[--check\|--uninstall\|--restore]` | Install the status line into this project's `.claude/settings.local.json` (backed up, reversible). |
-| `update_status_line` | `<session_id> <key> <value>` | Upsert a key/value pair into a session's status-line data file. |
 | `all_tools` | — | List every available tool as TypeScript-style signatures with purposes. |
 | `validate-unicode-hygiene` | `[paths...] [--strict] [--warn-only]` | Scan files for invisible or visually-spoofed Unicode. |
 | `docs-tutorial` | `[what to document]` | Generate a tutorial/doc by delegating to `/documentation-generation:doc-generate` with the correct fully-qualified tutorial-engineer subagent; defaults to the current branch's features. |
@@ -207,26 +206,15 @@ with `/output-style`.
 
 ## Status lines
 
-`status_lines/` ships ten status-line scripts (PEP 723, `python-dotenv`) — progressively richer
-takes on the Claude Code status line. They are a library, not auto-wired: point your `statusLine`
-setting at one to use it.
-
-| Script | Shows |
-| --- | --- |
-| `status_line.py` | Model, directory, git branch, version. |
-| `status_line_v2.py` | Adds the last user prompt. |
-| `status_line_v3.py` | Adds agent name and the last three prompts (fading). |
-| `status_line_v4.py` | Adds custom key/value pairs (see `update_status_line`). |
-| `status_line_v5.py` | Session cost, lines added/removed, duration. |
-| `status_line_v6.py` | Context-window usage bar and tokens remaining. |
-| `status_line_v7.py` | Elapsed session time and start time. |
-| `status_line_v8.py` | Input/output token counts and cache stats. |
-| `status_line_v9.py` | Minimal powerline layout (model, branch, path, context %). |
-| `status_line_v10.py` | Leading `[auth:subscription]`/`[auth:api]`/`[auth:pending]` auth label (an inference — `subscription` covers both Pro and Max), context-window usage bar, plus a running session cost from list pricing. |
+`status_lines/status_line_v10.py` (PEP 723, `python-dotenv`) is not auto-wired — see
+[Manual wiring](#manual-wiring) or [docs/status-lines.md](./docs/status-lines.md). It shows a leading
+`[auth:subscription]`/`[auth:api]`/`[auth:pending]` auth label (an inference — `subscription` covers
+both Pro and Max), a context-window usage bar, and a running session cost from list pricing.
 
 ## Manual wiring
 
-Status lines are the opt-in component: point your `statusLine` setting at one of the scripts:
+The status line is the opt-in component: run `/agent-harness:install_status_line`, or point your
+`statusLine` setting at the script:
 
 ```json
 {
@@ -239,8 +227,8 @@ Status lines are the opt-in component: point your `statusLine` setting at one of
 
 ## Status
 
-Plugin version **v0.33.0**. Skills, commands, agents, and output styles are
-auto-discovered and active on `/plugin install`. Status lines require a `statusLine` setting.
+Plugin version **v1.0.0**. Skills, commands, agents, and output styles are
+auto-discovered and active on `/plugin install`. The status line requires a `statusLine` setting.
 
 ## See also
 
