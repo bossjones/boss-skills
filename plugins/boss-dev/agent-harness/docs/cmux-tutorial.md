@@ -69,6 +69,11 @@ interval. This works the same for pi, Codex, Claude Code, Copilot CLI, and any o
 agent, so there is nothing extra to install. See
 [section 5](#5-waiting-on-agents-the-right-way) for the pattern.
 
+`cmux hooks setup` (and, for Claude Code, Settings → Claude Code integration) is
+optional. It powers cmux app features — sidebar running state, notifications, Feed
+approvals, and session restore after relaunch — but completion detection here does not
+depend on it. Use the vendor `cmux-diagnostics` skill to check which hooks are installed.
+
 ### Socket control from outside cmux
 
 If you want to drive cmux's socket from an orchestrator running in a *plain* terminal
@@ -101,11 +106,19 @@ terminal rendering (font, cursor, theme, scrollback, `background-opacity`,
 
 The `agent-harness:boss-cmux` skill is everything you need to *drive* cmux. For the fuller
 published skill set (browser automation, settings, diagnostics, a markdown viewer, and
-more), install the vendor skills globally:
+more), install upstream's end-user skills globally. One copy lands in `~/.agents/skills`,
+which Codex and Copilot CLI read directly; Claude Code gets symlinks:
 
 ```bash
-$ npx skills add manaflow-ai/cmux -g -y
+$ npx skills add manaflow-ai/cmux -g -y --agent claude-code codex github-copilot \
+  --skill cmux cmux-workspace cmux-browser cmux-cloud-vm cmux-cua cmux-capture \
+  cmux-settings cmux-keyboard-shortcuts cmux-customization cmux-custom-sidebar \
+  cmux-diagnostics cmux-markdown
 ```
+
+The remaining skills in `manaflow-ai/cmux` (architecture, billing, release, and so on) are for
+developing cmux itself, and a cmux checkout already exposes them at project scope. Refresh the
+installed set later with `npx skills update -g`.
 
 Namespacing keeps them distinct — this tutorial's skill installs as
 `agent-harness:boss-cmux`, so there's no collision even if you install the vendor `cmux`

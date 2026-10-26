@@ -25,6 +25,10 @@ The skill triggers anywhere, but only functions on a Mac with cmux installed.
 - **Completion contract:** include a distinctive completion marker in every agent
   prompt, then use bounded `read-screen` checks to detect it. This works consistently
   across Copilot CLI, Codex, Claude Code, and other terminal agents.
+- **Agent hooks (optional):** `cmux hooks setup` (and, for Claude Code, Settings →
+  Claude Code integration) is optional. It powers cmux app features — sidebar running state, notifications, Feed
+  approvals, and session restore after relaunch — but completion detection here does not
+  depend on it. Use the vendor `cmux-diagnostics` skill to check which hooks are installed.
 - **Socket control (orchestrator outside cmux):** set `automation.socketControlMode`
   to `allowAll` (or password) in `~/.config/cmux/cmux.json` so an orchestrator running
   in a plain terminal can drive the socket. The socket lives at
@@ -47,8 +51,19 @@ The skill triggers anywhere, but only functions on a Mac with cmux installed.
   `background-opacity`, `background-blur`) belongs in the Ghostty config.
 
 Only the repo-local skill is required to *drive* cmux. For the deeper published skill set
-(browser automation, settings, diagnostics, markdown viewer, etc.) install the vendor
-skills globally: `npx skills add manaflow-ai/cmux -g -y`.
+(browser automation, settings, diagnostics, markdown viewer, etc.) install upstream's
+end-user skills globally (one copy in `~/.agents/skills`, read by Codex and Copilot CLI and
+symlinked for Claude Code):
+
+```text
+$ npx skills add manaflow-ai/cmux -g -y --agent claude-code codex github-copilot \
+    --skill cmux cmux-workspace cmux-browser cmux-cloud-vm cmux-cua cmux-capture \
+    cmux-settings cmux-keyboard-shortcuts cmux-customization cmux-custom-sidebar \
+    cmux-diagnostics cmux-markdown
+```
+
+The other skills in `manaflow-ai/cmux` are for developing cmux itself; a cmux checkout already
+exposes them at project scope. Refresh later with `npx skills update -g`.
 
 > This skill installs as `agent-harness:boss-cmux`. If you also `npx skills add` the vendor
 > `cmux` skill globally, the namespaces keep them distinct.
