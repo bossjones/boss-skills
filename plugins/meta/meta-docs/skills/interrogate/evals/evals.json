@@ -1,0 +1,63 @@
+{
+  "skill_name": "interrogate",
+  "description": "Activation and workflow evals for adversarial, execution-backed verification of documentation, specs, and code changes.",
+  "negative_indicators": [
+    "challenge gate",
+    "dropped claims",
+    "adversary 1",
+    "adversary 2",
+    "/tmp/interrogate-"
+  ],
+  "evals": [
+    {
+      "id": 0,
+      "eval_name": "explicit-interrogate-spec-and-readme",
+      "prompt": "/interrogate Challenge specs/meta-docs.md and plugins/meta/meta-docs/README.md to find any broken file paths, missing Makefile targets, or unverified claims.",
+      "should_trigger": true,
+      "invocation_type": "explicit",
+      "success_criteria": {
+        "outcome": {
+          "description": "Frames the intent, plans parallel adversarial verification probes, and enforces the execution challenge gate.",
+          "assertions": [
+            "Restates the intent of the target specification and README in plain words",
+            "Requires every surviving finding to be proven by an executed command and its output",
+            "Reports Intent, Verified findings, and Dropped claims without applying unrequested fixes"
+          ]
+        }
+      }
+    },
+    {
+      "id": 1,
+      "eval_name": "implicit-adversarial-stress-test-design",
+      "prompt": "Run an adversarial review to tear this migration plan apart and find blind spots, but only keep issues you can prove with a real command or repro check.",
+      "should_trigger": true,
+      "invocation_type": "implicit",
+      "success_criteria": {
+        "outcome": {
+          "description": "Applies the four-phase interrogate workflow to stress-test the plan with execution-backed checks.",
+          "assertions": [
+            "Frames the scope and restates the author's intent",
+            "Fans out adversaries in isolated worktrees or scratch directories",
+            "Filters out style opinions and unexecuted hypothetical risks via the challenge gate"
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "eval_name": "negative-unrelated-python-dict-comprehension",
+      "prompt": "How do I invert a dictionary in Python using a dict comprehension?",
+      "should_trigger": false,
+      "invocation_type": "negative_control",
+      "success_criteria": {
+        "outcome": {
+          "description": "Shows the Python dict comprehension directly without launching adversarial subagents.",
+          "assertions": [
+            "Provides `{v: k for k, v in d.items()}`",
+            "Does not mention challenge gates, dropped claims, or adversary fan-out"
+          ]
+        }
+      }
+    }
+  ]
+}

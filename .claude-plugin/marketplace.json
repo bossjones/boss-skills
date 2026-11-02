@@ -173,6 +173,27 @@
         "email": "bossjones@theblacktonystark.com",
         "url": "https://github.com/bossjones"
       }
+    },
+    {
+      "name": "meta-docs",
+      "source": "./plugins/meta/meta-docs",
+      "description": "Documentation quality, anti-slop rewriting, multi-language humanization, and adversarial verification skills and subagents.",
+      "version": "0.1.0",
+      "category": "meta",
+      "keywords": [
+        "documentation",
+        "anti-slop",
+        "unslop",
+        "humanize",
+        "interrogate",
+        "writing",
+        "review"
+      ],
+      "author": {
+        "name": "Malcolm Jones",
+        "email": "bossjones@theblacktonystark.com",
+        "url": "https://github.com/bossjones"
+      }
     }
   ]
 }

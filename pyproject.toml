@@ -171,7 +171,9 @@ preview = true
 ignore-words-list = "cruzer"
 # Vendored third-party tree (see scripts/plugin_eval/VENDORING.md) — not ours to spellcheck.
 # lint.py passes "scripts" explicitly, so skip the subdir here.
-skip = "./scripts/plugin_eval"
+# humanize-skills references are a vendored multilingual snapshot (CC BY 4.0) that quotes
+# deliberately misspelled and non-English text; auto-fixing would corrupt them.
+skip = "./scripts/plugin_eval,*/humanize-skills/references"
 
 [tool.basedpyright]
 # devtools/lint.py invokes basedpyright on a curated path list (not the full

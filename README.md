@@ -33,6 +33,7 @@ Full per-plugin documentation — components, install commands, and usage exampl
 | [github-pr-review](#boss-devgithub-pr-review) | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [↗](docs/plugins/github-pr-review.md) |
 | [twitter-tools](#social-mediatwitter-tools) | `social-media` | 0.1.1 | Download X/Twitter media and convert tweets to Reels | [↗](docs/plugins/twitter-tools.md) |
 | proxmox-infra | `boss-homelab` | 0.1.1 | Manage Proxmox VE homelab infrastructure and IaC | [↗](docs/plugins/proxmox-infra.md) |
+| [meta-docs](#metameta-docs) | `meta` | 0.1.0 | De-slop, humanize, and adversarially verify docs (Claude Code, Copilot CLI, Codex) | [↗](docs/plugins/meta-docs.md) |
 
 ### boss-dev/agent-harness
 
@@ -186,6 +187,25 @@ Ceph deployment), and a worked example. Ask it in natural language to provision 
 cloud-init template or to check the health of your Proxmox cluster.
 
 See the [expanded docs](docs/plugins/proxmox-infra.md) for bundled resources and usage examples.
+
+### meta/meta-docs
+
+Documentation quality tooling: `unslop` removes 28 numbered AI writing tells, `humanize-skills`
+humanizes prose across 20 languages and 10 purpose modes behind a no-edit gate and fact-lock, and
+`interrogate` keeps only documentation and plan findings proven by an executed command. The
+`docs-anti-slop-reviewer` subagent runs all three as an isolated second pass.
+
+This is the first `boss-skills` plugin with manifests for all three runtimes:
+
+```bash
+claude plugin install meta-docs@boss-skills     # Claude Code
+copilot plugin install meta-docs@boss-skills    # GitHub Copilot CLI
+codex plugin add meta-docs@boss-skills          # Codex (skills only)
+```
+
+Register the marketplace first with `<runtime> plugin marketplace add bossjones/boss-skills`.
+See the [expanded docs](docs/plugins/meta-docs.md) and the
+[meta-docs tutorials](docs/tutorials/meta-docs/README.md).
 
 ## Second Brain (obsidian-wiki)
 
