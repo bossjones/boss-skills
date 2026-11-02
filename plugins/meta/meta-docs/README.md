@@ -111,10 +111,14 @@ your first draft with all facts, sources, and commands before running an anti-sl
 
 ## Quick Usage Examples
 
+Slash examples use the plugin namespace that Claude Code and Copilot CLI apply to installed
+plugin skills (`/meta-docs:<skill>`). In Codex, name the skill in your prompt instead, for example
+`Use the unslop skill on README.md`.
+
 ### 1. Fast README or PR cleanup (`unslop`)
 
 ```text
-/unslop Tighten the introduction of README.md and keep every command block unchanged.
+/meta-docs:unslop Tighten the introduction of README.md and keep every command block unchanged.
 ```
 
 ### 2. Technical audit or rewrite with no-edit gate (`humanize-skills`)
@@ -130,7 +134,7 @@ blocks, tables, and citations.
 ### 3. Execution-backed adversarial check (`interrogate`)
 
 ```text
-/interrogate Challenge specs/meta-docs.md and prove any broken paths or missing validation steps.
+/meta-docs:interrogate Challenge specs/meta-docs.md and prove any broken paths or missing validation steps.
 ```
 
 ### 4. Isolated second-pass subagent (`docs-anti-slop-reviewer`)

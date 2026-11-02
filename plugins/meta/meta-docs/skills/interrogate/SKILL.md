@@ -30,7 +30,7 @@ for a quick factual lookup that needs no adversarial probing.
 ## Example
 
 ```text
-/interrogate Challenge docs/plugins/meta-docs.md. Verify every install command, relative link, and
+/meta-docs:interrogate Challenge docs/plugins/meta-docs.md. Verify every install command, relative link, and
 Makefile target it documents.
 ```
 

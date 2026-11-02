@@ -15,10 +15,11 @@ it.
 
 ## Step 1: Run `interrogate` on a specification or documentation page
 
-Point `interrogate` at the file or directory you want to challenge:
+Point `interrogate` at the file or directory you want to challenge. In Codex, ask for the
+`interrogate` skill by name instead of using the slash command:
 
 ```text
-/interrogate Challenge specs/meta-docs.md and plugins/meta/meta-docs/README.md. Verify every documented
+/meta-docs:interrogate Challenge specs/meta-docs.md and plugins/meta/meta-docs/README.md. Verify every documented
 file path, Makefile target, validation script, and relative link against the repository.
 ```
 

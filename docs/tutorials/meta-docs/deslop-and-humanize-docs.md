@@ -15,6 +15,10 @@ writing tells in a dedicated second pass while keeping every command, file path,
 
 ## Step 1: Finish the draft first
 
+Slash examples use the plugin namespace that Claude Code and Copilot CLI apply to installed
+plugin skills (`/meta-docs:<skill>`). In Codex, name the skill in your prompt instead, for example
+`Use the unslop skill on README.md`.
+
 Do not mix "don't sound like AI" instructions into your initial drafting prompt. Let the agent focus
 on gathering accurate commands, paths, and architecture details first.
 
@@ -25,7 +29,7 @@ rules (such as removing "serves as", "Not just X, but Y", em dashes, inline-head
 sentences that could appear unchanged in any other project's docs):
 
 ```text
-/unslop Review README.md. Keep all commands, flags, and file paths unchanged, fix only the patterns
+/meta-docs:unslop Review README.md. Keep all commands, flags, and file paths unchanged, fix only the patterns
 covered by the skill, and show the diff.
 ```
 
