@@ -168,6 +168,17 @@ overlays on it, not forks of it.
    default to `expert`. Read the language's `cultural-matrix.md` row before
    applying the profile; mode caps win conflicts (see Precedence).
 
+## Examples
+
+```text
+/meta-docs:humanize-skills Humanize this pull request description with --technical
+/meta-docs:humanize-skills Audit docs/architecture.md with --technical --audit
+/meta-docs:humanize-skills --lang=de --business Rewrite this customer email
+```
+
+In Codex, name the skill in the prompt instead: `Use humanize-skills on docs/architecture.md with
+--technical --audit`.
+
 ## Load order
 
 1. Always read `references/core-rules.md` and `references/structural-pass.md` in full.

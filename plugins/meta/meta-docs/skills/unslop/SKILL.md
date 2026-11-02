@@ -35,6 +35,15 @@ with content generation. Run `unslop` as a dedicated second pass instead:
    make the diff easy to inspect (or summarize the rule numbers triggered) so the author can accept
    or revert individual adjustments.
 
+## Examples
+
+```text
+/meta-docs:unslop Tighten the introduction of README.md and keep every command block unchanged.
+/meta-docs:unslop Review this pull request description and show the diff with rule numbers.
+```
+
+In Codex, name the skill in the prompt instead: `Use the unslop skill on README.md`.
+
 ## Patterns to detect and fix
 
 <!-- markdownlint-disable MD029 -->

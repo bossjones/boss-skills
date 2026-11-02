@@ -12,8 +12,10 @@ documentation, subagent definitions, and the adapted `unslop` and `interrogate` 
 - **License**: Creative Commons Attribution 4.0 International Public License (CC BY 4.0)
   (`https://creativecommons.org/licenses/by/4.0/`)
 - **Modifications**: Packaged inside `plugins/meta/meta-docs/skills/humanize-skills/` for the
-  `boss-skills` marketplace (ported from the `meta-docs` plugin in `Adobe-AIFoundations/aif-skills`); markdown formatting and relative reference links validated for
-  cross-runtime compatibility.
+  `boss-skills` marketplace (ported from the `meta-docs` plugin in
+  `Adobe-AIFoundations/aif-skills`); markdown formatting and relative reference links validated
+  for cross-runtime compatibility; an `## Examples` section of invocation commands added to
+  `SKILL.md`.
 
 ## 2. `unslop` and `interrogate` (MIT)
 
