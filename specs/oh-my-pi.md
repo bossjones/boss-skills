@@ -2,7 +2,7 @@
 
 Status: proposed configuration, pending approval. This document does not authorize installation, OAuth login, secret access, or changes to this machine.
 
-Review pass: Gemini 4 Argon reported no significant issues. Opus 5.5 identified three non-blocking gaps: the Codex-only consequence, task-child authorization controls, and a consolidated configuration template. This revision addresses all three. These reviews do not replace the implementation acceptance checks.
+Sequential re-review: Gemini 4 Argon reported no issues. Opus 5.5 identified a profile-selection gap plus approval ergonomics, writer-isolation, project-override, authorization-evidence, and provisioning concerns. This revision addresses those findings against the pinned source. Its task approval formatter does not show isolation flags, so writer approval requires a stronger inspection step than relying on the prompt summary. These reviews do not replace the implementation acceptance checks.
 
 Research date: 2026-11-03. Fork source baseline: [`can1357/oh-my-pi` at `594670d6`](https://github.com/can1357/oh-my-pi/tree/594670d6b0b6d5f8080693aad34dedd38b5ebd94), whose CLI package declares version `18.16.0`. Pi's `/docs/latest` and catalogs are rolling references. Recheck the selected release and its configuration schema before implementing.
 
@@ -144,6 +144,35 @@ Recommend a named `personal` profile for this onboarding. It separates native OM
 
 Paths above assume no XDG relocation. Use `omp --profile personal config path` to establish the active agent directory. Existing XDG data/state/cache category directories can relocate `agent.db`, sessions, and other state without moving `config.yml`. Inventory actual resolved paths before backup or cleanup. Named profiles ignore `PI_CODING_AGENT_DIR`; they inherit default-profile keybindings underneath their own overrides. Foreign agent roots are not profile-scoped.
 
+### Make profile selection persistent
+
+The policy and credentials in `personal` do not apply to the default profile. A one-time `export` in a login example is insufficient: a later plain `omp` in a fresh shell otherwise returns to the default profile, whose approval default is `yolo`.
+
+After approving shell changes, add the following to one managed OMP block sourced by the user's actual zsh/bash startup file, alongside the completion setup:
+
+```bash
+export OMP_PROFILE=personal
+```
+
+For fish, use its shell-specific equivalent, `set -gx OMP_PROFILE personal`, in the managed fish startup block. Do not source bash syntax into fish. Inventory launch paths such as SSH shells, tmux/cmux panes, IDE terminals, and automation: they must inherit this variable or pass `--profile personal`. An explicit `--profile` can override the environment.
+
+Open a fresh terminal and verify, without relying on the previous shell:
+
+```bash
+omp config path
+omp config list --json
+```
+
+The path must select `personal`, and the effective values must match the candidate below, including `tools.approvalMode: always-ask`. Stop on a mismatch. All unqualified `omp` examples after this point assume this verified startup configuration. Until it exists, prefix each invocation with `OMP_PROFILE=personal` or use the documented `--profile personal` form; do not troubleshoot missing logins by authenticating the default profile.
+
+For interactive sessions, use the explicit launch:
+
+```bash
+omp --profile personal --approval-mode always-ask
+```
+
+A reviewed shell shortcut may wrap that invocation, but it does not replace the persistent profile selection for subcommands. The runtime flag pins the approval mode above project settings; it does not pin per-tool rules or suppress startup inputs. Neither `--yolo` nor `--auto-approve` belongs in the shortcut. Automation outside an interactive shell must select the profile explicitly and must not run this interactive policy without a defined headless tool policy.
+
 ### Precedence and edit ownership
 
 Settings resolve from low to high:
@@ -155,6 +184,8 @@ defaults < global/profile YAML < project settings < config overlays < runtime ov
 `PI_CONFIG_FILES` overlays load before explicit repeated `--config` files; later overlays win. Some declared environment variables act as fallbacks instead of overrides. API credential resolution follows a separate chain.
 
 Mappings deep-merge. Arrays replace rather than append. A project `disabledProviders` array can therefore remove the global restrictions unless it repeats them. Native project settings are cwd-scoped, not nearest-ancestor settings. Discovered foreign settings have additional source-order behavior; do not rely on a global file as a mandatory policy boundary.
+
+Project configuration can also change `tools.approvalMode` or replace a `tools.approval` entry with `allow`. The launch flag above protects the mode only: an explicit tool policy can still allow a call in `always-ask`. Inspect project inputs before startup and compare all effective per-tool policies in the target directory. Reject an unreviewed override rather than treating a named profile or shortcut as tamper-proof policy enforcement.
 
 `omp config set` writes the active global/profile file. It is not a general project-settings editor. Project model-role assignments have a separate `modelRoleStorage: project` option; other project keys require editing the project file.
 
@@ -209,6 +240,16 @@ Stored OAuth normally outranks provider environment keys; a custom provider's pi
 
 These are operational constraints drawn from provider documentation, not a claim about whether an account has faced enforcement. User approval by itself cannot override provider restrictions. If an applicable provider agreement grants an exception, record that authorization without committing private agreement details. Otherwise preserve the native first-party tools for subscription use. The user's currently stated access may not support all three model families inside OMP without an access-method change.
 
+### Codex authorization decision
+
+This gate is a documented account-policy decision, not a successful-login test. Before the first OMP Codex login, record the proposed client/access method, account eligibility, applicable terms/guidance with their review date, and one of these outcomes:
+
+- **Affirmative authorization:** applicable provider documentation, an agreement, or provider support covers the intended use; a managed workspace also needs its administrator's approval.
+- **Bounded trial with disclosed uncertainty:** after reviewing the applicable terms, the account owner identifies no contrary restriction and records an informed decision to try this third-party client. Record that OpenAI's official-client auth guide does not certify OMP. A managed workspace still requires administrator approval; accepting uncertainty does not override a prohibition.
+- **Not approved or unresolved:** do not authenticate. Keep using the first-party Codex client, or ask whether to add separately billed OpenAI API access through provider `openai` and `OPENAI_API_KEY`. The user has not said they have that key, so do not assume it exists or switch billing silently.
+
+A bare “the token works,” eligibility for the official Codex CLI, or an undocumented assumption does not satisfy the gate. If applicable terms contradict the proposed use, user risk acceptance is not an alternative to provider authorization. Record the decision privately without copying account identifiers, tokens, or agreement details into this repository.
+
 Do not patch client fingerprints, impersonate an approved client, reuse tokens from first-party applications, or evade provider restrictions.
 
 Sources: [providers][o-providers], [OAuth transport details][o-quirks], and the first-party policy references above.
@@ -228,7 +269,8 @@ Configure OMP's `modelRoles` in `config.yml`. Do not populate `models.yml` with 
 | `commit` | Commit-message drafting | Reuse a configured model; retain human control over Git operations |
 | `tiny` / `memory` / `widget` | Background helpers | Reuse the verified model for title/widget helpers initially, with quota use disclosed; memory stays off |
 | `web` | Search | Native search/grounded model role, configured separately below |
-| `image` / `speech` / `dictation` / `judge` | Optional generation and non-chat workloads | Configure only when adopting those features |
+| `judge` | Internal classification/judgment helpers | Pin to `@default` in the baseline so an unassigned role does not try another service |
+| `image` / `speech` / `dictation` | Optional generation and non-chat workloads | Configure only when adopting those features |
 
 List OMP's catalog, not Copilot's model names:
 
@@ -312,6 +354,24 @@ OMP's schema default is `yolo`. Recommend `always-ask` plus explicit per-tool pr
 
 `always-ask` automatically permits read-tier operations and asks for writes/execution. `write` is a later ergonomic option: it permits writes but still asks for execution. `always-ask-cached` can additionally gate file reads. None creates an OS sandbox.
 
+**Interaction cost:** explicit `prompt` rules for `bash` and `eval` ask on every call and do not offer session-wide approval. Even `git status`, `ls`, or a test run needs a prompt when routed through Bash. Prefer native read/search tools for inspection. Keep this conservative baseline initially rather than switching to `yolo` to silence prompts.
+
+If that cost proves excessive, the user can approve an optional exact-command allowlist for a reviewed repository:
+
+```yaml
+bash:
+  allowCompoundCommands: false
+  patterns:
+    - match: "git -c core.fsmonitor=false status --short"
+      approval: allow
+    - match: "git --no-pager diff --no-ext-diff --no-textconv"
+      approval: allow
+    - match: "git --no-pager log --no-ext-diff --no-textconv --oneline -5"
+      approval: allow
+```
+
+This is an optional amendment, not part of the assembled baseline. Exact tool-declared allows outrank the per-tool `bash: prompt` rule, so these spellings can also run in headless workers. Do not add wildcards, compound commands, test runners, package managers, or arbitrary scripts. The explicit Git options avoid the usual pager, fsmonitor, external-diff, and textconv execution paths for these commands; trusted executables/configuration and OS isolation still matter. A different spelling continues to prompt.
+
 Per-tool rules, critical-command policies, Eval execution, browser control, MCP calls, and foreground desktop acquisition have separate behavior. Do not approve `bash` broadly and assume `eval` cannot execute the same command. Restricted folders do not parse paths embedded in shell text and do not provide filesystem containment.
 
 Opening a project can load executable inputs before a model tool approval appears. Review project `.omp`, foreign-agent configuration, hooks, tool modules, plugins, and MCP definitions before launching. Use an external container/VM or dedicated account for untrusted repositories. A profile, workspace clone, Git worktree, restricted-folder list, or read-only prompt is not a substitute.
@@ -323,6 +383,10 @@ For narrowing an invocation, OMP documents `--no-extensions` and exact `--truste
 Use built-in `task` for independent work; enable `task.structured` for typed yields. The candidate limits concurrency to two, allows isolation, and disables automatic application of isolated changes.
 
 `task.isolation.enabled` permits per-item `isolated: true`; it does not force every worker into isolation. Require that flag for concurrent writers and inspect the resulting patch/branch before integration. Isolation is unavailable for plan-mode workers.
+
+Require isolation for **every** writer task, including a single writer. Before approving, inspect the actual task input and verify `isolated: true` for each writing item, its agent, scope, and destination. The pinned [task approval formatter][o-task-approval] summarizes assignments but does not print `isolated`, and a batch summary can omit later assignments. A prose promise of isolation, or an isolated-workspace setting, is not evidence that the submitted flag is present.
+
+Use the host's raw tool-input inspection if it exposes the complete pending call. If the host cannot expose the isolation flag and every writer assignment before execution, deny host-side writer delegation and use read-only workers or a separately approved externally isolated workflow. This spec does not claim configuration alone enforces isolation. `apply: false` only delays applying changes from tasks that actually ran isolated; a non-isolated child can edit the shared checkout directly.
 
 **Important: OMP intentionally runs headless task children in `yolo` mode. Approving the parent's `task` call authorizes their ordinary tool execution; they do not inherit the parent's `always-ask` interaction.** User denies remain absolute, and a policy that still requires a prompt rejects because a headless worker cannot answer it.
 
@@ -352,6 +416,7 @@ modelRoles:
   tiny: "@default"
   widget: "@default"
   advisor: "@slow"
+  judge: "@default"
   web: web/tavily
 defaultThinkingLevel: medium
 enabledProviders: []
@@ -388,6 +453,8 @@ memory:
   backend: "off"
 autolearn:
   enabled: false
+eval:
+  autoProvision: false
 browser:
   enabled: false
 computer:
@@ -406,6 +473,8 @@ retry:
 `disabledProviders` blocks the restricted subscription routes; it also blocks Anthropic API access until that provider entry is removed as part of approving a different access method. Empty `enabledProviders` keeps foreign user discovery opt-in; native and `.agents` sources still need inspection. Project MCP and the browser start off in this candidate, so enabling either after review is an explicit configuration change. Read-only research can still use native URL reading/search.
 
 `modelFallback` governs chat failover; search follows its own configured chain. Review any existing per-model fallback entries too. Adopt a [memory backend][o-memory-settings] and automatic learning only after deciding retention, model use, and source scope. A question timeout must not select a recommended answer in place of a user decision.
+
+`eval.autoProvision` defaults to true upstream; the candidate sets it false. This prevents the first `%bun add` from creating a missing managed JavaScript package environment without first changing that policy or explicitly selecting another environment. It does not disable Python/JS execution, prevent installs into an existing environment, or make package managers harmless. Every dependency installation still needs explicit approval; do not select `%environment project` just to bypass the gate and mutate a repository's package files.
 
 ### Language/runtime prerequisites
 
@@ -533,12 +602,12 @@ Sources: [README completions][o-readme], [OMP sessions][o-sessions], [Agent Hub]
 All commands in this document describe future implementation. Do not mark an acceptance item complete because documentation or a model picker says the capability exists.
 
 1. **Approve decisions.** Confirm install owner, profile, provider authorization, initial models, search order, import scope, and approval mode using section 13.
-2. **Inventory without secrets.** Inspect OS/architecture, executable paths, tool versions, terminal/shell, reviewed config-source names, and existing installations. Do not read credential values. Record any existing OMP state before migration-capable commands run.
+2. **Inventory without secrets.** Inspect OS/architecture, executable paths, tool versions, terminal/shell startup files and launch paths, reviewed config-source names, and existing installations. Do not read credential values. Record any existing OMP state before migration-capable commands run.
 3. **Snapshot and install.** Back up affected settings/state with appropriate permissions. Install the selected pinned release through one manager. Confirm `command -v omp`, version, and help.
-4. **Create policy before first project launch.** Configure the approved profile and explicit approvals in a neutral, reviewed directory. Add non-secret settings; do not run setup from an unreviewed repository.
-5. **Authenticate permitted providers.** Log in separately using OMP. Confirm selected workspace/account, model visibility, one small response, and one tool-using response. Record quota/errors without token values.
-6. **Assign roles and search.** Replace the candidate's model placeholder, configure the approved search chain, and compare `omp config list --json` with every intended template value in the target repository. Check `retry.fallbackChains.web` equals the approved list, not an inherited/default chain; check per-tool prompt policies, disabled routes, and both isolation flags. Record mismatches and resolve their precedence before continuing.
-7. **Adopt bundled workflows.** Exercise read-only task delegation/Agent Hub first, then an isolated writing task and explicit patch review. Test advisor only if approved. Add LSP for a real project and optional DAP/browser dependencies as required.
+4. **Create policy before first project launch.** Configure the approved profile and explicit approvals in a neutral, reviewed directory. Persist profile selection in the approved managed shell block and verify it from a fresh shell before authenticating. Add non-secret settings; do not run setup from an unreviewed repository.
+5. **Authenticate permitted providers.** Complete and record the Codex decision above before logging in through OMP. Confirm selected workspace/account, model visibility, one small response, and one tool-using response. Record quota/errors without token values. If the gate does not pass, choose an approved alternative or stop.
+6. **Assign roles and search.** Replace the candidate's model placeholder, configure the approved search chain, and compare `omp config list --json` with every intended template value in a fresh shell and the target repository. Check `retry.fallbackChains.web` equals the approved list, not an inherited/default chain; check per-tool prompt policies, disabled routes, both isolation flags, `judge`, and `eval.autoProvision`. Record mismatches and resolve their precedence before continuing.
+7. **Adopt bundled workflows.** Exercise read-only task delegation/Agent Hub first. Prove complete pending writer-input inspection in a disposable repository; deny a writer call when `isolated: true` is missing or cannot be verified. Only then exercise an isolated writing task and patch review. Test advisor only if approved. Add LSP for a real project and optional DAP/browser dependencies as required.
 8. **Load selected content.** Verify instruction provenance, skill names/collisions, MCP inventory, imported agent toolsets, and plugin/hook compatibility. Do not broaden foreign discovery to fix a missing skill without reviewing the consequences.
 9. **Exercise terminal and persistence.** Test active keybindings, a normal restart/resume, compaction, working-directory behavior, and optional multiplexer placement without killing existing sessions.
 10. **Hand over a manifest and rollback path.** Save non-secret settings, versions, accepted decisions, unresolved caveats, and observed outcomes. Leave optional packages/features disabled or unconfigured as agreed.
@@ -548,20 +617,22 @@ All commands in this document describe future implementation. Do not mark an acc
 | Area | Evidence required |
 |---|---|
 | Installation | One installation owner; expected executable/version on both target platforms, or a clear platform-specific blocker |
-| Configuration | Effective registered settings match the intended profile and project; no ignored/invalid-key warnings |
-| OAuth | Every permitted provider completes a real response/tool round trip; prohibited/unauthorized providers remain unused |
-| Models | Exact provider/model selectors and resolved role assignments recorded; no unintended API-key or cross-provider fallback |
+| Configuration | Fresh-shell plain `omp config path` selects `personal`; `omp config list --json` matches intended settings in neutral and target directories; explicit interactive launch pins the mode; no ignored/invalid-key warnings |
+| OAuth | Codex evidence/decision recorded before login; every permitted provider completes a real response/tool round trip; prohibited/unauthorized providers remain unused |
+| Models | Exact provider/model selectors and resolved role assignments, including `judge`, recorded; no unintended API-key or cross-provider fallback |
 | Search | Independent Tavily/Brave/Firecrawl probes; selected backend and citations visible; controlled fallback failure case |
 | Keyless boundary | Search-only behavior confirmed where available; no claim that unauthenticated scraping works |
 | Approval | Denied harmless test action does not execute; parent behavior matches approved mode; user understands child `yolo` authorization and inherited denies |
-| Workers | Read-only delegation returns evidence; each task/batch requires approval; a headless shell/Eval probe fails under explicit prompt policy; isolated file changes wait for patch acceptance |
+| Workers | Complete raw writer assignments/isolation flags visible before approval, or host writers stay unused; a missing/unverifiable flag leads to denial and no fixture edits; headless shell/Eval probes fail under baseline prompt policies; isolated file changes wait for patch acceptance |
 | Discovery | Expected context/skills present once; source provenance known; no unintended MCP/hook launch |
-| Dependencies | Missing LSP/DAP/Eval/browser prerequisites produce a specific blocker, not silent global installation |
+| Dependencies | Missing LSP/DAP/Eval/browser prerequisites produce a specific blocker; `eval.autoProvision` is false and missing managed-environment provisioning fails until approved; no silent global installation |
 | Sessions | Resume restores expected cwd/model; compaction preserves needed context; no export/share upload |
 | Secrets | No values in committed files, recorded output, shell history, screenshots, or handover; private state/backup permissions established |
 | Upgrade recovery | Previous installation reference and consistent state snapshot available; schema migration consequences documented |
 
 Do not deliberately rotate tokens, exhaust subscription quotas, break a production workspace, or invoke a consequential command to test the setup.
+
+If demonstrating that non-isolated children write into their parent checkout, use only a disposable Git repository and a harmless fixture file with explicit approval for that negative-control experiment. Do not test that behavior on this working tree or use it to bypass the production writer-approval rule.
 
 ## 12. Upgrades, rollback, and removal
 
@@ -583,16 +654,17 @@ Ask these one at a time during approval/implementation, not as a prerequisite fo
 |---|---|---|---|
 | Use OMP's bundled tools before installing overlapping extensions? | Yes | Evaluate a named extension for a specific gap | Package and reason |
 | Use a pinned Bun install on macOS/Linux? | Yes, if Bun `>=1.4.4` is acceptable | Pinned standalone release; Homebrew/Nix when already preferred | Installation owner/version |
-| Start with a native `personal` profile? | Yes | Default profile | Profile name/layout |
+| Persist `personal` profile selection in the managed shell block and use an explicit mode-pinned interactive launch? | Yes; verify a fresh shell and each terminal/automation launch path | Use the default profile only after moving the approved policy and credentials there | Profile/launch layout |
 | Start with `always-ask` instead of the default `yolo`? | Yes | `write` for trusted coding, after reviewing execution gates | Approval policy |
-| Accept Codex-only chat inside OMP and keep Claude/Gemini subscriptions in first-party tools? | Yes, after confirming Codex authorization | Approve adding paid Anthropic Console/Gemini API or a supported cloud-provider route; otherwise keep the affected work outside OMP | Authorized access method and billing limits |
+| Accept Codex-only chat inside OMP and keep Claude/Gemini subscriptions in first-party tools? | Yes, after recording the Codex authorization/trial decision | Approve separately billed OpenAI/Anthropic/Gemini API or a supported cloud-provider route; otherwise keep that work outside OMP | Access method, evidence, and billing limits |
 | Use the same verified Codex model across initial chat roles? | Yes; advisor remains off | Choose other available authorized models; cross-family advisor needs another access method | Exact role preferences |
 | Use Tavily → Brave → Firecrawl for public search? | Yes | Another explicit order or OAuth-grounded primary | Search policy |
 | Keep automatic cross-provider chat failover off initially? | Yes | Approve a named data/usage failover chain | Allowed routes |
 | Start with at most two workers and deliberate advisor activation? | Yes | Different concurrency or advisor cadence | Limits/model choice |
-| Require approval for every task batch and block headless shell/Eval/browser calls initially? | Yes | Approve a separately designed worker execution policy, preferably inside external isolation | Agent/tool authorization model |
+| Accept per-call task/Bash/Eval approvals and block headless shell/Eval/browser calls initially? | Yes; expect repeated prompts, including routine shell commands | Approve the exact-command inspection allowlist or a separately designed worker policy; tests still require approval | Agent/tool authorization model |
+| Require verified isolation for every writer and leave host writers unused if pending inputs are not inspectable? | Yes | Use a separately approved external isolation workflow | Writer-inspection mechanism |
 | Reuse reviewed project instructions and selected skills, without wholesale user-config import? | Yes | Approve specific foreign source roots and their executable inputs | Import scope |
-| Defer desktop control, collaboration uploads, local weights, and telemetry packages? | Yes | Adopt a named capability with its prerequisites and data policy | Feature selection |
+| Defer desktop control, collaboration uploads, local weights, Eval package-environment provisioning, and telemetry packages? | Yes | Adopt a named capability with approved dependencies and data policy | Feature selection |
 
 ## 14. Source coverage
 
@@ -663,6 +735,7 @@ Fork links below pin the researched commit. Runtime acceptance still uses the se
 [o-lsp]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/docs/lsp-config.md
 [o-browser]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/docs/tools/browser.md
 [o-eval]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/docs/tools/eval.md
+[o-task-approval]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/packages/coding-agent/src/task/index.ts#L726-L788
 [o-computer]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/docs/computer-use.md
 [o-mcp]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/docs/mcp-config.md
 [o-memory-settings]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/packages/coding-agent/src/memory-backend/settings.ts
