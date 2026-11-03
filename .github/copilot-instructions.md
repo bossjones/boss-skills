@@ -42,6 +42,11 @@
   description, keywords, and author. `plugin.json` rejects unrecognized fields. Every local
   plugin also needs a README; optional `skills/`, `commands/`, `agents/`, and `hooks/` directories
   must be omitted when unused rather than left empty.
+- A plugin that also targets Codex ships `.codex-plugin/plugin.json` and a local entry in
+  `.agents/plugins/marketplace.json`; its `name`, `version`, and `description` must match the
+  Claude manifest. Copilot CLI reads the Claude marketplace and manifest directly. Never set
+  `"agents"` to a directory string such as `"./agents/"`; omit it so `./agents/*.md` is
+  auto-discovered. `make verify-structure` enforces these rules.
 - Skills require YAML frontmatter with `name` and `description`, concrete activation triggers, and
   actionable instructions. Never place an exclamation mark immediately followed by a backtick in a
   fenced `SKILL.md` code block; the parser can execute it. Use `$ command` notation in examples.
