@@ -6,7 +6,7 @@ Sequential re-review: Gemini 4 Argon reported no issues. Opus 5.5 identified a p
 
 Research date: 2026-11-03. Fork source baseline: [`can1357/oh-my-pi` at `594670d6`](https://github.com/can1357/oh-my-pi/tree/594670d6b0b6d5f8080693aad34dedd38b5ebd94), whose CLI package declares version `18.16.0`. Pi's `/docs/latest` and catalogs are rolling references. Recheck the selected release and its configuration schema before implementing.
 
-Public ecosystem follow-up: 2026-11-04. The user selected the public marketplace/plugin and standalone-skill adoption described in section 15, after core setup succeeds. Exclude Adobe-owned or Adobe-specific components and keep standalone skills as the final installation stage. This selection updates the spec's scope; it does not authorize installing anything on this machine.
+Public ecosystem follow-up: 2026-11-04. The user selected the public marketplaces/plugins and standalone skills in section 15 as a **deferred optional backlog**, not part of initial OMP setup. Proceed only after the user confirms OMP works as expected and explicitly requests optional setup in their prompt. Passing checks or approving this spec does not authorize that work. Exclude Adobe-owned or Adobe-specific components; standalone skills remain last within any explicitly requested optional work.
 
 ## 1. Recommendation and scope
 
@@ -29,7 +29,7 @@ These are capabilities the user has, not evidence that credentials are present i
 
 Deliver a reproducible macOS/Linux setup with explicit model roles, search routing, instruction/skill discovery, terminal behavior, approvals, and recovery procedures. Retain the existing Claude Code, Codex, and Copilot environments. Do not copy their credential stores, replace their executables, import all historical sessions, or install a second set of tools that duplicates OMP's built-ins.
 
-**The selected public ecosystem is user-requested scope; implementation defaults remain proposals.** Unanswered decisions remain in section 13. Implementation must wait for approval of this spec.
+**Default setup scope is core OMP only.** The selected public ecosystem is deferred reference material, not an automatic continuation. Implementation defaults remain proposals; unanswered decisions remain in section 13. Approval of this spec can authorize core setup when requested, but optional work additionally requires user confirmation that OMP works and an explicit prompt requesting those additions.
 
 ## 2. Keep Pi and OMP separate
 
@@ -515,9 +515,9 @@ Sources: [approvals][o-approvals], [README project inputs][o-readme], [Agent Hub
 
 OMP discovers native configuration and several foreign formats. Foreign user-level sources are opt-in through `enabledProviders`; foreign project sources can load by default. `enabledProviders` is **not an inference-provider allowlist**. `disabledProviders` shares an ID namespace across inference providers and discovery sources, so confusing `claude` with `anthropic` or `gemini` with `google` has different effects.
 
-Start with native OMP preferences and the reviewed project's existing instructions. Adopt the selected public plugins and standalone skills only in the final stages in section 15. Do not point OMP at this checkout's whole `.claude/skills`, or the user's whole Claude/Copilot/shared skill roots: those roots mix requested, unrequested, and organization-specific components.
+Start with native OMP preferences and the reviewed project's existing instructions. Keep the public plugins and standalone skills in section 15 deferred until the user confirms OMP works as expected and explicitly requests optional setup. Do not point OMP at this checkout's whole `.claude/skills`, or the user's whole Claude/Copilot/shared skill roots: those roots mix requested, unrequested, and organization-specific components.
 
-For the final standalone stage, use an approved-only root whose immediate children contain `SKILL.md`; nested category trees are not scanned recursively:
+For an explicitly requested later standalone stage, use an approved-only root whose immediate children contain `SKILL.md`; nested category trees are not scanned recursively. Do not create, populate, link, or configure this root during core setup:
 
 ```yaml
 skills:
@@ -525,7 +525,7 @@ skills:
     - ~/.omp/profiles/personal/agent/approved-skills
 ```
 
-Populate that root only from the public sources and approved winners in section 15. Preserve skill-relative scripts/references, attribution, and provenance. Symlink/identical-content dedup and precedence can change visible names; confirm the resolved source and final name of each skill. A familiar name is not proof that its body came from the approved public upstream.
+Once the optional gate passes, populate that root only from the sources and approved winners within the user's explicit request. Preserve skill-relative scripts/references, attribution, and provenance. Symlink/identical-content dedup and precedence can change visible names; confirm the resolved source and final name of each skill. A familiar name is not proof that its body came from the approved public upstream.
 
 Both `AGENTS.md` and `CLAUDE.md` have discovery support, but do not assume same-directory files concatenate. OMP keeps one project context file per directory depth according to provider priority. Avoid adding another copy of this repository's generated policy.
 
@@ -555,7 +555,7 @@ The supplied [Pi Package Catalog][p-packages] is useful for discovering extensio
 | LangSmith, Langfuse, Braintrust packages | External observability may be useful | Optional follow-up; review payload export, compatibility, and credentials first |
 | Themes/footer packages | Existing TUI customization | Optional, after functional acceptance |
 
-Catalog descriptions and download counts are not evidence of code review or compatibility. Before adding a package, record its purpose, repository, exact version/commit, license, dependencies/install scripts, tool/command collisions, data recipients, OMP API compatibility, and removal procedure. Test one package at a time in a separate profile/disposable repository. The user's selected documentation/workflow plugins in section 15 are intentional follow-up scope; they do not replace OMP's native runtime tools.
+Catalog descriptions and download counts are not evidence of code review or compatibility. For explicitly requested optional work, record each package's purpose, repository, exact version/commit, license, dependencies/install scripts, tool/command collisions, data recipients, OMP API compatibility, and removal procedure. Test one package at a time in a separate profile/disposable repository. Section 15's documentation/workflow plugins stay deferred by default and do not replace OMP's native runtime tools.
 
 Sources: [discovery][o-discovery], [settings][o-settings], [context files][o-context], [skills][o-skills], [MCP configuration][o-mcp], [legacy compatibility][o-compat], [package catalog][p-packages].
 
@@ -624,11 +624,11 @@ All commands in this document describe future implementation. Do not mark an acc
 5. **Authenticate permitted providers.** Complete and record the Codex decision above before logging in through OMP. Confirm selected workspace/account, model visibility, one small response, and one tool-using response. Record quota/errors without token values. If the gate does not pass, choose an approved alternative or stop.
 6. **Assign roles and search.** Replace the candidate's model placeholder, configure the approved search chain, and compare `omp config list --json` with every intended template value in a fresh shell and the target repository. Check `retry.fallbackChains.web` equals the approved list, not an inherited/default chain; check per-tool prompt policies, disabled routes, both isolation flags, `judge`, and `eval.autoProvision`. Record mismatches and resolve their precedence before continuing.
 7. **Adopt bundled workflows.** Exercise read-only task delegation/Agent Hub first. Prove complete pending writer-input inspection in a disposable repository; deny a writer call when `isolated: true` is missing or cannot be verified. Only then exercise an isolated writing task and patch review. Test advisor only if approved. Add LSP for a real project and optional DAP/browser dependencies as required.
-8. **Review content without adopting it yet.** Inventory provenance, potential name collisions, MCP definitions, agent toolsets, and plugin/hook compatibility. Do not broaden foreign discovery or install the selected ecosystem before core acceptance.
+8. **Leave optional content untouched.** Do not register optional marketplaces, fetch/stage their payloads, install plugins/skills or their helper runtimes, import optional MCP definitions, or broaden foreign discovery. Keep section 15 as reference material for a later explicit request.
 9. **Exercise terminal and persistence.** Test active keybindings, a normal restart/resume, compaction, working-directory behavior, and optional multiplexer placement without killing existing sessions.
-10. **Accept the core and snapshot it.** Complete the core acceptance matrix and retain a consistent baseline snapshot before adding plugins.
-11. **Adopt selected public marketplaces/plugins.** Follow section 15's component and provenance gates, then accept the plugin layer independently.
-12. **Install selected standalone skills last.** Finish section 15's curated skill stage after the core and plugin layers pass. Record deferred/blocked items and hand over the combined non-secret source manifest and rollback procedure.
+10. **Hand over the core and stop.** Complete the core acceptance matrix, retain a consistent baseline snapshot, and let the user try OMP. Ask whether it works as expected; recommend answering yes only after their normal workflow succeeds. A yes confirms the core only. It does not authorize optional additions.
+
+**Optional work is a separate workflow, not steps 11-12 of core setup.** After the user confirms OMP works and their prompt explicitly requests optional marketplaces/plugins/skills, execute only the requested subset using section 15. If both plugin and standalone layers are requested, accept the plugin layer first and install standalone supplements last. Do not expand a named subset to the whole backlog. Preserve the existing exclusion, compatibility, dependency, and approval gates.
 
 ### Acceptance matrix
 
@@ -642,9 +642,9 @@ All commands in this document describe future implementation. Do not mark an acc
 | Keyless boundary | Search-only behavior confirmed where available; no claim that unauthenticated scraping works |
 | Approval | Denied harmless test action does not execute; parent behavior matches approved mode; user understands child `yolo` authorization and inherited denies |
 | Workers | Complete raw writer assignments/isolation flags visible before approval, or host writers stay unused; a missing/unverifiable flag leads to denial and no fixture edits; headless shell/Eval probes fail under baseline prompt policies; isolated file changes wait for patch acceptance |
-| Discovery | Expected context/skills present once; source provenance known; no unintended MCP/hook launch |
-| Public-only adoption | Only approved public sources/components in the OMP registries and effective loadout; no broad import from mixed user roots; excluded and unresolved items remain uninstalled |
-| Dependencies | Missing LSP/DAP/Eval/browser prerequisites produce a specific blocker; `eval.autoProvision` is false and missing managed-environment provisioning fails until approved; no silent global installation |
+| Discovery | Expected core instructions/tools load from reviewed sources; no new optional skill/plugin/MCP imports or unintended hook launch |
+| Optional backlog | Section 15 remains deferred and untouched during core setup; optional acceptance checks are N/A until user confirmation and an explicit setup request |
+| Dependencies | Missing core prerequisites produce a specific blocker; `eval.autoProvision` is false and missing managed-environment provisioning fails until approved; no optional ecosystem runtimes or silent global installs |
 | Sessions | Resume restores expected cwd/model; compaction preserves needed context; no export/share upload |
 | Secrets | No values in committed files, recorded output, shell history, screenshots, or handover; private state/backup permissions established |
 | Upgrade recovery | Previous installation reference and consistent state snapshot available; schema migration consequences documented |
@@ -667,7 +667,7 @@ Sources: [update implementation][o-update], [settings and migration][o-settings]
 
 ## 13. Approval questions
 
-Ask these one at a time during approval/implementation, not as a prerequisite for drafting. Each accepts **Yes**, **No**, or a **write-in** answer. The user has not selected the recommendations yet.
+Ask relevant questions one at a time during approval/implementation, not as a prerequisite for drafting. Each accepts **Yes**, **No**, or a **write-in** answer. Do not ask the optional-ecosystem questions during core setup or treat a core approval as permission for optional work.
 
 | Decision | Yes / recommended | No / alternative | Write-in |
 |---|---|---|---|
@@ -682,8 +682,8 @@ Ask these one at a time during approval/implementation, not as a prerequisite fo
 | Start with at most two workers and deliberate advisor activation? | Yes | Different concurrency or advisor cadence | Limits/model choice |
 | Accept per-call task/Bash/Eval approvals and block headless shell/Eval/browser calls initially? | Yes; expect repeated prompts, including routine shell commands | Approve the exact-command inspection allowlist or a separately designed worker policy; tests still require approval | Agent/tool authorization model |
 | Require verified isolation for every writer and leave host writers unused if pending inputs are not inspectable? | Yes | Use a separately approved external isolation workflow | Writer-inspection mechanism |
-| Use approved-only sources for the selected public ecosystem, without wholesale user-config import? | Yes; standalone skills come last | Review a narrower public subset; organization-specific content stays excluded | Approved public subset |
-| Install one canonical Superpowers and choose one winner for each same-named skill? | Yes; section 15 records the source choices | Select a different public source before installation | Canonical sources |
+| For explicitly requested optional work, use approved-only sources without wholesale user-config import? | Yes; only the requested subset, with standalone skills last | Review a narrower public subset; organization-specific content stays excluded | Approved public subset |
+| For explicitly requested optional work, use one canonical Superpowers and one winner per same-named skill? | Yes; section 15 records the source choices | Select a different public source before installation | Canonical sources |
 | Defer desktop control, collaboration uploads, local weights, Eval package-environment provisioning, and telemetry packages? | Yes | Adopt a named capability with approved dependencies and data policy | Feature selection |
 
 ## 14. Source coverage
@@ -795,9 +795,26 @@ Fork links below pin the researched commit. Runtime acceptance still uses the se
 [p-custom]: https://pi.dev/docs/latest/custom-provider
 [p-extensions]: https://pi.dev/docs/latest/extensions
 
-## 15. Final adoption phase: selected public plugins, then standalone skills
+## 15. Deferred optional backlog: public plugins and standalone skills
 
-Run this phase **after the core acceptance matrix passes and its state has been backed up**. Adopt the plugin layer first. Install standalone supplements last, after accepting that layer. Registration, download, installation, enabling a component, and validating its behavior are separate steps.
+**Default status for everything in this section: `deferred-user-request`.** Sources, pins, and commands remain here for later use; none belongs to initial OMP setup.
+
+Start optional work only when **both** conditions hold:
+
+1. The user has confirmed that OMP works as expected after trying the core setup.
+2. The user's prompt explicitly requests setup of optional marketplaces, plugins, skills, or named additions.
+
+Core acceptance checks, PR/spec approval, the earlier selection list, and a user confirmation that OMP works do not themselves request optional installation. If an initial setup prompt also names optional additions, finish the core and pause for the user's confirmation before advancing. Once both conditions hold, perform only the requested optional work; do not require a separate ritual phrase or assume the entire backlog is requested.
+
+| Prompt or event | Required behavior |
+|---|---|
+| "Set up OMP using the spec" | Core only; stop for the user to try it |
+| "OMP works as expected" | Record core confirmation; leave optional additions deferred |
+| "OMP works; set up the optional LangSmith plugin" | Apply section 15 only to LangSmith and its approved prerequisites |
+| "Set up optional marketplaces and skills" with no recorded core confirmation | Ask whether OMP works as expected first; do not install until confirmed |
+| Core confirmation plus an explicit request for all optional additions | Follow this backlog's public-only/component gates; retain blocked items as deferred |
+
+Do not register marketplaces, clone/stage optional payloads, install plugins/skills or helper runtimes, create optional skill roots, enable MCP wrappers, or run these setup commands before the gate passes. After authorization, preserve the core snapshot, adopt the requested plugin layer first where applicable, and install requested standalone supplements last. Registration, download, installation, enabling a component, and validating its behavior remain separate steps.
 
 The public-only requirement takes precedence over the earlier machine inventory. Do not copy existing Claude/Copilot registries, credentials, whole skill directories, or plugin caches into OMP. Exclude Adobe-owned sources, internal hosts, organization-specific skills, and transitive components that require those systems. A public marketplace can advertise unrelated plugins: registration is not permission to install them.
 
@@ -839,7 +856,7 @@ These are candidates for the approved installation manifest, not an instruction 
 
 ### 15.2 Prepare reproducible sources before installing
 
-Maintain a non-secret adoption manifest outside OMP's runtime credential stores. For each selected plugin/skill, record its public repository URL, exact commit or package version, upstream-relative path, license/attribution, content hash, intended components, resolved OMP name, prerequisites, and disposition: `approved`, `needs-adaptation`, or `deferred`. A skill installer's folder hash is not a Git commit.
+After the optional gate passes, maintain a non-secret adoption manifest outside OMP's runtime credential stores. For each explicitly requested plugin/skill, record its public repository URL, exact commit or package version, upstream-relative path, license/attribution, content hash, intended components, resolved OMP name, prerequisites, and disposition. Start backlog entries at `deferred-user-request`; only requested items may advance to `approved`, `needs-adaptation`, or another explicit deferral. Source verification alone is not installation authorization. A skill installer's folder hash is not a Git commit.
 
 Use reviewed public checkouts under a dedicated source root, for example:
 
@@ -865,7 +882,7 @@ Never commit `agent.db`, `.env`, provider credentials, or OMP's `omp-plugins.loc
 
 ### 15.3 Register and install through OMP, not another harness
 
-Close running model sessions during adoption so a partially prepared plugin set cannot become active. Confirm the selected profile, turn automatic marketplace updates off, then add the reviewed local catalogs:
+After the optional gate passes, close running model sessions so a partially prepared plugin set cannot become active. Confirm the selected profile, turn automatic marketplace updates off, then add only the reviewed local catalogs needed for the explicit request. The block below lists the complete backlog for reference; do not run every registration line for a subset request:
 
 ```bash
 omp config path
@@ -879,9 +896,9 @@ omp plugin marketplace add "$PUBLIC_SOURCES/superpowers-marketplace"
 omp plugin marketplace list
 ```
 
-The directory basenames above are the chosen checkout locations; the catalog's `name` defines marketplace identity. Register only the six reviewed catalogs. Do not transfer other entries from the machine inventory.
+The directory basenames above are the chosen checkout locations; the catalog's `name` defines marketplace identity. Register only requested catalogs from this six-source list. Do not transfer other entries from the machine inventory.
 
-For each exact plugin ID in section 15.1, preview, inspect its source/components, then install only when its component gate passes:
+For each exact plugin ID within the user's explicit optional request, preview, inspect its source/components, then install only when its component gate passes. The full table in section 15.1 is not an implicit batch:
 
 ```bash
 omp plugin install --dry-run --scope user langsmith-skills@langsmith-skills
@@ -890,7 +907,7 @@ omp plugin list --json
 omp plugin doctor
 ```
 
-Repeat that pattern for the other approved IDs. `--scope user` means the active OMP profile's user plugin registry, not a repository install or Claude's registry. `--dry-run` validates cached catalog/scope constraints; it does not fetch plugin code, run a compatibility test, or guarantee safety. Marketplace add/update/enable/disable do not support dry-run. Do not use `--force`, `--yes`, `pkg[*]`, or an all-marketplace install.
+Repeat that pattern only for other IDs in the explicit request. Likewise, run only the marketplace registration commands needed for those IDs, not all six by default. `--scope user` means the active OMP profile's user plugin registry, not a repository install or Claude's registry. `--dry-run` validates cached catalog/scope constraints; it does not fetch plugin code, run a compatibility test, or guarantee safety. Marketplace add/update/enable/disable do not support dry-run. Do not use `--force`, `--yes`, `pkg[*]`, or an all-marketplace install.
 
 Installation does not authorize executable components. Inventory native plugin roots and the effective component loadout before starting a model session. OMP has no documented universal “install this Claude plugin's skills but quarantine everything else” flag; do not invent one. If a stock package cannot meet the component policy, leave it disabled or defer that component. A reviewed local skills-only derivative is a separate adaptation, with its source delta and license retained, not an unmodified upstream install.
 
@@ -938,7 +955,7 @@ Sources: [OMP marketplace contract][o-marketplace], [plugin CLI][o-plugin-cli], 
 
 ### 15.5 Accept the plugin layer before adding loose skills
 
-Record which of the 18 selections passed, which need a documented adaptation, and which remain deferred. Registration/install counts are not a substitute for these checks:
+For the explicitly requested subset of the 18 selections, record which passed, which need a documented adaptation, and which remain deferred. Unrequested entries stay at `deferred-user-request`. These checks are N/A during core-only setup; registration/install counts are not a substitute for them:
 
 - The resolved source, component paths, versions/commits, and public ownership match the adoption manifest. No excluded component or broad foreign user registry appears in the effective loadout.
 - `/agents`, the command menu, `omp skill list --json`, and `/mcp list` show the expected distinct components. LangSmith's nonstandard skill root and Matt Pocock's explicit nested paths resolve.
@@ -950,7 +967,7 @@ If a component fails, disable or uninstall its exact ID using OMP's user-scope c
 
 ### 15.6 Standalone skills: selected public sources
 
-This is the **last installation stage**. All names below remain requested capabilities, subject to dependencies and OMP tests. Prefer an already accepted plugin's copy; do not install a second copy just to reproduce the standalone inventory.
+This is the **last stage of explicitly requested optional work**, not the end of default core setup. All names below stay at `deferred-user-request` unless the user's prompt requests them after core confirmation. Prefer an already accepted plugin's copy; do not install a second copy just to reproduce the standalone inventory.
 
 | Public source | Selected names | Adoption rule |
 |---|---|---|
@@ -979,9 +996,9 @@ For Matt Pocock, the plugin's 27-entry declared list includes 26 of the requeste
 
 `implement-spec` and `retro` exist under `skills/engineering/` and are declared by the inspected plugin; do not reproduce the older personal receipt's `in-progress` paths for them. The repository also contains unrequested `chief-of-staff` and `software-factory` skills; their presence is not approval to add them.
 
-### 15.7 Install only approved final supplements
+### 15.7 Later execution: only explicitly requested supplements
 
-Use pinned public checkouts and complete skill directories, not an entire home-directory skill root. `omp skill install` targets OMP's Skillshare registry packages; it is **not** a documented installer for arbitrary GitHub skill URLs. `omp skill import` publishes a `.skill` archive to that registry; it is not the local-import command for this task. Do not use either to guess installation routes.
+Execute these instructions only after the optional gate passes, for the requested skill subset. Use pinned public checkouts and complete skill directories, not an entire home-directory skill root. `omp skill install` targets OMP's Skillshare registry packages; it is **not** a documented installer for arbitrary GitHub skill URLs. `omp skill import` publishes a `.skill` archive to that registry; it is not the local-import command for this task. Do not use either to guess installation routes.
 
 For reviewed source-backed skills that the accepted plugins do not already provide, create one approved-only root and link each selected complete skill directory. Example for one macOS skill, after validating the source checkout:
 
@@ -1010,7 +1027,7 @@ WIKI_PY="$(uv tool dir)/obsidian-wiki/bin/python"
 "$WIKI_PY" -c 'from importlib.resources import files; print(files("obsidian_wiki").joinpath("_data", "skills"))'
 ```
 
-Expose only the 34 selected wiki-owned skill directories from that result; do not hardcode a Python minor-version path or assume current upstream `main` contains the same inventory as the pinned package. `obsidian-wiki setup` has no `--agent`/`--agents` selector, and it can add Claude session hooks unless `--no-hooks` is supplied. This plan skips `setup` while exposing skills; a separate vault-initialization decision must name its exact effects and target. Do not overwrite the vault configuration, ingest history, or enable hooks as a side effect.
+Expose only explicitly requested directories from the 34 wiki-owned candidates; do not hardcode a Python minor-version path or assume current upstream `main` contains the same inventory as the pinned package. `obsidian-wiki setup` has no `--agent`/`--agents` selector, and it can add Claude session hooks unless `--no-hooks` is supplied. This plan skips `setup` while exposing skills; a separate vault-initialization decision must name its exact effects and target. Do not overwrite the vault configuration, ingest history, or enable hooks as a side effect.
 
 For Playwright CLI, approve one exact npm release before installing:
 
