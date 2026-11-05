@@ -125,6 +125,53 @@ For the standalone route, download the installer to a temporary file, inspect it
 
 Record the installation owner, executable path, OMP version, runtime version, OS/architecture, and selected release reference. Do not run `bun setup` in the source checkout unless developing OMP. Source: [README installation][o-readme], [installer][o-installer], [CLI package][o-package].
 
+### zsh changes after installation
+
+The OMP install does not require a new environment variable or a `.zshrc` edit when its executable directory is already on `PATH`. The shell only needs to find the executable. If Bun itself needs installation, Bun's installer may ask you to add `~/.bun/bin`; inspect your zsh startup file and add that entry only once.
+
+- **Bun package:** `bun install -g @oh-my-pi/pi-coding-agent` installs the `omp` command into Bun's global binary directory. If `bun` already works, check `command -v omp` after installing.
+- **Standalone binary:** the installer defaults to `${PI_INSTALL_DIR:-$HOME/.local/bin}`. It does not edit zsh startup files. After installing, check `command -v omp`; if the directory is absent from `PATH`, add one guarded entry to the active zsh startup file:
+
+  ```zsh
+  # Add only if ~/.local/bin is not already on PATH.
+  export PATH="$HOME/.local/bin:$PATH"
+  ```
+
+- **Homebrew or Nix:** let the selected package manager expose its own binary; do not add a competing Bun or standalone copy.
+
+On this machine, the zsh PATH inspection on 2026-11-05 found both `~/.local/bin` and `~/.bun/bin` already on `PATH`, but `omp` was not installed yet. Therefore neither the default standalone location nor Bun's usual location needs a new PATH entry on this host. Recheck after installation instead of adding duplicate shell lines.
+
+Two optional shell integrations have separate effects:
+
+1. **Profile selection:** the current spec's `export OMP_PROFILE=personal` is the only persistent OMP-specific environment variable it proposes. Add it to the one reviewed zsh block only if you want bare `omp` commands to select that profile. Omit it if you use the generated profile function instead. Provider/search keys remain separate optional credentials and are not required to start OMP.
+2. **Tab completion:** if wanted, append one zsh completion line to `~/.zshrc` or write generated completion output into an existing `$fpath` directory:
+
+   ```zsh
+   eval "$(omp completions zsh)"
+   ```
+
+   Completions are optional; add them only after `omp` runs.
+
+OMP can create a named-profile function for zsh:
+
+```bash
+omp --profile personal --alias omp-personal
+```
+
+Before running it, inspect or back up `${ZDOTDIR:-$HOME}/.zshrc`. The command upserts a marked function block there. Review the resulting diff, source the returned reload command or open a fresh shell, then use `omp-personal` to force `--profile=personal`. It does not change bare `omp`. Choose either this function or the `OMP_PROFILE=personal` startup line to avoid unclear profile selection. Do not install a second function block with a different name unless you need one.
+
+After any shell change, open a fresh terminal and verify:
+
+```zsh
+command -v omp
+omp --version
+omp config path
+```
+
+The config path should select the intended profile. Remove only the marked OMP block or the exact PATH/completion line you added if you roll back. Keep the rest of `.zshrc` untouched.
+
+Sources: [OMP installer][o-installer], [OMP shell completions][o-readme], [profile settings][o-settings], [profile alias implementation][o-profile-alias], [Bun installation][bun-install].
+
 ## 5. Configuration, profiles, and secrets
 
 ### Native layout
@@ -150,13 +197,13 @@ Paths above assume no XDG relocation. Use `omp --profile personal config path` t
 
 The policy and credentials in `personal` do not apply to the default profile. A one-time `export` in a login example is insufficient: a later plain `omp` in a fresh shell otherwise returns to the default profile, whose approval default is `yolo`.
 
-After approving shell changes, add the following to one managed OMP block sourced by the user's actual zsh/bash startup file, alongside the completion setup:
+After approving shell changes, add the following to one managed OMP block sourced by the user's actual zsh/bash startup file:
 
 ```bash
 export OMP_PROFILE=personal
 ```
 
-For fish, use its shell-specific equivalent, `set -gx OMP_PROFILE personal`, in the managed fish startup block. Do not source bash syntax into fish. Inventory launch paths such as SSH shells, tmux/cmux panes, IDE terminals, and automation: they must inherit this variable or pass `--profile personal`. An explicit `--profile` can override the environment.
+For fish, use its shell-specific equivalent, `set -gx OMP_PROFILE personal`, in the managed fish startup block. Do not source bash syntax into fish. Inventory launch paths such as SSH shells, tmux/cmux panes, IDE terminals, and automation: they must inherit this variable or pass `--profile personal`. An explicit `--profile` can override the environment. Section 4 covers the alternative generated zsh function; choose one persistent method.
 
 Open a fresh terminal and verify, without relying on the previous shell:
 
@@ -749,6 +796,7 @@ Fork links below pin the researched commit. Runtime acceptance still uses the se
 [o-installer]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/scripts/install.sh
 [o-package]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/packages/coding-agent/package.json
 [o-update]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/packages/coding-agent/src/cli/update-cli.ts
+[o-profile-alias]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/packages/coding-agent/src/cli/profile-alias.ts
 [o-search-doc]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/docs/tools/web_search.md
 [o-task-settings]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/packages/coding-agent/src/task/settings.ts
 [o-agents]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/docs/task-agent-discovery.md
@@ -794,6 +842,7 @@ Fork links below pin the researched commit. Runtime acceptance still uses the se
 [p-virtual]: https://pi.dev/docs/latest/virtual-models
 [p-custom]: https://pi.dev/docs/latest/custom-provider
 [p-extensions]: https://pi.dev/docs/latest/extensions
+[bun-install]: https://bun.sh/docs/installation
 
 ## 15. Deferred optional backlog: public plugins and standalone skills
 
