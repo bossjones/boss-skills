@@ -38,8 +38,8 @@
     {
       "name": "agent-harness",
       "source": "./plugins/boss-dev/agent-harness",
-      "description": "Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that build and operate agentic dev workflows.",
-      "version": "0.32.0",
+      "description": "Agent harness tooling for Claude Code: subagents, commands, skills, and scripts that build and operate agentic dev workflows.",
+      "version": "1.0.0",
       "category": "boss-dev",
       "keywords": [
         "agent",

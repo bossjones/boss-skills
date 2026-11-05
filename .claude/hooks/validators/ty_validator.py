@@ -1,1 +1,0 @@
-../../../plugins/boss-dev/agent-harness/hooks/validators/ty_validator.py

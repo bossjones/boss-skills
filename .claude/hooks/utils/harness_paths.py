@@ -1,1 +1,0 @@
-../../../plugins/boss-dev/agent-harness/hooks/utils/harness_paths.py

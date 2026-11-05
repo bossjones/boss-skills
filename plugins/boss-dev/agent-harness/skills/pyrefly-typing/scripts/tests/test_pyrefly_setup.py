@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+import pyrefly_setup
+import pytest
 from pyrefly_setup import (
     append_pyproject_section,
     build_justfile_block,
     build_makefile_block,
     build_pyrefly_toml_block,
     build_stop_hook_entry,
+    check_env,
+    cmd_detect,
     detect_existing_type_checkers,
     detect_legacy_type_checker,
     detect_python_version,
@@ -207,3 +214,40 @@ class TestStopHook:
         twice, changed = merge_stop_hook(once, entry)
         assert changed is False
         assert len(twice["hooks"]["Stop"]) == 1
+
+
+class TestCheckEnvAndDetect:
+    def test_check_env_reports_uv_present(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(pyrefly_setup.shutil, "which", lambda name: f"/usr/bin/{name}")
+        assert check_env() == {"uv": {"ok": True, "hint": None}}
+
+    def test_check_env_reports_uv_missing_with_hint(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(pyrefly_setup.shutil, "which", lambda _name: None)
+        env = check_env()
+        assert env["uv"]["ok"] is False
+        assert "docs.astral.sh/uv" in env["uv"]["hint"]
+
+    def test_cmd_detect_emits_json_report(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setattr(pyrefly_setup.shutil, "which", lambda _name: None)
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "demo"\nrequires-python = ">=3.12"\n'
+            '[dependency-groups]\ndev = ["pyrefly>=0.30"]\n[tool.mypy]\nstrict = true\n',
+            encoding="utf-8",
+        )
+        (tmp_path / "src").mkdir()
+        (tmp_path / "Makefile").write_text("all:\n", encoding="utf-8")
+
+        assert cmd_detect(tmp_path) == 0
+
+        report = json.loads(capsys.readouterr().out)
+        assert report["repo_root"] == str(tmp_path)
+        assert report["pyproject_exists"] is True
+        assert report["python_version"] == "3.12"
+        assert report["has_pyrefly_config"] is False
+        assert report["pyrefly_dev_dependency"] is True
+        assert report["has_baseline"] is False
+        assert report["settings_path_exists"] is False
+        assert report["has_stop_hook"] is False
+        assert report["env"] == {"uv": {"ok": False, "hint": "install uv: https://docs.astral.sh/uv/"}}

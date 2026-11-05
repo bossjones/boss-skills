@@ -1,1 +1,0 @@
-../../../plugins/boss-dev/agent-harness/hooks/tests/test_hooks_json_contract.py

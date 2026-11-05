@@ -25,7 +25,7 @@ repo" list — these load for anyone who trusts a clone:
 
 | Plugin | Marketplace | Why it's pinned |
 |--------|-------------|-----------------|
-| `agent-harness@boss-skills` | boss-skills | This repo's own harness: hooks (event logging, version-bump + skill-edit review), commands (`/plan`, `/build`, `/fix-gh-pr-comments`, …), core skills |
+| `agent-harness@boss-skills` | boss-skills | This repo's own harness: commands (`/plan`, `/build`, `/fix-gh-pr-comments`, …), subagents, and core skills |
 | `superpowers@claude-plugins-official` | official | Process discipline: brainstorming, TDD, systematic debugging, verification-before-completion |
 | `code-review@claude-plugins-official` | official | PR review command (`code-review:code-review`) |
 | `skill-creator@claude-plugins-official` | official | Skill authoring + description optimization loops |

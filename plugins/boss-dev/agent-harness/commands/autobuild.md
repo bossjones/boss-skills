@@ -2,14 +2,6 @@
 model: opus
 description: Implement a spec inside a git worktree, then commit, push, open a PR, and address review comments. Must run inside a linked git worktree.
 argument-hint: <spec-path>
-hooks:
-  PostToolUse:
-    - matcher: "Write|Edit|MultiEdit"
-      hooks:
-        - type: command
-          command: "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/validators/ty_validator.py"
-        - type: command
-          command: "uv run \"${CLAUDE_PLUGIN_ROOT}\"/hooks/validators/ruff_validator.py"
 ---
 
 # Autobuild Command
