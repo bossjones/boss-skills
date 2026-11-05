@@ -672,10 +672,44 @@ All commands in this document describe future implementation. Do not mark an acc
 6. **Assign roles and search.** Replace the candidate's model placeholder, configure the approved search chain, and compare `omp config list --json` with every intended template value in a fresh shell and the target repository. Check `retry.fallbackChains.web` equals the approved list, not an inherited/default chain; check per-tool prompt policies, disabled routes, both isolation flags, `judge`, and `eval.autoProvision`. Record mismatches and resolve their precedence before continuing.
 7. **Adopt bundled workflows.** Exercise read-only task delegation/Agent Hub first. Prove complete pending writer-input inspection in a disposable repository; deny a writer call when `isolated: true` is missing or cannot be verified. Only then exercise an isolated writing task and patch review. Test advisor only if approved. Add LSP for a real project and optional DAP/browser dependencies as required.
 8. **Leave optional content untouched.** Do not register optional marketplaces, fetch/stage their payloads, install plugins/skills or their helper runtimes, import optional MCP definitions, or broaden foreign discovery. Keep section 15 as reference material for a later explicit request.
-9. **Exercise terminal and persistence.** Test active keybindings, a normal restart/resume, compaction, working-directory behavior, and optional multiplexer placement without killing existing sessions.
+9. **Exercise terminal and persistence.** Test active keybindings, a normal restart/resume, compaction, working-directory behavior, and optional multiplexer placement without killing existing sessions. Use the cmux check below when cmux is available; run the same shell checks directly otherwise.
 10. **Hand over the core and stop.** Complete the core acceptance matrix, retain a consistent baseline snapshot, and let the user try OMP. Ask whether it works as expected; recommend answering yes only after their normal workflow succeeds. A yes confirms the core only. It does not authorize optional additions.
 
 **Optional work is a separate workflow, not steps 11-12 of core setup.** After the user confirms OMP works and their prompt explicitly requests optional marketplaces/plugins/skills, execute only the requested subset using section 15. If both plugin and standalone layers are requested, accept the plugin layer first and install standalone supplements last. Do not expand a named subset to the whole backlog. Preserve the existing exclusion, compatibility, dependency, and approval gates.
+
+### Interactive validation in cmux
+
+cmux can give you a clean interactive shell for checking the launch path, PATH, profile, and OMP's visible startup behavior. It does not replace the CLI configuration checks, provider-specific authorization review, or a disposable repository test. Do not start a model request merely to prove the binary launches.
+
+Create a temporary workspace outside the repository. Do not pass an `.env` file or copy secrets into the workspace. Keep the workspace unfocused so the check does not interrupt the current task:
+
+```bash
+cmux new-workspace \
+  --name "OMP setup check" \
+  --cwd /tmp \
+  --command "zsh -il" \
+  --focus false
+```
+
+Capture the returned surface reference. Do not guess an index; if creation output omits it, inspect `cmux tree --all --json` and select the surface belonging to the workspace just created. Then address only that surface:
+
+```bash
+SURFACE="<returned surface ref>"
+cmux send --surface "$SURFACE" --paste \
+  'command -v omp && omp --version && omp config path && omp config get tools.approvalMode'
+cmux send-key --surface "$SURFACE" enter
+cmux read-screen --surface "$SURFACE" --scrollback --lines 40
+```
+
+Confirm the executable path, OMP version, active profile directory, and `always-ask` setting. Repeat after changing `.zshrc`, Bun's PATH, `OMP_PROFILE`, or a generated profile function, using a fresh login shell. Close only the temporary workspace/surface after recording the result. Do not close the existing terminal workspace.
+
+For terminal behavior, use that same surface to test submit versus newline, interruption, `/model`, and a harmless read-only prompt. `send` types/pastes; `send-key enter` submits. Read the resulting screen to verify the command actually ran. Avoid `printenv`, `env`, `.env`, `omp auth`, credential-valued `omp config get`, and raw config dumps; `read-screen` can capture sensitive output. Use `omp config list --json` only where its credential redaction and output storage are understood.
+
+If cmux is unavailable, run these checks in a newly opened zsh login shell:
+
+```zsh
+zsh -lic 'command -v omp && omp --version && omp config path && omp config get tools.approvalMode'
+```
 
 ### Acceptance matrix
 
@@ -683,6 +717,7 @@ All commands in this document describe future implementation. Do not mark an acc
 |---|---|
 | Installation | One installation owner; expected executable/version on both target platforms, or a clear platform-specific blocker |
 | Configuration | Fresh-shell plain `omp config path` selects `personal`; `omp config list --json` matches intended settings in neutral and target directories; explicit interactive launch pins the mode; no ignored/invalid-key warnings |
+| Shell integration | Fresh zsh login shell (via cmux when available) resolves `omp`, reports the selected profile, and shows `always-ask`; command output contains no credentials |
 | OAuth | Codex evidence/decision recorded before login; every permitted provider completes a real response/tool round trip; prohibited/unauthorized providers remain unused |
 | Models | Exact provider/model selectors and resolved role assignments, including `judge`, recorded; no unintended API-key or cross-provider fallback |
 | Search | Independent Tavily/Brave/Firecrawl probes; selected backend and citations visible; controlled fallback failure case |
