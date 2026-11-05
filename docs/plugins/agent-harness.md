@@ -1,6 +1,6 @@
 # agent-harness
 
-> `boss-dev` · v0.31.3 · [plugin source](../../plugins/boss-dev/agent-harness/)
+> `boss-dev` · v0.32.0 · [plugin source](../../plugins/boss-dev/agent-harness/)
 
 Agent harness tooling for Claude Code: subagents, commands, hooks, skills, and scripts that
 build and operate agentic dev workflows. The plugin ships three families of skills — a
@@ -19,7 +19,7 @@ lifecycle hooks, output styles, and status lines.
 
 | Component | Count | Active on install? |
 |-----------|-------|--------------------|
-| Skills | 14 | Yes |
+| Skills | 22 | Yes |
 | Commands | 13 | Yes |
 | Agents | 6 | Yes |
 | Output styles | 8 | Yes |
