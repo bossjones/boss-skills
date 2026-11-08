@@ -1,0 +1,18 @@
+stories:
+  - name: "Homepage loads with navigation"
+    url: "http://localhost:3000"
+    workflow: |
+      Navigate to http://localhost:3000
+      Verify the homepage loads successfully
+      Verify a navigation bar is visible with at least 3 links
+      Verify a hero section or main content area is present
+
+  - name: "Login flow completes"
+    url: "http://localhost:3000/login"
+    workflow: |
+      Navigate to http://localhost:3000/login
+      Verify the login page loads with email and password fields
+      Fill in email with "test@example.com"
+      Fill in password with "password123"
+      Click the login/submit button
+      Verify the page redirects to a dashboard or authenticated view

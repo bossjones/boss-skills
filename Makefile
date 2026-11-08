@@ -179,6 +179,25 @@ test-plugins: ## Test plugins locally using claude --plugin-dir (usage: make tes
 		claude --plugin-dir "$(PLUGIN_DIR)"; \
 	fi
 
+# headroom (headroom-ai): context-compression proxy that sits in front of the
+# Anthropic API. Runs in plain `proxy` mode (not `wrap`) so it doesn't clash
+# with the rtk PreToolUse hook already wired into ~/.claude/settings.json.
+HEADROOM_PORT ?= 8787
+
+.PHONY: headroom-proxy
+headroom-proxy: ## Start the headroom compression proxy (usage: make headroom-proxy [HEADROOM_PORT=8787])
+	@echo "🚀 Starting headroom proxy on port $(HEADROOM_PORT)"
+	@headroom proxy --port $(HEADROOM_PORT)
+
+.PHONY: headroom-dashboard
+headroom-dashboard: ## Open the headroom proxy's live compression-stats dashboard
+	@open "http://localhost:$(HEADROOM_PORT)/dashboard"
+
+.PHONY: claude-proxy
+claude-proxy: ## Run claude routed through the headroom proxy (usage: make claude-proxy [ARGS="--model opus --permission-mode plan"])
+	@echo "🚀 Running claude via headroom proxy at http://localhost:$(HEADROOM_PORT)"
+	@ANTHROPIC_BASE_URL=http://localhost:$(HEADROOM_PORT) claude $(ARGS)
+
 .PHONY: verify-structure
 verify-structure: ## Verify Claude Code marketplace structure and validate plugin manifests
 	@echo "🚀 Verifying marketplace structure and plugin manifests"
