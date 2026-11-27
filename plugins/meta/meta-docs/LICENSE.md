@@ -1,9 +1,9 @@
 # License and Third-Party Attributions
 
 The `meta-docs` plugin is distributed under the MIT License for original plugin scaffolding,
-documentation, subagent definitions, and the adapted `unslop` and `interrogate` skills, and includes
-`humanize-skills` under the Creative Commons Attribution 4.0 International Public License (CC BY
-4.0).
+documentation, subagent definitions, the original `codebase-course` skill, and the adapted
+`unslop` and `interrogate` skills. It includes `humanize-skills` under the Creative Commons
+Attribution 4.0 International Public License (CC BY 4.0).
 
 ## 1. `humanize-skills` (CC BY 4.0)
 

@@ -12,6 +12,10 @@ skill folder keeps the skill tree limited to `SKILL.md` + `references/` + `scrip
 **Path convention:** `docs/evals/<plugin>/<skill>.md` for plugin skills (and
 `docs/evals/<skill>.md` for repo-internal `.claude/skills/<skill>`).
 
+## meta-docs
+
+- [codebase-course](meta-docs/codebase-course.md)
+
 ## agent-harness
 
 ### PR-review family

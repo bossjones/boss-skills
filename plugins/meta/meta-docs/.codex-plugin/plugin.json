@@ -1,7 +1,7 @@
 {
   "name": "meta-docs",
-  "version": "0.1.0",
-  "description": "Documentation quality, anti-slop rewriting, multi-language humanization, and adversarial verification skills and subagents.",
+  "version": "0.2.0",
+  "description": "Documentation quality, interactive codebase courses, anti-slop rewriting, and adversarial verification skills and subagents.",
   "author": {
     "name": "Malcolm Jones",
     "email": "bossjones@theblacktonystark.com",
@@ -16,14 +16,15 @@
     "unslop",
     "humanize",
     "interrogate",
+    "codebase-course",
     "writing",
     "review"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Meta Docs",
-    "shortDescription": "De-slop, humanize, and adversarially verify documentation and plans.",
-    "longDescription": "Meta Docs provides skills and an autonomous reviewer subagent to strip AI writing tells, humanize prose across 20 languages and 10 modes, and stress-test documentation and plans with execution-backed adversarial verification.",
+    "shortDescription": "Improve documentation, build codebase courses, and verify plans.",
+    "longDescription": "Meta Docs provides documentation cleanup, multilingual humanization, interactive codebase courses, and execution-backed verification skills, plus a reviewer subagent.",
     "developerName": "Malcolm Jones",
     "category": "Developer Tools",
     "capabilities": [
