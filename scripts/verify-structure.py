@@ -53,7 +53,7 @@ import os.path
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from jsonschema import Draft7Validator
@@ -911,6 +911,13 @@ def check_custom_component_paths(plugin_dir: Path, plugin_data: dict[str, Any]) 
             if not path.startswith("./"):
                 errors.append(f"{plugin_name}: Custom {label} path must start with './': {path}")
                 continue
+            if field == "agents" and not path.endswith(".md"):
+                errors.append(
+                    f"{plugin_name}: Custom agent entry must be a .md file, not a directory: {path} "
+                    "(Claude Code rejects directory strings in 'agents'; omit the field to "
+                    "auto-discover ./agents/*.md)"
+                )
+                continue
             # Validate to prevent path traversal
             full_path, error = validate_plugin_path(plugin_dir, path, f"{plugin_name}/{field}")
             if error:
@@ -1143,8 +1150,110 @@ def check_plugin_manifest(  # noqa: C901
     results["hooks"] = check_hooks_configuration(plugin_dir, data)
     results["mcp"] = check_mcp_servers(plugin_dir, data)
     results["paths"] = check_custom_component_paths(plugin_dir, data)
+    results["manifest"].extend(check_codex_manifest(plugin_dir, data))
 
     return results
+
+
+CODEX_PARITY_FIELDS: tuple[str, ...] = ("name", "version", "description")
+CODEX_MARKETPLACE: str = ".agents/plugins/marketplace.json"
+
+
+def _load_json_object(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """Load a JSON file that must contain an object; return ``(data, error)``."""
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
+        return None, f"Cannot parse {path.name}: {e}"
+    if not isinstance(raw, dict):
+        return None, f"{path.name} must be a JSON object"
+    return cast("dict[str, Any]", raw), None
+
+
+def check_codex_manifest(plugin_dir: Path, claude_data: dict[str, Any]) -> list[str]:
+    """Validate an optional ``.codex-plugin/plugin.json`` against the Claude manifest.
+
+    Codex reads its own manifest, so ``name``, ``version``, and ``description`` must stay in
+    lockstep with ``.claude-plugin/plugin.json``. Component path fields share the Claude rules
+    (``./`` prefix, no traversal, must exist, ``agents`` entries must be ``.md`` files).
+    """
+    codex_json: Path = plugin_dir / ".codex-plugin" / "plugin.json"
+    if not codex_json.exists():
+        return []
+
+    plugin_name: str = plugin_dir.name
+    codex_data, load_error = _load_json_object(codex_json)
+    if codex_data is None:
+        return [f"{plugin_name} (.codex-plugin): {load_error}"]
+
+    errors: list[str] = []
+    for field in CODEX_PARITY_FIELDS:
+        claude_value: object = claude_data.get(field)
+        codex_value: object = codex_data.get(field)
+        if claude_value is not None and codex_value != claude_value:
+            errors.append(
+                f"{plugin_name}: .codex-plugin/plugin.json '{field}' {codex_value!r} does not match "
+                f".claude-plugin/plugin.json {claude_value!r}"
+            )
+    errors.extend(
+        error.replace(f"{plugin_name}: ", f"{plugin_name} (.codex-plugin): ", 1)
+        for error in check_custom_component_paths(plugin_dir, codex_data)
+    )
+    return errors
+
+
+def _check_codex_marketplace_entry(repo_root: Path, entry: dict[str, Any]) -> str | None:
+    """Return an error for one Codex marketplace entry, or ``None`` when it is valid."""
+    name = str(entry.get("name", "unknown"))
+    source: object = entry.get("source")
+    if not isinstance(source, dict):
+        return None
+    source_data = cast("dict[str, Any]", source)
+    if source_data.get("source") != "local":
+        return None
+
+    path_value: object = source_data.get("path")
+    if not isinstance(path_value, str) or not path_value.startswith("./"):
+        return f"{CODEX_MARKETPLACE}: plugin '{name}' local source path must start with './'"
+    plugin_dir, error = validate_plugin_path(repo_root, path_value, f"{CODEX_MARKETPLACE} plugin '{name}'")
+    if error or plugin_dir is None:
+        return error
+
+    codex_json = plugin_dir / ".codex-plugin" / "plugin.json"
+    if not codex_json.exists():
+        return f"{CODEX_MARKETPLACE}: plugin '{name}' has no .codex-plugin/plugin.json at {path_value}"
+    manifest, _ = _load_json_object(codex_json)
+    if manifest is not None and manifest.get("name") != name:
+        return f"{CODEX_MARKETPLACE}: plugin '{name}' does not match manifest name {manifest.get('name')!r}"
+    return None  # unparsable manifests are reported by check_codex_manifest
+
+
+def check_codex_marketplace(repo_root: Path) -> list[str]:
+    """Validate the optional Codex marketplace at ``.agents/plugins/marketplace.json``.
+
+    Every local entry must resolve inside the repository to a plugin directory that ships
+    ``.codex-plugin/plugin.json`` with a matching ``name``.
+    """
+    marketplace: Path = repo_root / CODEX_MARKETPLACE
+    if not marketplace.exists():
+        return []
+
+    data, load_error = _load_json_object(marketplace)
+    if data is None:
+        return [f"{CODEX_MARKETPLACE}: {load_error}"]
+    plugins: object = data.get("plugins")
+    if not isinstance(plugins, list):
+        return [f"{CODEX_MARKETPLACE}: 'plugins' must be an array"]
+
+    errors: list[str] = []
+    for entry in cast("list[object]", plugins):
+        if not isinstance(entry, dict):
+            errors.append(f"{CODEX_MARKETPLACE}: plugin entries must be objects")
+            continue
+        error = _check_codex_marketplace_entry(repo_root, cast("dict[str, Any]", entry))
+        if error:
+            errors.append(error)
+    return errors
 
 
 def check_marketplace_structure() -> dict[str, Any]:  # noqa: C901
@@ -1195,6 +1304,7 @@ def check_marketplace_structure() -> dict[str, Any]:  # noqa: C901
     marketplace_schema_errors = validate_marketplace_json(marketplace_data)
     result["marketplace_errors"].extend(marketplace_schema_errors)
     result["marketplace_errors"].extend(check_commands_directory(repo_root / ".claude"))
+    result["marketplace_errors"].extend(check_codex_marketplace(repo_root))
 
     # If marketplace structure invalid, don't continue
     if marketplace_schema_errors:

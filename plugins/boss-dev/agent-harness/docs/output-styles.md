@@ -1,6 +1,6 @@
 # Output Styles Reference
 
-Eight output styles under `output-styles/*.md`, auto-discovered on `/plugin install` and selectable
+Seven output styles under `output-styles/*.md`, auto-discovered on `/plugin install` and selectable
 with `/output-style`. An output style changes **how Claude formats its responses** for the rest of
 the session — it does not change the plugin's commands or skills.
 
@@ -30,7 +30,6 @@ Styles persist for the session. Switch back with `/output-style default` (the bu
 | `yaml-structured` | Machine-readable YAML key/value blocks | [`output-styles/yaml-structured.md`](../output-styles/yaml-structured.md) |
 | `html-structured` | Semantic HTML5 with data attributes for programmatic parsing | [`output-styles/html-structured.md`](../output-styles/html-structured.md) |
 | `genui` | A styled, self-contained HTML page written to `/tmp/` and opened | [`output-styles/genui.md`](../output-styles/genui.md) |
-| `tts-summary` | Spoken task-completion summaries (experimental) | [`output-styles/tts-summary.md`](../output-styles/tts-summary.md) |
 
 ## Choosing a style
 
@@ -41,7 +40,3 @@ Styles persist for the session. Switch back with `/output-style default` (the bu
 | Side-by-side comparisons and checklists | `table-based` |
 | Output another program will parse | `yaml-structured` or `html-structured` |
 | A shareable rendered page | `genui` |
-| Audio recap instead of reading | `tts-summary` (pairs with the |
-
-  [`work-completion-summary`](./agents.md#work-completion-summary) agent) |
-</content>

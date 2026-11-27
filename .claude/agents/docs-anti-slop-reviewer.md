@@ -1,0 +1,1 @@
+../../plugins/meta/meta-docs/agents/docs-anti-slop-reviewer.md

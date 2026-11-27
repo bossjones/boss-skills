@@ -1,0 +1,63 @@
+{
+  "skill_name": "unslop",
+  "description": "Activation and workflow evals for cutting 28 numbered AI writing tells in a separate review pass.",
+  "negative_indicators": [
+    "unslop",
+    "superficial -ing",
+    "synonym cycling",
+    "inline-header lists",
+    "em dash overuse"
+  ],
+  "evals": [
+    {
+      "id": 0,
+      "eval_name": "explicit-unslop-readme-intro",
+      "prompt": "/unslop Tighten this README intro and keep the command exact: In today's fast-paced development landscape, portwho serves as a powerful, lightweight, and intuitive CLI — not just a port checker, but a comprehensive solution. Run `portwho 3000` to see the PID, ensuring a smooth workflow.",
+      "should_trigger": true,
+      "invocation_type": "explicit",
+      "success_criteria": {
+        "outcome": {
+          "description": "Applies the unslop rules to remove AI tells while preserving the `portwho 3000` command and PID fact.",
+          "assertions": [
+            "Preserves `portwho 3000` and PID",
+            "Removes 'landscape', 'serves as', 'not just X, but Y', em dashes, and 'ensuring a smooth workflow'",
+            "Rewrites in direct, active prose"
+          ]
+        }
+      }
+    },
+    {
+      "id": 1,
+      "eval_name": "expand-over-compressed-telegraphic-note",
+      "prompt": "Use the unslop skill to clean up these release notes: Parser rejects bad date -> exit 2, no write. **Performance:** Performance improved by 30% due to the fact that queries are validated by the loader.",
+      "should_trigger": true,
+      "invocation_type": "implicit",
+      "success_criteria": {
+        "outcome": {
+          "description": "Expands over-compressed symbol-speak (Rule 33), removes inline-header restatement (Rule 16), filler (Rule 23), and passive voice (Rule 29).",
+          "assertions": [
+            "Spells out the arrow fragment into a complete sentence with articles and verbs",
+            "Replaces 'due to the fact that' and active-voices 'queries are validated by the loader'",
+            "Preserves exit code 2 and 30%"
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "eval_name": "negative-unrelated-git-bisect-question",
+      "prompt": "How do I use git bisect to find the commit that introduced a regression?",
+      "should_trigger": false,
+      "invocation_type": "negative_control",
+      "success_criteria": {
+        "outcome": {
+          "description": "Explains git bisect directly without running an anti-slop prose pass.",
+          "assertions": [
+            "Shows git bisect start, good, and bad commands",
+            "Does not reference unslop rules or prose tells"
+          ]
+        }
+      }
+    }
+  ]
+}

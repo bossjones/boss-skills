@@ -1,0 +1,80 @@
+{
+  "skill_name": "humanize-skills",
+  "description": "Activation and workflow evals for humanizing writing across modes and languages with a pre-flight no-edit gate.",
+  "negative_indicators": [
+    "pre-flight check",
+    "no-edit gate",
+    "fact-lock",
+    "intake ledger",
+    ".humanized."
+  ],
+  "evals": [
+    {
+      "id": 0,
+      "eval_name": "rewrite-ai-sounding-technical-passage",
+      "prompt": "Humanize this paragraph with --technical: In today's rapidly evolving cloud landscape, our gateway serves as a pivotal tapestry that seamlessly empowers developers — not just routing requests, but fostering enduring reliability across the ecosystem.",
+      "should_trigger": true,
+      "invocation_type": "implicit",
+      "success_criteria": {
+        "outcome": {
+          "description": "Strips AI vocabulary, negative parallelism, and filler while preserving the gateway routing meaning.",
+          "assertions": [
+            "Removes banned vocabulary such as landscape, pivotal, tapestry, seamlessly, and fostering",
+            "Replaces 'serves as' and 'not just X, but Y' with direct technical prose",
+            "Leads with the rewritten passage followed by a concise change note"
+          ]
+        }
+      }
+    },
+    {
+      "id": 1,
+      "eval_name": "audit-only-mode-grouped-by-severity",
+      "prompt": "Run humanize-skills on this draft with --audit --academic: In today's fast-paced academic landscape, it is important to note that experts believe this crucial methodology serves as a testament to vibrant research. Furthermore, it highlights key findings, ensuring broad impact.",
+      "should_trigger": true,
+      "invocation_type": "implicit",
+      "success_criteria": {
+        "outcome": {
+          "description": "Performs a diagnostic audit grouped by severity without rewriting the text.",
+          "assertions": [
+            "Groups findings by severity (CRITICAL, HIGH, MEDIUM, LOW)",
+            "Identifies the formulaic opener, vague attribution, and banned vocabulary",
+            "Does not silently upgrade the --audit request into a full rewrite"
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "eval_name": "no-edit-gate-preserves-clean-human-prose",
+      "prompt": "Humanize this passage: We switched the cache key from the raw URL to a SHA-256 digest of the normalized query string on Tuesday morning after the 09:15 deploy. Before that change, requests carrying more than eighteen filter parameters exceeded the 8 KB upstream proxy limit and returned 414 URI Too Long on the search endpoint. Once the digest key rolled out to all four US-West worker pools, P95 latency dropped from 410 ms to 95 ms, cache hit ratio rose from 61% to 88%, and the 414 errors stopped completely. We kept the raw query string in the structured debug log so on-call engineers can still replay failed queries from Splunk without reversing the hash. The only remaining follow-up is pruning the legacy v1 cache prefix after the seven-day TTL expires next Tuesday.",
+      "should_trigger": true,
+      "invocation_type": "implicit",
+      "success_criteria": {
+        "outcome": {
+          "description": "Scores the >100-word human passage at 0-20 under the pre-flight check, triggers the no-edit STOP gate, and refuses to rewrite the text while keeping all concrete metrics intact.",
+          "assertions": [
+            "Triggers the pre-flight no-edit STOP gate (score 0-20) and returns a diagnostic no-edit verdict rather than rewriting the passage",
+            "Leaves the source prose unchanged and preserves SHA-256, Tuesday, 09:15, 8 KB, 414 URI Too Long, 410 ms, 95 ms, 61%, and 88% verbatim",
+            "Does not invent new numbers, dates, or citations"
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "eval_name": "negative-unrelated-sql-indexing-question",
+      "prompt": "What is the difference between a B-tree index and a hash index in PostgreSQL?",
+      "should_trigger": false,
+      "invocation_type": "negative_control",
+      "success_criteria": {
+        "outcome": {
+          "description": "Answers the PostgreSQL indexing question directly without invoking humanize-skills.",
+          "assertions": [
+            "Explains B-tree vs hash indexes in PostgreSQL",
+            "Does not mention pre-flight AI scoring, no-edit gates, or fact-lock ledgers"
+          ]
+        }
+      }
+    }
+  ]
+}

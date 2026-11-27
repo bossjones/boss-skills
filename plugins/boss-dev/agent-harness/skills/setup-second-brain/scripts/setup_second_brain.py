@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import argparse
 import difflib
-import importlib.util
 import json
 import re
 import shutil
@@ -40,7 +39,6 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from types import ModuleType
 
 # --- Config shape -------------------------------------------------------------
 
@@ -323,19 +321,11 @@ def check_env() -> dict[str, object]:
     """Report (never block) on the tools the second brain expects."""
     results: dict[str, object] = {}
 
-    module_name = "_agent_harness_preflight"
-    cached = sys.modules.get(module_name)
-    if isinstance(cached, ModuleType):
-        module = cached
-    else:
-        path = Path(__file__).resolve().parents[3] / "hooks" / "utils" / "preflight.py"
-        spec = importlib.util.spec_from_file_location(module_name, path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Cannot load shared preflight helper: {path}")
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
-        spec.loader.exec_module(module)
-    results["uv"] = module.check_env()["uv"]
+    uv_ok = _which("uv")
+    results["uv"] = {
+        "ok": uv_ok,
+        "hint": None if uv_ok else "install uv: https://docs.astral.sh/uv/",
+    }
 
     node_version = _tool_version(["node", "--version"]) if _which("node") else None
     node_major = _node_major(node_version)

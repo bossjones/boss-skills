@@ -8,7 +8,8 @@ builds on commands from the one before it. After that, use it as a lookup.
 
 **What you'll learn:** how cmux's window → workspace → pane → surface hierarchy works,
 how to drive a single agent in a pane through the type → submit → read → close loop,
-how to wait on an agent's turn without busy-polling, and how to boot a config-driven
+how to detect when an agent has finished with a bounded completion-marker check, and how to
+boot a config-driven
 multi-agent team and hand it a feature.
 
 **Prerequisites:** macOS 14+ (Sonoma or later) with cmux installed. Everything here is
@@ -60,38 +61,18 @@ from any terminal (not just inside the app), symlink it:
 $ sudo ln -sf "/Applications/cmux.app/Contents/Resources/bin/cmux" /usr/local/bin/cmux
 ```
 
-### Notification hooks
+### Completion contract
 
-Later sections rely on cmux pushing a "turn finished" notification for each agent. Wire
-that up once:
+Later sections detect when an agent has finished by asking it to print one distinctive line
+(for example `TASK-DONE #<attempt id> | <summary>`) and checking for that line with `read-screen` on a bounded
+interval. This works the same for pi, Codex, Claude Code, Copilot CLI, and any other terminal
+agent, so there is nothing extra to install. See
+[section 5](#5-waiting-on-agents-the-right-way) for the pattern.
 
-```bash
-$ cmux hooks setup                    # installs for every supported agent found on PATH
-$ cmux hooks setup <agent>            # or: cmux hooks setup --agent <agent>
-```
-
-or install/reinstall one agent directly:
-
-```bash
-$ cmux hooks pi install --yes
-$ cmux hooks codex install --yes
-```
-
-Supported agent names: `codex`, `grok`, `opencode`, `pi`, `omp`, `amp`, `cursor`,
-`gemini`, `kimi`, `kiro`, `rovodev` (or `rovo`), `copilot`, `codebuddy`, `factory`,
-`qoder`. `cmux hooks setup` silently **skips** any agent whose binary isn't on `PATH`
-— if an agent stays silent, don't assume setup already covered it; run
-`cmux hooks <agent> install --yes` to (re)install that one agent directly. Full
-per-agent integration matrix (installed files, session-restore command, Feed bridge):
-https://github.com/manaflow-ai/cmux/blob/main/docs/agent-hooks.md
-
-Claude Code is **not** in that agent list and isn't covered by `cmux hooks setup` at
-all — it's "handled by the cmux Claude wrapper when Claude Code integration is enabled
-in Settings" (upstream's own wording). cmux bridges Claude's own model-initiated
-`PushNotification` tool call, which only fires if that Settings toggle is on **and**
-the model decides to call it during that turn — see
-[section 5](#5-waiting-on-agents-the-right-way) for why you should default to a
-printed completion marker for Claude Code instead of waiting on this event.
+`cmux hooks setup` (and, for Claude Code, Settings → Claude Code integration) is
+optional. It powers cmux app features — sidebar running state, notifications, Feed
+approvals, and session restore after relaunch — but completion detection here does not
+depend on it. Use the vendor `cmux-diagnostics` skill to check which hooks are installed.
 
 ### Socket control from outside cmux
 
@@ -125,11 +106,19 @@ terminal rendering (font, cursor, theme, scrollback, `background-opacity`,
 
 The `agent-harness:boss-cmux` skill is everything you need to *drive* cmux. For the fuller
 published skill set (browser automation, settings, diagnostics, a markdown viewer, and
-more), install the vendor skills globally:
+more), install upstream's end-user skills globally. One copy lands in `~/.agents/skills`,
+which Codex and Copilot CLI read directly; Claude Code gets symlinks:
 
 ```bash
-$ npx skills add manaflow-ai/cmux -g -y
+$ npx skills add manaflow-ai/cmux -g -y --agent claude-code codex github-copilot \
+  --skill cmux cmux-workspace cmux-browser cmux-cloud-vm cmux-cua cmux-capture \
+  cmux-settings cmux-keyboard-shortcuts cmux-customization cmux-custom-sidebar \
+  cmux-diagnostics cmux-markdown
 ```
+
+The remaining skills in `manaflow-ai/cmux` (architecture, billing, release, and so on) are for
+developing cmux itself, and a cmux checkout already exposes them at project scope. Refresh the
+installed set later with `npx skills update -g`.
 
 Namespacing keeps them distinct — this tutorial's skill installs as
 `agent-harness:boss-cmux`, so there's no collision even if you install the vendor `cmux`
@@ -231,18 +220,10 @@ A few things worth knowing about this command:
 
   That shows a var is present without revealing it; `[ -n "$VAR" ]` confirms it's
   non-empty. Report the masked/presence result, never the secret itself.
-- **Subscribe to events immediately, before sending any prompt.** The `--json` output
-  gives you the workspace's `workspace_id` right away — start the `cmux events`
-  listener for it in the background *now*, not when you're about to wait on an agent:
-
-  ```bash
-  WS=<workspace_id from --json>
-  $ cmux events --name notification.requested --no-heartbeat --no-ack > /tmp/cmux-$WS.ev &
-  ```
-
-  Late subscription is how you miss a turn-done signal. See
-  [section 5](#5-waiting-on-agents-the-right-way) for the full pattern — including why
-  Claude Code needs a different completion signal than pi/codex/gemini.
+- **Define completion before sending a prompt.** Tell the agent to end with one distinctive,
+  attempt-correlated line, such as `TASK-DONE #<attempt id> | <summary>`, so you can check for
+  it consistently across agents.
+  See [section 5](#5-waiting-on-agents-the-right-way).
 
 ### The loop itself
 
@@ -288,107 +269,45 @@ passed.
 
 ## 5. Waiting on agents the right way
 
-Once you've sent an agent a task, you need to know when it's done — without burning
-tool calls in a `read-screen` + `sleep` loop. cmux has a push channel for exactly this
-— but it's only a **deterministic** signal for pi/Codex/gemini. For Claude Code, read
-[the subsection below](#claude-code-use-a-completion-marker-not-the-notification-event)
-before relying on it.
+Once you've sent an agent a task, you need to know when it's done. Use one contract for every
+agent — pi, Codex, Claude Code, Copilot CLI — a **printed completion marker** checked with
+`read-screen` on a bounded interval.
 
-**`cmux events` is the wait channel — not `cmux wait-for`.** `cmux wait-for <name>` is
-an unrelated *named-token rendezvous* — a manual semaphore you signal yourself. It has
-no idea when an agent finishes a turn. The signal you actually want is the
-`notification` event category, which requires the hooks from
-[section 1](#1-what-cmux-is-and-prerequisites) to be installed (`cmux hooks setup`).
-Without them, an agent stays silent and you're back to polling.
+**`cmux wait-for` is not an agent-finished signal.** `cmux wait-for <name>` is a named-token
+rendezvous — a manual semaphore you signal yourself. It has no idea when an agent finishes a
+turn.
 
-### What fires
+### The completion-marker loop
 
-One event per completed turn for pi and Codex, which get a hook that fires
-deterministically on every turn-stop:
-
-```json
-{ "name": "notification.requested", "category": "notification",
-  "workspace_id": "120FC732-…", "surface_id": null, "seq": 1512 }
-```
-
-Match on **`workspace_id`** — for hook-emitted notifications, `surface_id` is usually
-`null`, but `workspace_id` is always set. The title/body are **redacted** in the event
-itself (you get the signal, not the text), so once it fires, `read-screen` that
-workspace's surface to see the actual reply. Filter to `--name notification.requested`
-— a sibling `notification.clear_requested` fires when a surface gains focus, and is
-just noise you should ignore.
-
-### Blocking on one agent's turn
-
-Capture the target workspace's UUID first:
-
-```bash
-$ cmux list-workspaces --json --id-format both
-```
-
-You should already have the listener running from
-[section 4](#4-the-control-loop) (started at workspace-creation time, before the first
-prompt). If not, start it now, **before** you send the prompt (so you can't miss the
-event), streaming to a file rather than piping directly:
-
-```bash
-WS=<agent-workspace-uuid>
-$ cmux events --name notification.requested --no-heartbeat --no-ack > /tmp/cmux.ev &
-EV=$!
-$ cmux send --surface <ref> "<task>"; cmux send-key --surface <ref> enter
-until grep -q "\"workspace_id\":\"$WS\"" /tmp/cmux.ev; do sleep 1; done
-kill $EV
-$ cmux read-screen --surface <ref> --scrollback --lines 40   # now read the reply
-```
-
-**Pitfall:** a `cmux events | jq … &` pipeline in a one-liner can stall on stdout
-buffering. Stream to a file and poll the file (as above), or pass `jq --unbuffered` if
-you must pipe directly.
-
-For a durable cursor across reconnects (so you don't miss events across a restart of
-your listener), use:
-
-```bash
-$ cmux events --cursor-file <path> --reconnect
-```
-
-### Claude Code: use a completion marker, not the notification event
-
-Claude Code has **no deterministic turn-stop hook** like pi/Codex/gemini —
-`cmux hooks setup` doesn't cover it. cmux instead bridges Claude's own
-model-initiated `PushNotification` tool call through a `PostToolUse` hook into a cmux
-notification (see [cmux's `agent-hooks.md`](https://github.com/manaflow-ai/cmux/blob/main/docs/agent-hooks.md)).
-That only fires if "Claude Code integration" is enabled in cmux's app Settings **and**
-the model itself decides to call `PushNotification` that turn. A scripted,
-task-oriented sub-agent that's never told to proactively "notify the user" typically
-never calls it, so `cmux events` shows heartbeats only, with no
-`notification.requested` ever arriving. That's expected — don't spend time debugging
-hooks setup for it.
-
-Default to a printed completion marker for Claude Code instead — the same contract
-`boss-cmux-team` already uses for its workers:
-
-1. Tell the agent, in its prompt, to end with one distinctive line when truly done,
-   e.g. `TASK-DONE: <summary>`.
-2. Poll `read-screen` for that marker on a bounded loop (fine to race it against the
-   notification listener as a free early exit, but the loop's exit condition must not
-   depend on the notification alone):
+1. Give the dispatch a fresh attempt id and tell the agent, in its prompt, to end with one
+   distinctive line containing it when truly done.
+2. Check `read-screen` for that exact marker on a bounded interval:
 
    ```bash
+   ID="$(date +%s)-$RANDOM"   # fresh for every dispatch, including retries
+   cmux send --surface <ref> "<task>. Attempt id: $ID. When done, print one line: TASK-DONE #<attempt id> | <summary>"
+   cmux send-key --surface <ref> enter
    for i in $(seq 1 60); do
-     cmux read-screen --surface <ref> --lines 5 | grep -q "TASK-DONE:" && break
+     cmux read-screen --surface <ref> --lines 40 | grep -Eq "^[[:space:]⏺●│]*TASK-DONE #$ID \| .+" && break
      sleep 5
    done
-   $ cmux read-screen --surface <ref> --scrollback --lines 40
+   cmux read-screen --surface <ref> --scrollback --lines 40
    ```
 
-3. If the marker never appears within the bound, treat it as "possibly slow, or the
-   model never got to it," not "cmux is broken" — `read-screen` to see what's
-   actually on screen before deciding.
+   The attempt id does two jobs. The echoed prompt contains `#<attempt id>`, not the real id,
+   so it can never satisfy the check. And a `TASK-DONE` line left on screen by an earlier
+   task carries a different id. The pattern is anchored to the start of the line but allows
+   the leading pad or bullet (⏺, ●, │) that agents render, so a restatement of the marker
+   mid-sentence or in echoed input (`> …`) never counts as completion.
+3. If the marker never appears within the bound, treat it as "possibly slow, or the model
+   never got to it," not "cmux is broken" — `read-screen` to see what's actually on screen
+   before deciding.
 
-Separately: a Claude Code notification, when it does fire, still doesn't mean the task
-succeeded — it fires even when Claude declined the work. Always `read-screen` (or
-check the artifacts), don't trust the event alone.
+A completed turn is not the same as a successful one: an agent can end its turn with a refusal
+or a request for input. Always read the final output and inspect the resulting artifacts.
+
+`boss-cmux-team` uses exactly this attempt-id contract for its workers — see
+[section 8](#the-completion-contract).
 
 ---
 
@@ -449,10 +368,9 @@ $ claude --dangerously-skip-permissions "<task>"
 The composer then shows `⏵⏵ bypass permissions on` and executes shell/edits without
 prompting. This is a per-launch flag — it doesn't change global Claude settings.
 
-> **Caveat, verified in testing:** a notification still fires on turn-completion
-> **even when Claude refused to do the work**. If you only watch events, you can
-> mistake a "declined, nothing happened" turn for success. Always `read-screen` (or
-> check the actual artifacts) after the event fires — don't trust the event alone.
+> **Caveat, verified in testing:** a turn can end **even when Claude refused to do the
+> work**. Always confirm the completion marker with `read-screen` and check the actual
+> artifacts — a finished turn alone doesn't mean the task succeeded.
 
 ---
 
@@ -576,19 +494,18 @@ oriented, with no manual hand-off step.
 Every worker ends a finished task by printing exactly one line:
 
 ```text
-<SENTINEL>: <role> | <summary>
+<SENTINEL>: <role> #<attempt-id> | <summary>
 ```
 
-with the default sentinel `TASK-DONE`. The lead **waits on cmux notification events**
-(matching on `workspace_id`, the same technique from [section 5](#5-waiting-on-agents-the-right-way),
-since `surface_id` is often `null`) rather than busy-polling — then does a single
-`read-screen` to capture the summary. This is the same push-over-poll discipline from
-section 5, just applied by the lead to each of its own workers instead of by you to a
-single surface.
+with the default sentinel `TASK-DONE`. The lead gives every dispatch a fresh attempt id and
+checks each worker with bounded `read-screen` intervals for that exact role and id — the
+same pattern from [section 5](#the-completion-marker-loop) — so a finished line from an
+earlier attempt cannot satisfy a retry. It then reads the summary and inspects the resulting
+artifacts.
 
 > **What you should see:** once you hand the lead a feature, `read-screen`ing the lead
 > shows it dispatching work to `plan`, then to `build-be` / `build-fe`, then to `test`
-> — each transition gated on a notification event, not a fixed sleep.
+> — each transition gated on that worker's `TASK-DONE` line, not a fixed sleep.
 
 ---
 

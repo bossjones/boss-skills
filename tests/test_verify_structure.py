@@ -353,6 +353,56 @@ class TestMcpAndPaths:
         errs = vs.check_custom_component_paths(d, {"commands": "./missing.md"})
         assert any("not found" in e for e in errs)
 
+    def test_custom_agents_directory_string_rejected(self, tmp_path: Path) -> None:
+        d = _plugin(tmp_path, "p", manifest={"name": "p"})
+        (d / "agents").mkdir()
+        errs = vs.check_custom_component_paths(d, {"agents": "./agents/"})
+        assert any("must be a .md file" in e for e in errs)
+
+    def test_custom_agents_md_file_ok(self, tmp_path: Path) -> None:
+        d = _plugin(tmp_path, "p", manifest={"name": "p"})
+        (d / "agents").mkdir()
+        (d / "agents" / "a.md").write_text("x")
+        assert vs.check_custom_component_paths(d, {"agents": ["./agents/a.md"]}) == []
+
+
+# --------------------------------------------------------------------------- #
+# Codex manifest + marketplace
+# --------------------------------------------------------------------------- #
+class TestCodex:
+    def _codex(self, plugin_dir: Path, manifest: dict) -> None:
+        (plugin_dir / ".codex-plugin").mkdir()
+        (plugin_dir / ".codex-plugin" / "plugin.json").write_text(json.dumps(manifest))
+
+    def test_manifest_version_drift_errors(self, tmp_path: Path) -> None:
+        d = _plugin(tmp_path, "p", manifest={"name": "p", "version": "1.0.0"})
+        self._codex(d, {"name": "p", "version": "0.9.0"})
+        errs = vs.check_codex_manifest(d, {"name": "p", "version": "1.0.0"})
+        assert any("'version'" in e for e in errs)
+
+    def test_manifest_agents_directory_string_errors(self, tmp_path: Path) -> None:
+        d = _plugin(tmp_path, "p", manifest={"name": "p"})
+        (d / "agents").mkdir()
+        self._codex(d, {"name": "p", "agents": "./agents/"})
+        errs = vs.check_codex_manifest(d, {"name": "p"})
+        assert any(".codex-plugin" in e and "must be a .md file" in e for e in errs)
+
+    def test_marketplace_entry_without_codex_manifest_errors(self, tmp_path: Path) -> None:
+        _plugin(tmp_path, "p", manifest={"name": "p"})
+        (tmp_path / ".agents" / "plugins").mkdir(parents=True)
+        entry = {"name": "p", "source": {"source": "local", "path": "./plugins/p"}}
+        (tmp_path / ".agents" / "plugins" / "marketplace.json").write_text(json.dumps({"plugins": [entry]}))
+        errs = vs.check_codex_marketplace(tmp_path)
+        assert any("no .codex-plugin/plugin.json" in e for e in errs)
+
+    def test_marketplace_matching_entry_ok(self, tmp_path: Path) -> None:
+        d = _plugin(tmp_path, "p", manifest={"name": "p"})
+        self._codex(d, {"name": "p"})
+        (tmp_path / ".agents" / "plugins").mkdir(parents=True)
+        entry = {"name": "p", "source": {"source": "local", "path": "./plugins/p"}}
+        (tmp_path / ".agents" / "plugins" / "marketplace.json").write_text(json.dumps({"plugins": [entry]}))
+        assert vs.check_codex_marketplace(tmp_path) == []
+
 
 # --------------------------------------------------------------------------- #
 # check_manifest_conflicts

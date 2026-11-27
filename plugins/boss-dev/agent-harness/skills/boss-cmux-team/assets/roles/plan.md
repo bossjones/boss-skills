@@ -24,5 +24,8 @@ the codebase to ground the plan in what actually exists.
 - Finish by printing exactly:
 
   ```
-  TASK-DONE: plan | plan written to .team/plan.md — <N> backend, <M> frontend tasks
+  TASK-DONE: plan #<attempt-id> | plan written to .team/plan.md — <N> backend, <M> frontend tasks
   ```
+
+  `<attempt-id>` is the attempt id in the lead's task message; copy it verbatim. If the task
+  message has no attempt id, leave out the ` #<attempt-id>` part.

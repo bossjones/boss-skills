@@ -1,1 +1,0 @@
-../../../plugins/boss-dev/agent-harness/hooks/validators/validate_file_contains.py

@@ -16,12 +16,12 @@ models, launcher, role prompts, the app path, and the completion sentinel — is
 **team-config JSON**, not code, so the same machinery works for any team shape.
 
 This skill builds on the `agent-harness:boss-cmux` driver skill (the verb-level cmux control
-loop, credential injection, and notification-wait). Read that skill for the primitives;
+loop, credential injection, and completion-marker checks). Read that skill for the primitives;
 this one is the team layer on top.
 
 ## Prerequisites
 
-Same as `agent-harness:boss-cmux` (macOS + cmux installed, `cmux hooks setup`,
+Same as `agent-harness:boss-cmux` (macOS + cmux installed and
 `automation.socketControlMode: allowAll` for an orchestrator outside cmux). Agents launch
 authenticated via `--env-file .env` — assume the keys are set; never read their values.
 
@@ -87,18 +87,19 @@ team booted (workers should reply `ready: <role>`), then hand it the feature.
 
 ## The completion contract
 
-Every worker ends a finished task by printing one line: `<SENTINEL>: <role> | <summary>`
-(default sentinel `TASK-DONE`). The lead **waits on cmux notification events** (matching on
-`workspace_id`, since `surface_id` is often null) rather than busy-polling, then does a
-single `read-screen` to capture the summary. See `agent-harness:boss-cmux` →
-**Wait for agents via notification events**.
+Every worker ends a finished task by printing one line: `<SENTINEL>: <role> #<attempt-id> | <summary>`
+(default sentinel `TASK-DONE`). The lead gives every dispatch a fresh attempt id and checks each
+worker with bounded `read-screen` intervals for that exact id, so a finished line from an earlier
+attempt cannot satisfy a retry. It captures the summary when the sentinel appears and verifies the
+resulting artifacts. See `agent-harness:boss-cmux` → **Wait for agents with a completion marker**.
 
 ## Best practices
 
 1. **One team = one workspace = one feature.** Teams share a window as sibling workspaces.
 2. **Anchor to the window UUID**, rediscover surface refs at the moment of use.
 3. **Drive the lead, not the workers** — the lead owns dispatch and integration.
-4. **Push over poll** — wait on `cmux events`, don't loop `read-screen` + `sleep`.
+4. **Bound every wait** — check for the completion sentinel at a fixed interval and
+   inspect the screen before deciding that a worker is stalled.
 5. **Close scoped** — tear down the team's workspace as a unit; never loop-close the tree.
 
 ## Report Format

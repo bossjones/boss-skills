@@ -28,5 +28,8 @@ a new framework or pattern unless the plan calls for it.
 - Finish by printing exactly:
 
   ```
-  TASK-DONE: build-fe | <what shipped> — verified with <how>
+  TASK-DONE: build-fe #<attempt-id> | <what shipped> — verified with <how>
   ```
+
+  `<attempt-id>` is the attempt id in the lead's task message; copy it verbatim. If the task
+  message has no attempt id, leave out the ` #<attempt-id>` part.

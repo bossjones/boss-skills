@@ -178,12 +178,8 @@ If a check fails:
 3. Re-run the failing check.
 4. Repeat ≤ 3 times. After 3 failed iterations, stop and surface the error to the user.
 
-For changes that aren't covered by `make` targets (e.g., standalone `uv run` scripts under `.claude/hooks/`, status lines, or PEP 723 utility scripts), exercise them manually with representative input before pushing. Examples:
-
-```bash
-# Hook smoke test
-echo '{"hook_event_name":"PostToolUse","tool_name":"Read"}' | uv run .claude/hooks/post_tool_use.py
-```
+For changes that aren't covered by `make` targets (for example, status lines or standalone PEP 723
+utility scripts), exercise them manually with representative input before pushing.
 
 ## Phase 5: Commit & Push
 
@@ -324,9 +320,9 @@ At each phase, give the user a terse status update. Cycle headers help when the 
 
 ### Phase 1: Fetch
 Found 9 top-level comments from gemini-code-assist[bot]
-- security/critical: 1  (.claude/hooks/permission_request.py)
-- bug/medium: 3        (subagent_stop.py, status_line_v10.py, post_tool_use.py)
-- docs/medium: 5       (prime.md, debug-ci.md, CLAUDE.md, evals.json, pre_tool_use.py)
+- security/critical: 1  (src/permissions.py)
+- bug/medium: 3        (src/session.py, status_line_v10.py, src/tools.py)
+- docs/medium: 5       (prime.md, debug-ci.md, CLAUDE.md, evals.json, README.md)
 
 ### Phase 2: Triage
 All 9 comments accepted — fixes apply cleanly.

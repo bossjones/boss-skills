@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "meta-docs",
+  "displayName": "Meta Docs",
+  "version": "0.2.0",
+  "description": "Documentation quality, interactive codebase courses, anti-slop rewriting, and adversarial verification skills and subagents.",
+  "author": {
+    "name": "Malcolm Jones",
+    "email": "bossjones@theblacktonystark.com",
+    "url": "https://github.com/bossjones"
+  },
+  "homepage": "https://github.com/bossjones/boss-skills",
+  "repository": "https://github.com/bossjones/boss-skills",
+  "license": "MIT",
+  "keywords": [
+    "documentation",
+    "anti-slop",
+    "unslop",
+    "humanize",
+    "interrogate",
+    "codebase-course",
+    "writing",
+    "review"
+  ],
+  "skills": "./skills/"
+}

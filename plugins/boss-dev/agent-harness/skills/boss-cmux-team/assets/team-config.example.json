@@ -18,7 +18,7 @@
       "launcher": "pi",
       "model": "<your-lead-model>",
       "prompt": "roles/lead.md",
-      "kickoff": "You are the LEAD of team __FEATURE__ (app: __APP_PATH__). Your workers are the sibling panes in this window: plan, build-be, build-fe, test. Find their surface refs: run cmux identify --json for your workspace, then cmux list-pane-surfaces --workspace <ws>. Drive each worker with cmux send + send-key enter, and wait on cmux notification events for '__SENTINEL__: '. Wait for the orchestrator to hand you a feature, then plan -> build -> test."
+      "kickoff": "You are the LEAD of team __FEATURE__ (app: __APP_PATH__). Your workers are the sibling panes in this window: plan, build-be, build-fe, test. Find their surface refs: run cmux identify --json for your workspace, then cmux list-pane-surfaces --workspace <ws>. Drive each worker with cmux send + send-key enter, and check cmux read-screen for '__SENTINEL__: '. Wait for the orchestrator to hand you a feature, then plan -> build -> test."
     },
     {
       "name": "plan",

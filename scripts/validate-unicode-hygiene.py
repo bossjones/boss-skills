@@ -59,9 +59,7 @@ DEFAULT_TARGETS: tuple[str, ...] = (
     ".claude/commands/*.md",
 )
 
-# BLOCKER codepoint sets, fixed by the Unicode standard. The PreToolUse gate in
-# plugins/boss-dev/agent-harness/hooks/pre_tool_use.py mirrors these two sets inline;
-# this module is their canonical definition.
+# BLOCKER codepoint sets, fixed by the Unicode standard.
 TAG_RANGE: range = range(0xE0000, 0xE0080)
 BIDI_CONTROLS: frozenset[int] = frozenset({0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2066, 0x2067, 0x2068, 0x2069})
 ALLOWED_BOM: int = 0xFEFF

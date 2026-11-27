@@ -40,6 +40,11 @@ Add the marketplace once, then install plugins by name:
 /plugin install twitter-tools@boss-skills
 ```
 
+GitHub Copilot CLI reads the same marketplace (`copilot plugin marketplace add bossjones/boss-skills`).
+Plugins that also ship `.codex-plugin/plugin.json` (currently [`meta-docs`](meta-docs.md)) are
+listed in the Codex marketplace at `.agents/plugins/marketplace.json`
+(`codex plugin marketplace add bossjones/boss-skills`).
+
 Browse and manage installed plugins with the `/plugin` menu. To pull the latest versions
 after the marketplace changes:
 
@@ -51,23 +56,26 @@ after the marketplace changes:
 
 | Plugin | Category | Version | Description | Docs |
 |--------|----------|---------|-------------|------|
-| agent-harness | `boss-dev` | 0.31.3 | Subagents, commands, and skills for agentic dev workflows | [agent-harness.md](agent-harness.md) |
+| agent-harness | `boss-dev` | 1.0.0 | Subagents, commands, and skills for agentic dev workflows | [agent-harness.md](agent-harness.md) |
 | basedpyright-lsp | `boss-dev` | 0.1.1 | Wire basedpyright into Claude Code for real-time Python diagnostics | [basedpyright-lsp.md](basedpyright-lsp.md) |
 | python-dev | `boss-dev` | 1.0.0 | Debug GitHub Actions CI and ship conventional-commit PRs | [python-dev.md](python-dev.md) |
 | github-pr-review | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [github-pr-review.md](github-pr-review.md) |
 | twitter-tools | `social-media` | 0.1.1 | Download X/Twitter media and convert tweets to Reels | [twitter-tools.md](twitter-tools.md) |
 | proxmox-infra | `boss-homelab` | 0.1.1 | Manage Proxmox VE homelab infrastructure and IaC | [proxmox-infra.md](proxmox-infra.md) |
+| meta-docs | `meta` | 0.2.0 | Improve docs, build codebase courses, and verify plans (Claude Code, Copilot CLI, Codex) | [meta-docs.md](meta-docs.md) |
 
 ## Source layout
 
 ```text
 plugins/
 ├── boss-dev/
-│   ├── agent-harness/      # 9 skills, 12 commands, 6 agents, hooks + status lines
+│   ├── agent-harness/      # 21 skills, 16 commands, 6 agents, 7 output styles, 1 status line
 │   ├── basedpyright-lsp/   # LSP integration (.lsp.json)
 │   └── python-dev/         # 2 commands
 ├── boss-homelab/
 │   └── proxmox-infra/      # 1 skill (proxmox-infrastructure)
+├── meta/
+│   └── meta-docs/          # 4 skills, 1 agent; Claude, Copilot, and Codex manifests
 └── social-media/
     └── twitter-tools/      # 2 skills
 

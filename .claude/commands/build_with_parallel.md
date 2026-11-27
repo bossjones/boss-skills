@@ -2,13 +2,6 @@
 model: opus
 description: Build a feature in parallel by dispatching one worktree-isolated builder subagent per independent track, then merging and validating.
 argument-hint: <parallel-plan-path-or-prompt>
-hooks:
-  Stop:
-    - hooks:
-        - type: command
-          command: "uv run \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/validators/ty_validator.py"
-        - type: command
-          command: "uv run \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/validators/ruff_validator.py"
 ---
 
 # Build With Parallel
@@ -38,7 +31,7 @@ USER_PROMPT: $ARGUMENTS
 3. Dispatch the remaining independent tracks in parallel as worktree-isolated builder subagents (single message, multiple Agent calls, `isolation: worktree`). For dependent tracks, wait for their blockers to complete, then dispatch.
 4. Monitor each subagent to completion; collect the worktree branch and result for each track.
 5. Integrate: merge each track's branch back in dependency order (foundation first). Resolve any conflicts (minimal by construction, since ownership is disjoint).
-6. Validate: the Stop hooks run `ty_validator` + `ruff_validator`; also run `make lint` and `make test`.
+6. Validate: run `make lint` and `make test`.
 7. Report the results of your work.
 
 ## Report
