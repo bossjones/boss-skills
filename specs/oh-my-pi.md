@@ -1,12 +1,31 @@
 # oh-my-pi setup specification for macOS and Linux
 
-Status: proposed configuration, pending approval. This document does not authorize installation, OAuth login, secret access, or changes to this machine.
+Status: core setup and targeted repairs verified on one Apple Silicon Mac on 2026-11-05; portable setup procedure for the next laptop. Each new host still needs its own installation, profile, credential, and acceptance checks. Reading or updating this document does not authorize changes to another machine.
 
-Sequential re-review: Gemini 4 Argon reported no issues. Opus 5.5 identified a profile-selection gap plus approval ergonomics, writer-isolation, project-override, authorization-evidence, and provisioning concerns. This revision addresses those findings against the pinned source. Its task approval formatter does not show isolation flags, so writer approval requires a stronger inspection step than relying on the prompt summary. These reviews do not replace the implementation acceptance checks.
+Earlier sequential re-review: Gemini 4 Argon reported no issues. Opus 5.5 identified a profile-selection gap plus approval ergonomics, writer-isolation, project-override, authorization-evidence, and provisioning concerns. Those reviews preceded the installation findings below. The pinned task approval formatter does not show isolation flags, so writer approval requires a stronger inspection step than relying on the prompt summary. Neither the earlier reviews nor this Mac's targeted checks establish full Linux, optional-feature, or next-laptop acceptance.
 
 Research date: 2026-11-03. Fork source baseline: [`can1357/oh-my-pi` at `594670d6`](https://github.com/can1357/oh-my-pi/tree/594670d6b0b6d5f8080693aad34dedd38b5ebd94), whose CLI package declares version `18.16.0`. Pi's `/docs/latest` and catalogs are rolling references. Recheck the selected release and its configuration schema before implementing.
 
 Public ecosystem follow-up: 2026-11-04. The user selected the public marketplaces/plugins and standalone skills in section 15 as a **deferred optional backlog**, not part of initial OMP setup. Proceed only after the user confirms OMP works as expected and explicitly requests optional setup in their prompt. Passing checks or approving this spec does not authorize that work. Exclude Adobe-owned or Adobe-specific components; standalone skills remain last within any explicitly requested optional work.
+
+## Verified implementation findings
+
+The [OMP quickstart][o-live-quickstart], [provider guide][o-live-providers], and installed 18.16.0 behavior exposed two onboarding mismatches: plain `omp` used the default profile while the initial safety settings lived in `personal`, and the default role selected the developer API provider despite a successful Codex subscription login.
+
+| Item | Observed result on 2026-11-05 | Consequence for a repeat install |
+|---|---|---|
+| Installation | Bun 1.4.4 owns OMP 18.16.0 on macOS arm64 | Recheck architecture, runtime, release, transitive dependencies, and executable ownership on the next host |
+| Active profile | Plain `omp` uses `~/.omp/agent`; `omp-personal` uses a separate, unauthenticated profile | Recommend the default profile for a single personal laptop. Apply policy and complete login in that same profile |
+| Codex | Login succeeded under `openai-codex`, but the saved role was `openai/gpt-6-luna`; correcting it to `openai-codex/gpt-6-luna` produced a response and a successful `read` tool event | Subscription credentials and API selectors are not interchangeable. Use an exact selector from the active profile's catalog |
+| Safety | Copied and compared 23 explicit core settings from `personal` into the default profile, including `always-ask`, browser off, and Eval auto-provision off | Do not assume the full template was applied: its additional chat aliases and five skill-source switches still require verification on a fresh installation |
+| Remaining template differences | Default profile still has only `default`, `web`, and `judge` role entries and an empty `disabledProviders`; `skills.enableClaudeProject`, `skills.enableAgentsUser`, and `skills.enableAgentsProject` resolve to true, while Claude-user and Codex-user switches resolve to false | The repair preserved existing setup rather than applying every fresh-host restriction. Review these differences before claiming complete template/discovery acceptance |
+| Existing providers | Preserved the user's Claude OAuth and OpenRouter API credentials; neither provider received an acceptance request | Existing credentials are not a reason to delete them or switch billing. Their presence does not establish provider-policy approval or request success |
+| Bun lifecycle hooks | Reviewed and selectively ran `onnxruntime-node@1.30.0` and `protobufjs@7.6.6`; Bun reports zero remaining blocked hooks | Perform the version/platform-specific review in section 4 instead of dismissing install warnings or trusting all packages |
+| Native dependency checks | ONNX Node binding loaded; protobuf encode/decode passed | These checks do not prove local model inference, speech synthesis, GPU support, or the same behavior on Linux |
+| Search | Tavily and Brave had no available credentials; the configured chain returned a cited result through keyless Firecrawl and reported both earlier failures | Partial search acceptance is valid if disclosed. Supply the missing keys before claiming either keyed route works |
+| Shell | The user's new interactive terminal had no warning; the earlier `zsh -lic` subprocess printed `zle` warnings | Do not modify shell startup files to fix an unreproduced interactive problem |
+
+The core repair did not install optional marketplaces, plugins, standalone skills, browser binaries, or local model weights. That does not prove automatic discovery loaded no existing content; inspect the effective loadout separately. The earlier isolated `personal` profile remains separate. This table records evidence from one host, not instructions to copy its credential database or machine state.
 
 ## 1. Recommendation and scope
 
@@ -19,6 +38,7 @@ The requested account inventory is:
 | Gemini | OAuth | Interactive work, research, independent review, supported native search |
 | Anthropic | OAuth | Interactive work and independent review, subject to provider authorization |
 | OpenAI Codex | OAuth | Coding and interactive work through the subscription backend |
+| OpenRouter | User-configured API credential on the first host | Optional model access; preserve an existing login, but require an explicit route/billing choice on the next host |
 | Tavily | `TAVILY_API_KEY` | Built-in web search |
 | Firecrawl | `FIRECRAWL_API_KEY`, with a documented keyless search path | Search and authenticated extraction when needed |
 | Brave | `BRAVE_API_KEY` | Built-in web search |
@@ -29,7 +49,7 @@ These are capabilities the user has, not evidence that credentials are present i
 
 Deliver a reproducible macOS/Linux setup with explicit model roles, search routing, instruction/skill discovery, terminal behavior, approvals, and recovery procedures. Retain the existing Claude Code, Codex, and Copilot environments. Do not copy their credential stores, replace their executables, import all historical sessions, or install a second set of tools that duplicates OMP's built-ins.
 
-**Default setup scope is core OMP only.** The selected public ecosystem is deferred reference material, not an automatic continuation. Implementation defaults remain proposals; unanswered decisions remain in section 13. Approval of this spec can authorize core setup when requested, but optional work additionally requires user confirmation that OMP works and an explicit prompt requesting those additions.
+**Default setup scope is core OMP only.** The selected public ecosystem is deferred reference material, not an automatic continuation. Unanswered new-host decisions remain in section 13. Approval of this spec can authorize core setup when requested, but optional work additionally requires user confirmation that OMP works and an explicit prompt requesting those additions.
 
 ## 2. Keep Pi and OMP separate
 
@@ -125,6 +145,90 @@ For the standalone route, download the installer to a temporary file, inspect it
 
 Record the installation owner, executable path, OMP version, runtime version, OS/architecture, and selected release reference. Do not run `bun setup` in the source checkout unless developing OMP. Source: [README installation][o-readme], [installer][o-installer], [CLI package][o-package].
 
+### Bun lifecycle scripts: inspect, decide, and verify
+
+Treat blocked lifecycle hooks as unresolved installation items until you review them. An `omp --version` success does not prove native dependencies work. Conversely, a blocked hook is not proof that its package needs compilation or that the core CLI is broken.
+
+`bun pm untrusted` operates on a package directory. Running it in this Python repository produces “No package.json was found”; do not run `bun init` here to work around that error. Find the global package directory with `bun pm ls -g` and the selected Bun configuration. The normal location is `~/.bun/install/global`, with dependencies beneath `node_modules`; a customized Bun installation can use a different directory.
+
+After confirming the directory, inspect from there:
+
+```bash
+# Set this to the verified Bun global package directory.
+GLOBAL_INSTALL_DIR="$HOME/.bun/install/global"
+(
+  cd "$GLOBAL_INSTALL_DIR" &&
+  bun pm untrusted &&
+  bun pm why onnxruntime-node &&
+  bun pm why protobufjs
+)
+```
+
+The first host resolved these dependencies:
+
+| Package | Dependency origin | Installed hook behavior | Platform-specific decision |
+|---|---|---|---|
+| `onnxruntime-node@1.30.0` | Optional `@huggingface/transformers@4.3.2`; also an optional peer of OMP's Mnemopi package | `node ./script/install` resolves to `script/install.js`; reads install metadata and can download/extract additional platform assets | macOS arm64 metadata required no extra assets, and native libraries were already bundled. Inspect Linux/x64/arm64 requirements before permitting downloads, particularly CUDA assets |
+| `protobufjs@7.6.6` | `onnxruntime-web`, through optional Transformers | `node scripts/postinstall` resolves to `scripts/postinstall.js`; checks dependent version ranges and prints a warning if needed | No adjacent parent manifest existed in the global layout, so the reviewed script exits without further work. It does not compile native code |
+
+Read the installed `package.json`, both hook entry points, and any referenced helpers/metadata before deciding. Record the resolved versions and download destinations; do not assume a later version behaves the same. A pinned OMP version still has ranged transitive dependencies, so another host can resolve different packages. Preserve a private installation snapshot/lockfile where appropriate, but do not replace the next host's global manifest or unrelated packages with this machine's files.
+
+For the reviewed ONNX package, inspect only platform metadata:
+
+```bash
+(
+  cd "$GLOBAL_INSTALL_DIR" &&
+  node - <<'JS'
+const metadata = require('onnxruntime-node/script/install-metadata.js');
+const platform = process.platform + '/' + process.arch;
+console.log('Platform:', platform);
+console.log('Required assets:', JSON.stringify(metadata.requirements[platform] ?? []));
+JS
+)
+```
+
+Check `node --version` before a hook that invokes Node. If Node or another required runtime is missing, report that dependency and approve its installation through the host's normal package manager. Do not install the OMP source toolchain, Python packages, or local model weights to satisfy unrelated optional capabilities.
+
+After script review and explicit approval of the listed packages, use selective trust:
+
+```bash
+(
+  cd "$GLOBAL_INSTALL_DIR" &&
+  bun pm trust --dry-run onnxruntime-node protobufjs
+)
+# Run only if these are still the reviewed hooks and the user approved them.
+(
+  cd "$GLOBAL_INSTALL_DIR" &&
+  bun pm trust onnxruntime-node protobufjs &&
+  bun pm untrusted
+)
+```
+
+Do not use `--all`. Selective trust executes the hooks and adds package names to this global project's `trustedDependencies`; it is persistent, not a one-time or version-specific approval. Re-review changes before upgrades. If a hook fails, retain its error and resolve the actual prerequisite; do not mark installation complete or retry with broader trust.
+
+For packages present in the selected Bun install, exercise their runtime without downloading weights:
+
+```bash
+(
+  cd "$GLOBAL_INSTALL_DIR" &&
+  node - <<'JS'
+const ort = require('onnxruntime-node');
+const tensor = new ort.Tensor('float32', new Float32Array([1, 2]), [2]);
+if (tensor.size !== 2) throw new Error('ONNX tensor check failed');
+console.log('ONNX native binding loaded');
+const root = require('protobufjs').parse(
+  'syntax = "proto3"; message Probe { string value = 1; }'
+).root;
+const Probe = root.lookupType('Probe');
+const result = Probe.decode(Probe.encode(Probe.create({value: 'OMP_DEPENDENCY_OK'})).finish());
+if (result.value !== 'OMP_DEPENDENCY_OK') throw new Error('Protobuf round trip failed');
+console.log('OMP_DEPENDENCY_OK');
+JS
+)
+```
+
+Record full inference/speech/GPU testing as deferred unless separately requested. Non-Bun installation methods do not need Bun trust commands; validate the dependency contract of their actual distribution instead. Sources: [Bun package utilities][bun-pm], [lifecycle policy][bun-lifecycle], and the installed scripts at the versions recorded above.
+
 ### zsh changes after installation
 
 The OMP install does not require a new environment variable or a `.zshrc` edit when its executable directory is already on `PATH`. The shell only needs to find the executable. If Bun itself needs installation, Bun's installer may ask you to add `~/.bun/bin`; inspect your zsh startup file and add that entry only once.
@@ -139,11 +243,11 @@ The OMP install does not require a new environment variable or a `.zshrc` edit w
 
 - **Homebrew or Nix:** let the selected package manager expose its own binary; do not add a competing Bun or standalone copy.
 
-On this machine, the zsh PATH inspection on 2026-11-05 found both `~/.local/bin` and `~/.bun/bin` already on `PATH`, but `omp` was not installed yet. Therefore neither the default standalone location nor Bun's usual location needs a new PATH entry on this host. Recheck after installation instead of adding duplicate shell lines.
+On the first machine, both `~/.local/bin` and `~/.bun/bin` were already on `PATH`; OMP installation needed no new PATH entry. The personal laptop may differ. Check `command -v bun`, `bun pm bin -g`, and `command -v omp` there instead of copying the first host's startup file.
 
 Two optional shell integrations have separate effects:
 
-1. **Profile selection:** the current spec's `export OMP_PROFILE=personal` is the only persistent OMP-specific environment variable it proposes. Add it to the one reviewed zsh block only if you want bare `omp` commands to select that profile. Omit it if you use the generated profile function instead. Provider/search keys remain separate optional credentials and are not required to start OMP.
+1. **Profile selection:** the recommended default-profile setup needs no OMP-specific environment variable or shell function. Only add `export OMP_PROFILE=personal` if you deliberately choose a named profile and want bare `omp` to use it. A generated `omp-personal` function changes only that command. Provider/search keys remain separate credentials and are not required to start OMP.
 2. **Tab completion:** if wanted, append one zsh completion line to `~/.zshrc` or write generated completion output into an existing `$fpath` directory:
 
    ```zsh
@@ -170,16 +274,18 @@ omp config path
 
 The config path should select the intended profile. Remove only the marked OMP block or the exact PATH/completion line you added if you roll back. Keep the rest of `.zshrc` untouched.
 
+Use a real newly opened terminal as the primary interactive-shell check. `zsh -lic` does not allocate a real terminal and can expose `zle` warnings from existing shell initialization that do not occur interactively. Capture the exact failing launch mode before diagnosing. A normal login/direnv message is not an OMP failure, and launching a terminal should not start OMP by itself.
+
 Sources: [OMP installer][o-installer], [OMP shell completions][o-readme], [profile settings][o-settings], [profile alias implementation][o-profile-alias], [Bun installation][bun-install].
 
 ## 5. Configuration, profiles, and secrets
 
 ### Native layout
 
-Recommend a named `personal` profile for this onboarding. It separates native OMP state from a future `work` profile; it does not isolate processes or external configuration sources.
+**Recommend the default profile for a single personal laptop**, matching OMP's quickstart and the verified plain-`omp` setup. A named `personal` profile remains an option when you need distinct OMP identities/state, but pick it before configuring or logging in. Neither profile choice isolates processes or external configuration sources.
 
 ```text
-~/.omp/profiles/personal/agent/
+~/.omp/agent/             # recommended default; named alternative: ~/.omp/profiles/personal/agent/
   config.yml             # portable non-secret settings
   models.yml             # only if a custom endpoint or verified override is needed
   AGENTS.md              # short OMP-specific user preferences
@@ -191,36 +297,45 @@ Recommend a named `personal` profile for this onboarding. It separates native OM
 <repository>/.omp/config.yml  # optional, non-secret, cwd-scoped project settings
 ```
 
-Paths above assume no XDG relocation. Use `omp --profile personal config path` to establish the active agent directory. Existing XDG data/state/cache category directories can relocate `agent.db`, sessions, and other state without moving `config.yml`. Inventory actual resolved paths before backup or cleanup. Named profiles ignore `PI_CODING_AGENT_DIR`; they inherit default-profile keybindings underneath their own overrides. Foreign agent roots are not profile-scoped.
+Paths above assume no XDG relocation. Use `omp config path` to establish the active agent directory, or `omp --profile personal config path` for the named alternative. Existing XDG data/state/cache category directories can relocate `agent.db`, sessions, and other state without moving `config.yml`. Inventory actual resolved paths before backup or cleanup. Named profiles ignore `PI_CODING_AGENT_DIR`; they inherit default-profile keybindings underneath their own overrides. Foreign agent roots are not profile-scoped.
 
-### Make profile selection persistent
+### Choose one profile and keep commands consistent
 
-The policy and credentials in `personal` do not apply to the default profile. A one-time `export` in a login example is insufficient: a later plain `omp` in a fresh shell otherwise returns to the default profile, whose approval default is `yolo`.
+The policy and credentials in `personal` do not apply to the default profile. The first host's default profile had provider logins but retained `yolo`, while `personal` had the intended policy but no credentials. A named shortcut alone cannot make plain `omp` use that policy.
 
-After approving shell changes, add the following to one managed OMP block sourced by the user's actual zsh/bash startup file:
+| Choice | Configuration and login commands | Expected agent directory |
+|---|---|---|
+| Default, recommended | Plain `omp config …`, `omp login …`, and `omp …`; do not add a profile environment variable | Normally `~/.omp/agent` |
+| Named profile for all OMP commands | Persist `OMP_PROFILE=personal` in the reviewed startup file, or pass `--profile personal` to each command | Normally `~/.omp/profiles/personal/agent` |
+| Named profile through a shortcut only | Use `omp-personal` for config, login, models, search, and interactive sessions; plain `omp` remains default | Shortcut selects `personal`; plain `omp` does not |
+
+Inspect existing `OMP_PROFILE`, legacy `PI_PROFILE`, and `PI_CODING_AGENT_DIR` settings by name without dumping unrelated environment variables. If a previous managed profile export exists, remove only that exact entry after approving default-profile adoption; do not unset intentional work-profile settings across all shells. Check cmux/tmux panes, SSH, IDE terminals, and automation because they may inherit older environment values.
+
+For the named-profile option only, add one reviewed startup entry:
 
 ```bash
 export OMP_PROFILE=personal
 ```
 
-For fish, use its shell-specific equivalent, `set -gx OMP_PROFILE personal`, in the managed fish startup block. Do not source bash syntax into fish. Inventory launch paths such as SSH shells, tmux/cmux panes, IDE terminals, and automation: they must inherit this variable or pass `--profile personal`. An explicit `--profile` can override the environment. Section 4 covers the alternative generated zsh function; choose one persistent method.
+For fish, use `set -gx OMP_PROFILE personal` in the managed fish startup block. An explicit `--profile` overrides the profile environment selection. Do not source bash syntax into fish or add both an export and shortcut without documenting which commands they affect.
 
 Open a fresh terminal and verify, without relying on the previous shell:
 
 ```bash
 omp config path
-omp config list --json
+omp config get tools.approvalMode
+omp config get modelRoles
 ```
 
-The path must select `personal`, and the effective values must match the candidate below, including `tools.approvalMode: always-ask`. Stop on a mismatch. All unqualified `omp` examples after this point assume this verified startup configuration. Until it exists, prefix each invocation with `OMP_PROFILE=personal` or use the documented `--profile personal` form; do not troubleshoot missing logins by authenticating the default profile.
+The path must select your chosen profile and effective approval mode must be `always-ask` after applying policy. Stop on a mismatch. **Unqualified examples below use the default profile unless you explicitly selected the named alternative.** For that alternative, add `--profile personal` to each invocation or use its verified environment/shortcut consistently. Do not solve a profile mismatch by logging in repeatedly to whichever profile a command happens to select.
 
 For interactive sessions, use the explicit launch:
 
 ```bash
-omp --profile personal --approval-mode always-ask
+omp --approval-mode always-ask
 ```
 
-A reviewed shell shortcut may wrap that invocation, but it does not replace the persistent profile selection for subcommands. The runtime flag pins the approval mode above project settings; it does not pin per-tool rules or suppress startup inputs. Neither `--yolo` nor `--auto-approve` belongs in the shortcut. Automation outside an interactive shell must select the profile explicitly and must not run this interactive policy without a defined headless tool policy.
+For a named profile, use `omp --profile personal --approval-mode always-ask`. The runtime flag pins the approval mode above project settings; it does not pin per-tool rules or suppress startup inputs. Neither `--yolo` nor `--auto-approve` belongs in a setup shortcut. Automation must select the same profile and needs a defined headless tool policy before running write/execution tasks.
 
 ### Precedence and edit ownership
 
@@ -248,6 +363,10 @@ Use OMP's own login flows rather than copying Claude Code, Gemini CLI, or Codex 
 
 OMP's dotenv loader checks non-empty process values, project `.env`, profile agent `.env`, profile-root `.env`, and `~/.env` in that order. Bun may preload dotenv variants first. A named profile does not neutralize a project `.env`. Run from a reviewed working directory and check only whether expected variables are set, never their values.
 
+On the next laptop, prefer fresh login through OMP in the chosen profile. Copy only reviewed non-secret configuration; do not clone `agent.db`, tokens, private `.env`, sessions, or complete shell startup files from this machine. OMP has credential export/import commands, but they expose a sensitive JSON payload and are not part of this repeat-install procedure. A login in another profile, or another terminal with different environment selection, does not configure the current one.
+
+For search keys, choose the host's existing secret manager or, after explicit approval, edit the chosen agent directory's private `.env` with a local editor. Set `umask 077` before creating new secret files, restrict the file to mode `600`, and keep the private directory owner-only without changing unrelated directories. Never ask the assistant to paste or log key values. Preserve existing entries rather than replacing the entire file. Check only the expected names' presence and exercise the actual provider; process-environment checks alone miss OMP's dotenv and stored-credential sources.
+
 Protect private directories/files with owner-only permissions and OS disk encryption. Treat `agent.db`, SQLite sidecars, sessions, exports, caches, and backups as sensitive; do not assume macOS Keychain or Linux Secret Service encrypts the auth database. Use a consistent snapshot or SQLite backup mechanism when backing up a live database, not an uncoordinated copy of one SQLite file.
 
 Enable `secrets.enabled: true` as defense in depth. Its obfuscation does not redact static system prompts/tool definitions, all binary content, or arbitrary unknown payloads; it is not at-rest encryption or a reason to print secrets.
@@ -270,13 +389,48 @@ The Google API provider `google` uses `GEMINI_API_KEY`; it is not the Gemini OAu
 OMP's technical CLI supports `omp login <provider>`. For the proposed baseline, the only candidate subscription login is Codex, and it still requires confirming applicable account/workspace authorization:
 
 ```bash
-export OMP_PROFILE=personal
+omp config path
 omp login openai-codex
 ```
+
+Use the selected profile for both commands. In the interactive wizard, `/login openai-codex` offers the same route. After login, select the default from the **openai-codex** catalog rather than similarly named models under **openai**. OMP's quickstart saves the default chosen in onboarding for new sessions; `--model` alone changes only one launch.
 
 Do not run the Google or Anthropic subscription login flows under the currently documented restrictions. Browser callback completion and supported pasted callback/device flows depend on the provider. On Linux over SSH, use the flow OMP actually offers; do not expose callback ports on `0.0.0.0`, invent a `--device-code` flag, or copy a refresh token between machines.
 
 Stored OAuth normally outranks provider environment keys; a custom provider's pinned `models.yml` key ranks above stored OAuth. Avoid routing a subscription credential through a custom proxy. Availability in a model picker only proves configured authentication, not a successful request or entitlement.
+
+### Diagnose an existing Codex login before repeating it
+
+Use metadata and the active catalog, not `omp token`, an auth export, or a credential-valued config query:
+
+```bash
+omp config path
+omp config get modelRoles
+omp models openai-codex --json
+omp config get disabledProviders
+```
+
+| Symptom | Check | Correct action |
+|---|---|---|
+| Codex login completed, but default is `openai/<model>` | The saved role uses the API route rather than the subscription provider | Assign an exact available `openai-codex/<model>` in `/model` → Roles; do not add an OpenAI API key as a workaround |
+| `omp models openai-codex --json` returns an empty model list | Compare config paths with the terminal used for login; inspect provider restrictions and any broker/custom endpoint | Correct profile selection first. Only perform a fresh login if that selected profile lacks usable Codex credentials |
+| Catalog lists the model, but the first request fails | Provider error, account entitlement, expired login, quota, proxy/network, clock, or custom endpoint override | Record the specific failure without tokens. Resolve that route; do not enable fallback into a billed API or another provider |
+| New sessions work, but a running/resumed session still uses the API route | The session retained its active model independently of the changed global default | Switch it through `/model` or `/switch` to the exact Codex selector, or start a fresh session |
+| Claude or OpenRouter already has credentials | Stored provider/type metadata and intended access method | Preserve the login during unrelated repairs. Do not automatically make it the default, use its quota, remove it, or claim policy approval |
+
+`openai-codex/gpt-6-luna` passed the first host's response and tool checks. It is a tested example, not a fixed requirement for the next account; use that host's available catalog. To make a persistent CLI correction on a fresh baseline, set the **complete approved role map** through `omp config set modelRoles '<JSON map>'`, or edit the single YAML template. Read the existing role map first and preserve approved assignments. Do not replace it with a one-key map or assume a per-launch `--model` saved the correction.
+
+`enabledProviders` controls foreign configuration discovery; an empty array does not mean “all model providers disabled.” `disabledProviders` can block model routes and needs separate review. Do not add model-provider IDs to `enabledProviders` just to fix a login.
+
+On a reused host, the active `agent.db` schema can be inspected read-only for `provider`, `credential_type`, `disabled_cause`, and counts, using SQLite or a stdlib client. Do not select its `data` or `identity_key` fields. Resolve the actual DB location first, including XDG/broker behavior; absence of a default-path file does not prove absence of credentials. Credential metadata is an optional diagnostic, not a prerequisite to copy credentials or edit SQLite rows.
+
+### Separately approved API routes
+
+OpenRouter was configured on the first host through an API credential, not Codex OAuth. It is a model-access choice, separate from the deferred marketplace/skill backlog. Do not assume the personal laptop has that credential or permission to incur API charges.
+
+If the user explicitly requests OpenRouter access and approves billing, use OMP's guided `omp login openrouter` in the chosen profile, or supply `OPENROUTER_API_KEY` through the approved local secret source. Complete key entry locally without passing the key as a command argument. Then inspect `omp models openrouter`, choose an available exact `openrouter/<model-id>`, and run a separately approved bounded probe before assigning it to any role. Do not put it into the baseline chat fallback chain.
+
+For authorized Anthropic API access, approve its billing and removal of `anthropic` from `disabledProviders` separately. A stored Anthropic OAuth credential can outrank an environment API key; merely setting `ANTHROPIC_API_KEY` does not prove the API route will win. Review OMP's documented credential precedence and select an authorized access configuration before testing. Do not remove an existing login or repurpose subscription tokens without the user's explicit instruction.
 
 ### Provider-policy findings
 
@@ -378,12 +532,12 @@ Before applying this template, confirm the selectors in `omp models --kind searc
 For a one-off provider probe:
 
 ```bash
-omp web-search --model web/tavily "oh-my-pi configuration documentation"
-omp web-search --model web/brave "oh-my-pi configuration documentation"
-omp web-search --model web/firecrawl "oh-my-pi configuration documentation"
+omp search --model web/tavily --limit 1 --compact "oh-my-pi configuration documentation"
+omp search --model web/brave --limit 1 --compact "oh-my-pi configuration documentation"
+omp search --model web/firecrawl --limit 1 --compact "oh-my-pi configuration documentation"
 ```
 
-The in-session `web_search` tool follows the configured `web` role and fallback chain; it does not expose a per-call model override. The CLI's `--model` is a separate interface.
+The installed 18.16.0 command is **`omp search`**, not `omp web-search`; check `omp search --help` and the [CLI command registry][o-cli-commands] on the selected release. The in-session `web_search` tool follows the configured `web` role and fallback chain; it does not expose a per-call model override. The CLI's `--model` is a separate interface.
 
 The README's backend labels `gemini`, `anthropic`, and `codex` are not `web/gemini`, `web/anthropic`, or `web/codex` model selectors. Grounded search uses a real grounding-capable provider/model, for example documented `openai-codex/gpt-6-luna`, or an available Google OAuth model when authorized.
 
@@ -400,6 +554,16 @@ Use native `read` for ordinary URLs, PDFs, package registries, GitHub pages, and
 ### Data and quota controls
 
 Search sends queries to outside services. Do not include private code, internal URLs, customer data, or secrets in a public search. Search failover also changes recipients. With all three keys supplied, exercise each route independently and record its selected backend, citations, latency, and error behavior without logging credentials. Test keyless Firecrawl only in a controlled environment with both environment and stored search credentials absent.
+
+To validate the configured chain rather than pinning a provider:
+
+```bash
+omp search --limit 1 --compact "oh-my-pi official quickstart documentation"
+```
+
+The first host returned a Firecrawl result with a source URL and explicit notes that Tavily and Brave were unavailable. This proves the ordered fallback worked, not that either missing-key route was configured. `retry.modelFallback: false` disables chat failover but does **not** disable this search role chain; the search dispatcher uses the role-chain resolver separately.
+
+On the laptop, report each route as `passed`, `missing credential`, `provider error`, or `not requested`. A keyless-only result can establish basic search acceptance, but keep Tavily/Brave setup open until their keys resolve and their direct probes pass. A `direnv` loading message does not prove these names are exported. Check from the actual target directory after secrets are configured, then repeat the real OMP probe because OMP also resolves private dotenv/stored sources.
 
 Sources: [README search table][o-readme], [role routing][o-settings], [web-search contract][o-search-doc], [search dispatch][o-search], [Firecrawl search][o-firecrawl-search], [Firecrawl scraping][o-firecrawl-read].
 
@@ -457,7 +621,7 @@ Use `Alt+A` to inspect live workers; `/agents` to manage definitions. Keep advis
 
 ### Assembled candidate `config.yml`
 
-This is the single proposed profile template. **Do not apply it with the unresolved selector placeholder.** Replace it with one exact OMP catalog selector only after the provider gate and live capability probe pass. `openai-codex/gpt-6.1-sol` is a source-backed example, not a guarantee of account access. If no approved model is available, stop before launching a model-backed session.
+This is the single portable profile template, applied to whichever profile section 5 selected. **Do not apply it with the unresolved selector placeholder.** Before login, apply the non-model policy and leave chat roles unassigned rather than saving the placeholder. After login/catalog inspection and the provider gate, probe a concrete selector with a one-launch `--model`, then save the verified role map. `openai-codex/gpt-6.1-sol` is a source-backed example, not a guarantee of account access. If no approved model is available, stop before launching a model-backed session.
 
 All other chat roles below reuse that selector or its aliases for the Codex-only baseline; this makes no claim of cheaper `smol` work or cross-family independence. Confirm image-input support before accepting the `vision` assignment.
 
@@ -535,6 +699,34 @@ retry:
 
 `disabledProviders` blocks the restricted subscription routes; it also blocks Anthropic API access until that provider entry is removed as part of approving a different access method. Empty `enabledProviders` keeps foreign user discovery opt-in. The skill-source switches additionally exclude broad Claude, Codex-user, and `.agents` skill imports; they do not disable every foreign configuration capability. Native skills, native plugin registries, project inputs, and other source providers still need inspection. Project MCP and the browser start off in this candidate, so enabling either after review is an explicit configuration change. Read-only research can still use native URL reading/search.
 
+For a **new laptop**, use the complete approved template, including the five `skills.enable…` switches and the chat-role aliases. The first host's repair verified 23 core settings and the `default`, `web`, and `judge` entries; it did not demonstrate that every additional template field had been applied. Do not present that repair as complete template acceptance.
+
+For an **existing configured host**, compare the template with the active global and project settings before editing. Preserve approved model assignments and existing credential records; propose any provider restriction change explicitly instead of silently disabling a provider the user just configured. Preserving a credential is separate from permitting that route or testing it. Choose one configuration-edit method and merge reviewed fields; do not overlay the full template over unrelated custom settings.
+
+Use `omp config list --scope global --json` to inspect fields written in the active profile and `omp config list --json` to compare effective values in the target directory. Lists mask declared secret settings but still contain private configuration metadata; keep full dumps local. Confirm selected harmless fields individually:
+
+```bash
+omp config path
+omp config get modelRoles
+omp config get tools.approvalMode
+omp config get tools.approval
+omp config get retry.modelFallback
+omp config get retry.fallbackChains
+omp config get task.isolation.enabled
+omp config get task.isolation.apply
+omp config get eval.autoProvision
+omp config get browser.enabled
+omp config get mcp.enableProjectConfig
+omp config get secrets.enabled
+omp config get skills.enableClaudeUser
+omp config get skills.enableClaudeProject
+omp config get skills.enableCodexUser
+omp config get skills.enableAgentsUser
+omp config get skills.enableAgentsProject
+```
+
+Compare the remaining template values too, including all explicit role aliases, concurrency/recursion, question timeout, memory, and autolearn. A successful command or `always-ask` value alone is not full configuration acceptance.
+
 `modelFallback` governs chat failover; search follows its own configured chain. Review any existing per-model fallback entries too. Adopt a [memory backend][o-memory-settings] and automatic learning only after deciding retention, model use, and source scope. A question timeout must not select a recommended answer in place of a user decision.
 
 `eval.autoProvision` defaults to true upstream; the candidate sets it false. This prevents the first `%bun add` from creating a missing managed JavaScript package environment without first changing that policy or explicitly selecting another environment. It does not disable Python/JS execution, prevent installs into an existing environment, or make package managers harmless. Every dependency installation still needs explicit approval; do not select `%environment project` just to bypass the gate and mutate a repository's package files.
@@ -569,8 +761,10 @@ For an explicitly requested later standalone stage, use an approved-only root wh
 ```yaml
 skills:
   customDirectories:
-    - ~/.omp/profiles/personal/agent/approved-skills
+    - ~/.omp/agent/approved-skills
 ```
+
+For a named profile, use that profile's resolved agent directory instead. This remains an optional-stage example, not a directory to create during core setup.
 
 Once the optional gate passes, populate that root only from the sources and approved winners within the user's explicit request. Preserve skill-relative scripts/references, attribution, and provenance. Symlink/identical-content dedup and precedence can change visible names; confirm the resolved source and final name of each skill. A familiar name is not proof that its body came from the approved public upstream.
 
@@ -662,20 +856,107 @@ Sources: [README completions][o-readme], [OMP sessions][o-sessions], [Agent Hub]
 
 ## 11. Implementation sequence and acceptance
 
-All commands in this document describe future implementation. Do not mark an acceptance item complete because documentation or a model picker says the capability exists.
+This sequence applies to each new host. The opening evidence table records checks already performed on the first Mac; it does not pre-complete any item on the personal laptop. Do not mark an acceptance item complete because documentation, an exit code, or a model picker says the capability exists.
+
+### New-laptop preflight and handover inputs
+
+Before changing the laptop, collect these non-secret facts. Ask yes/no questions with a recommendation and write-in option when a decision is missing; never request tokens or private agreement details in chat.
+
+| Input | Recommended default or required check | Additional step if missing |
+|---|---|---|
+| OS and CPU | Record `uname -s`, `uname -m`, and OS version; check arm64/x64 release support | Select the matching artifact; report unsupported platforms instead of guessing |
+| Installation owner | Reuse Bun if installed and `>=1.4.4`; otherwise approve Bun or a pinned standalone release | Inspect the installer/PATH instructions first; do not install multiple OMP copies |
+| Executable paths | `command -v bun`, `command -v omp`, `bun pm bin -g`, `omp --version` when present | Resolve PATH/manager conflicts before login; inventory existing state before upgrades |
+| Hook runtime | Node for installed scripts that invoke `node`; version from `node --version` | Approve installation through the existing host manager if needed; standalone distribution may differ |
+| Validation runtime | Python 3 for the stdlib structured-event harness below | Use an already installed `python3` or an approved equivalent event consumer; do not add Python as an OMP runtime prerequisite |
+| Profile | Default profile and plain `omp` for this single personal laptop | For intentional named isolation, select it consistently for configuration, login, probes, and optional work |
+| Shell and terminal | Actual startup file, modern terminal, and a fresh interactive shell | Add only the missing PATH entry or chosen profile integration; keep completion optional |
+| OAuth route | Fresh permitted Codex login in that profile; account/workspace authorization decision | Ask the user to finish the browser/device flow locally. Do not transfer first-party or first-host token stores |
+| Default model | An exact `openai-codex/<available-model>` selector from this installation | Validate through a bounded response before saving it; do not silently change to `openai` |
+| Other providers | Codex-only new-host baseline unless another access method is explicitly approved | Preserve existing credentials on reused hosts; evaluate Claude/OpenRouter/Google access and billing separately |
+| Search keys | Existing local secret manager; no key values in the spec or assistant output | If approved, create a private profile `.env` through local editing. Without keys, disclose keyless Firecrawl-only acceptance |
+| Network | HTTPS to the chosen provider and search services; working system clock and certificate trust | Diagnose the actual proxy/TLS/callback error; do not disable TLS verification or publish callback ports |
+| Project scope | Neutral directory for first configuration and probes; inspect project/foreign inputs before coding | Compare effective settings in the real project because its YAML/environment can change policy |
+| cmux | Use existing cmux on macOS only if available | A normal terminal is sufficient; do not install cmux or assume Linux support for the core setup |
+| Optional ecosystem | Off and `deferred-user-request` | Do not download, register, or enable additions until the separate section 15 gate passes |
+
+Prepare a non-secret handover with OS/architecture, installation owner and resolved version, selected profile/config path, tested model selector, effective-policy comparison, each search route's disposition, reviewed hook versions, and outstanding checks. Keep full configuration dumps, database snapshots, and account-policy evidence private. Do not copy `.zshrc`, `.env`, global Bun manifests, or complete OMP runtime directories between hosts.
 
 1. **Approve decisions.** Confirm install owner, profile, provider authorization, initial models, search order, import scope, and approval mode using section 13.
 2. **Inventory without secrets.** Inspect OS/architecture, executable paths, tool versions, terminal/shell startup files and launch paths, reviewed config-source names, and existing installations. Do not read credential values. Record any existing OMP state before migration-capable commands run.
-3. **Snapshot and install.** Back up affected settings/state with appropriate permissions. Install the selected pinned release through one manager. Confirm `command -v omp`, version, and help.
-4. **Create policy before first project launch.** Configure the approved profile and explicit approvals in a neutral, reviewed directory. Persist profile selection in the approved managed shell block and verify it from a fresh shell before authenticating. Add non-secret settings; do not run setup from an unreviewed repository.
-5. **Authenticate permitted providers.** Complete and record the Codex decision above before logging in through OMP. Confirm selected workspace/account, model visibility, one small response, and one tool-using response. Record quota/errors without token values. If the gate does not pass, choose an approved alternative or stop.
-6. **Assign roles and search.** Replace the candidate's model placeholder, configure the approved search chain, and compare `omp config list --json` with every intended template value in a fresh shell and the target repository. Check `retry.fallbackChains.web` equals the approved list, not an inherited/default chain; check per-tool prompt policies, disabled routes, both isolation flags, `judge`, and `eval.autoProvision`. Record mismatches and resolve their precedence before continuing.
+3. **Snapshot and install.** Back up affected settings/state with appropriate permissions. Install the selected pinned release through one manager. Confirm executable, version, and help. Resolve any blocked Bun hooks through section 4's inspection, selective approval, and runtime checks; do not dismiss the warning.
+4. **Create policy before first project launch.** Configure the chosen profile and non-model policy in a neutral, reviewed directory. For the recommended default profile, no shell profile export is needed. For a named alternative, verify its selected startup method from a fresh shell before authenticating. Leave unresolved chat roles unassigned; do not save the template placeholder or run setup from an unreviewed repository.
+5. **Authenticate permitted providers.** Complete and record the Codex decision above before logging in through OMP in that same profile. Inspect its Codex model catalog, then probe one exact subscription selector with a one-launch `--model`. Record errors without token values. If the gate or request fails, resolve that route or choose an approved alternative; do not switch providers/billing silently.
+6. **Assign roles and search.** Save the verified selector in the approved role map, configure search/keys, and compare the complete intended template with effective values in a fresh shell and the target repository. Check the five skill-source switches, chat aliases, search chain, per-tool prompt policies, disabled routes, both isolation flags, `judge`, and `eval.autoProvision`. Run the saved-default response and structured read-tool tests below. Record mismatches and resolve precedence before continuing.
 7. **Adopt bundled workflows.** Exercise read-only task delegation/Agent Hub first. Prove complete pending writer-input inspection in a disposable repository; deny a writer call when `isolated: true` is missing or cannot be verified. Only then exercise an isolated writing task and patch review. Test advisor only if approved. Add LSP for a real project and optional DAP/browser dependencies as required.
 8. **Leave optional content untouched.** Do not register optional marketplaces, fetch/stage their payloads, install plugins/skills or their helper runtimes, import optional MCP definitions, or broaden foreign discovery. Keep section 15 as reference material for a later explicit request.
 9. **Exercise terminal and persistence.** Test active keybindings, a normal restart/resume, compaction, working-directory behavior, and optional multiplexer placement without killing existing sessions. Use the cmux check below when cmux is available; run the same shell checks directly otherwise.
 10. **Hand over the core and stop.** Complete the core acceptance matrix, retain a consistent baseline snapshot, and let the user try OMP. Ask whether it works as expected; recommend answering yes only after their normal workflow succeeds. A yes confirms the core only. It does not authorize optional additions.
 
 **Optional work is a separate workflow, not steps 11-12 of core setup.** After the user confirms OMP works and their prompt explicitly requests optional marketplaces/plugins/skills, execute only the requested subset using section 15. If both plugin and standalone layers are requested, accept the plugin layer first and install standalone supplements last. Do not expand a named subset to the whole backlog. Preserve the existing exclusion, compatibility, dependency, and approval gates.
+
+### Bounded response and actual tool-execution checks
+
+Run these only after the provider decision, fresh login, and configuration review. Use a neutral temporary directory outside the repository; disable discovered extensions, skills, rules, context files, LSP, title generation, and session persistence for the probe. Restrict built-in tools to none or `read` as appropriate. These flags narrow the test and reduce incidental disclosure; they are not a sandbox, and user-level/project inputs must still be reviewed.
+
+For the first capability probe before saving roles, add `--model <exact-authorized-codex-selector>` to the no-tool command. After assigning roles, run it without that override to exercise the saved default:
+
+```bash
+(
+  cd /tmp &&
+  omp --cwd /tmp --no-session --no-tools --no-lsp --no-extensions \
+    --no-skills --no-rules --no-context-files --no-title \
+    --thinking low --max-time 90s --print \
+    "Reply with exactly OMP_CODEX_OK. Do not use tools or read files."
+)
+```
+
+Use a reviewed neutral directory, with `/tmp` only as the example. Launch from that directory as well as passing `--cwd`, because Bun can preload dotenv before OMP handles its flags. Require process exit zero and `OMP_CODEX_OK`; record the actual route from configuration/runtime metadata rather than asking the model to identify itself. Keep chat failover disabled. Each probe consumes account quota; do not repeat successful requests solely for reporting.
+
+A model replying `OMP_READ_OK` is not proof it used a tool. For a read-only tool probe, inspect JSON events and require a successful correlated execution. The following stdlib Python harness records only event names/status, not raw prompts, tool payloads, credentials, or model reasoning:
+
+```bash
+python3 - <<'PY'
+import json
+import subprocess
+import tempfile
+
+with tempfile.TemporaryDirectory(prefix="omp-acceptance-") as directory:
+    command = [
+        "omp", "--cwd", directory, "--no-session", "--tools", "read",
+        "--no-lsp", "--no-extensions", "--no-skills", "--no-rules",
+        "--no-context-files", "--no-title", "--thinking", "low",
+        "--max-time", "90s", "--mode", "json", "--print",
+        "Use the read tool once to read https://omp.sh/docs/quickstart. "
+        "If it succeeds reply with exactly OMP_READ_OK. Otherwise report the error. "
+        "Do not read local files or use other tools.",
+    ]
+    result = subprocess.run(command, cwd=directory, capture_output=True, text=True, timeout=120)
+    if result.returncode != 0:
+        raise SystemExit(
+            f"OMP probe failed with exit {result.returncode}; "
+            "inspect its provider error locally without publishing raw output."
+        )
+    events = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+    starts = [event for event in events if event.get("type") == "tool_execution_start"]
+    ends = [event for event in events if event.get("type") == "tool_execution_end"]
+    reads = [event for event in starts if event.get("toolName") == "read"]
+    if len(reads) != 1 or len(starts) != 1:
+        raise SystemExit("Expected exactly one read-tool start and no other tool starts.")
+    call_id = reads[0].get("toolCallId")
+    completions = [
+        event for event in ends
+        if event.get("toolName") == "read" and event.get("toolCallId") == call_id
+    ]
+    if not call_id or len(completions) != 1 or completions[0].get("isError") is not False:
+        raise SystemExit("No correlated successful read-tool completion event.")
+    print("Verified one successful read-tool execution through the saved default model.")
+PY
+```
+
+If Python is unavailable, use another approved JSON event consumer and require the same start/end call-ID match and `isError: false`. Do not install a dependency just to parse output without approval. The [agent event emitter][o-tool-events] supplies `toolCallId`, `toolName`, and `isError`; on a later OMP release, compare its schema/help with this contract before adapting the harness. A successful read probe establishes one model/tool round trip; it does not validate write denial, workers, shell execution, or LSP.
+
+For search, run section 7's configured-chain query and direct probes only for available/approved routes. Require a named serving provider and a source/citation, and inspect failure notes even if the command exits zero. Record absent Tavily/Brave credentials as outstanding setup items rather than converting Firecrawl success into three-provider acceptance.
 
 ### Interactive validation in cmux
 
@@ -701,35 +982,39 @@ cmux send-key --surface "$SURFACE" enter
 cmux read-screen --surface "$SURFACE" --scrollback --lines 40
 ```
 
-Confirm the executable path, OMP version, active profile directory, and `always-ask` setting. Repeat after changing `.zshrc`, Bun's PATH, `OMP_PROFILE`, or a generated profile function, using a fresh login shell. Close only the temporary workspace/surface after recording the result. Do not close the existing terminal workspace.
+Confirm the executable path, OMP version, chosen profile directory, and `always-ask` setting. For the default recommendation, expect `.omp/agent`; for the named alternative, expect its resolved profile path. Repeat after changing `.zshrc`, Bun's PATH, `OMP_PROFILE`, or a generated profile function, using a fresh login shell. Close only the temporary workspace/surface after recording the result. Do not close the existing terminal workspace.
 
 For terminal behavior, use that same surface to test submit versus newline, interruption, `/model`, and a harmless read-only prompt. `send` types/pastes; `send-key enter` submits. Read the resulting screen to verify the command actually ran. Avoid `printenv`, `env`, `.env`, `omp auth`, credential-valued `omp config get`, and raw config dumps; `read-screen` can capture sensitive output. Use `omp config list --json` only where its credential redaction and output storage are understood.
 
-If cmux is unavailable, run these checks in a newly opened zsh login shell:
+If cmux is unavailable, run the same commands in a newly opened terminal. For an additional subprocess check:
 
 ```zsh
 zsh -lic 'command -v omp && omp --version && omp config path && omp config get tools.approvalMode'
 ```
+
+Treat warnings exclusive to that non-TTY subprocess as a separate diagnosis; do not edit working interactive zsh initialization merely to make this auxiliary check silent.
 
 ### Acceptance matrix
 
 | Area | Evidence required |
 |---|---|
 | Installation | One installation owner; expected executable/version on both target platforms, or a clear platform-specific blocker |
-| Configuration | Fresh-shell plain `omp config path` selects `personal`; `omp config list --json` matches intended settings in neutral and target directories; explicit interactive launch pins the mode; no ignored/invalid-key warnings |
+| Configuration | Fresh-shell commands select the chosen default/named profile consistently; complete template comparison includes all role aliases and skill switches in neutral and target directories; explicit interactive launch pins the mode; no ignored/invalid-key warnings |
 | Shell integration | Fresh zsh login shell (via cmux when available) resolves `omp`, reports the selected profile, and shows `always-ask`; command output contains no credentials |
-| OAuth | Codex evidence/decision recorded before login; every permitted provider completes a real response/tool round trip; prohibited/unauthorized providers remain unused |
+| OAuth | Codex evidence/decision recorded before login; configured default uses `openai-codex`, not `openai`; each tested provider has a real response/tool round trip; existing untested logins are reported separately and unauthorized providers remain unused |
 | Models | Exact provider/model selectors and resolved role assignments, including `judge`, recorded; no unintended API-key or cross-provider fallback |
-| Search | Independent Tavily/Brave/Firecrawl probes; selected backend and citations visible; controlled fallback failure case |
+| Search | Configured-chain result identifies backend and citations; direct probes pass for supplied keys; absent Tavily/Brave credentials remain outstanding; keyless Firecrawl success does not mark keyed providers passed |
 | Keyless boundary | Search-only behavior confirmed where available; no claim that unauthenticated scraping works |
 | Approval | Denied harmless test action does not execute; parent behavior matches approved mode; user understands child `yolo` authorization and inherited denies |
 | Workers | Complete raw writer assignments/isolation flags visible before approval, or host writers stay unused; a missing/unverifiable flag leads to denial and no fixture edits; headless shell/Eval probes fail under baseline prompt policies; isolated file changes wait for patch acceptance |
 | Discovery | Expected core instructions/tools load from reviewed sources; no new optional skill/plugin/MCP imports or unintended hook launch |
 | Optional backlog | Section 15 remains deferred and untouched during core setup; optional acceptance checks are N/A until user confirmation and an explicit setup request |
-| Dependencies | Missing core prerequisites produce a specific blocker; `eval.autoProvision` is false and missing managed-environment provisioning fails until approved; no optional ecosystem runtimes or silent global installs |
+| Dependencies | Bun hooks reviewed by version/platform and selectively resolved or explicitly deferred; native import/protobuf checks where applicable; missing runtime/download requirements produce specific blockers; no blanket trust or optional-model downloads; Eval auto-provision remains off |
 | Sessions | Resume restores expected cwd/model; compaction preserves needed context; no export/share upload |
 | Secrets | No values in committed files, recorded output, shell history, screenshots, or handover; private state/backup permissions established |
 | Upgrade recovery | Previous installation reference and consistent state snapshot available; schema migration consequences documented |
+
+Record each row as `passed`, `blocked`, `not exercised`, or `deferred/not applicable`, with its evidence. The first Mac passed targeted installation/configuration, Codex response/read-tool, dependency, and fallback-search checks. Worker isolation/denial, LSP/DAP, full sessions/compaction, optional local inference, and Claude/OpenRouter requests were not established by that repair. On the laptop, either perform an approved applicable check or report its outstanding status; do not call the whole matrix complete from the minimum smoke tests.
 
 Do not deliberately rotate tokens, exhaust subscription quotas, break a production workspace, or invoke a consequential command to test the setup.
 
@@ -755,11 +1040,13 @@ Ask relevant questions one at a time during approval/implementation, not as a pr
 |---|---|---|---|
 | Use OMP's bundled tools before installing overlapping extensions? | Yes | Evaluate a named extension for a specific gap | Package and reason |
 | Use a pinned Bun install on macOS/Linux? | Yes, if Bun `>=1.4.4` is acceptable | Pinned standalone release; Homebrew/Nix when already preferred | Installation owner/version |
-| Persist `personal` profile selection in the managed shell block and use an explicit mode-pinned interactive launch? | Yes; verify a fresh shell and each terminal/automation launch path | Use the default profile only after moving the approved policy and credentials there | Profile/launch layout |
+| Use the default profile for plain `omp` on this personal laptop? | Yes; configure and log in there, then verify fresh-shell policy and an explicit mode-pinned launch | Use a named `personal` profile consistently through a reviewed export or explicit profile command | Profile/launch layout |
 | Start with `always-ask` instead of the default `yolo`? | Yes | `write` for trusted coding, after reviewing execution gates | Approval policy |
 | Accept Codex-only chat inside OMP and keep Claude/Gemini subscriptions in first-party tools? | Yes, after recording the Codex authorization/trial decision | Approve separately billed OpenAI/Anthropic/Gemini API or a supported cloud-provider route; otherwise keep that work outside OMP | Access method, evidence, and billing limits |
 | Use the same verified Codex model across initial chat roles? | Yes; advisor remains off | Choose other available authorized models; cross-family advisor needs another access method | Exact role preferences |
 | Use Tavily → Brave → Firecrawl for public search? | Yes | Another explicit order or OAuth-grounded primary | Search policy |
+| Supply Tavily/Brave keys through an existing local secret manager? | Yes; edit secrets locally and verify direct probes without exposing values | Approve a private profile `.env`, or accept disclosed keyless Firecrawl-only search for now | Credential source and desired routes |
+| Selectively run the inspected Bun dependency hooks? | Yes only after confirming their installed versions, platform behavior, and required downloads | Leave specific hooks deferred with a documented impact; do not trust all dependencies | Approved package names/versions |
 | Keep automatic cross-provider chat failover off initially? | Yes | Approve a named data/usage failover chain | Allowed routes |
 | Start with at most two workers and deliberate advisor activation? | Yes | Different concurrency or advisor cadence | Limits/model choice |
 | Accept per-call task/Bash/Eval approvals and block headless shell/Eval/browser calls initially? | Yes; expect repeated prompts, including routine shell commands | Approve the exact-command inspection allowlist or a separately designed worker policy; tests still require approval | Agent/tool authorization model |
@@ -811,6 +1098,10 @@ Catalog scope: the model catalog's rendered listing and the package catalog land
 Fork links below pin the researched commit. Runtime acceptance still uses the selected installed release.
 
 [o-readme]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/README.md
+[o-live-quickstart]: https://omp.sh/docs/quickstart
+[o-live-providers]: https://omp.sh/docs/providers
+[o-cli-commands]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/packages/coding-agent/src/cli-commands.ts
+[o-tool-events]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/packages/agent/src/agent-loop.ts#L3472-L3490
 [o-settings]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/docs/settings.md
 [o-discovery]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/docs/config-usage.md
 [o-providers]: https://github.com/can1357/oh-my-pi/blob/594670d6b0b6d5f8080693aad34dedd38b5ebd94/docs/providers.md
@@ -878,6 +1169,8 @@ Fork links below pin the researched commit. Runtime acceptance still uses the se
 [p-custom]: https://pi.dev/docs/latest/custom-provider
 [p-extensions]: https://pi.dev/docs/latest/extensions
 [bun-install]: https://bun.sh/docs/installation
+[bun-pm]: https://bun.com/docs/pm/cli/pm
+[bun-lifecycle]: https://bun.com/docs/pm/lifecycle
 
 ## 15. Deferred optional backlog: public plugins and standalone skills
 
@@ -945,8 +1238,9 @@ After the optional gate passes, maintain a non-secret adoption manifest outside 
 Use reviewed public checkouts under a dedicated source root, for example:
 
 ```bash
-export OMP_PROFILE=personal
-PUBLIC_SOURCES="$HOME/.local/share/omp-public-sources/personal"
+# Default-profile example; choose a separate source suffix for a named profile.
+omp config path
+PUBLIC_SOURCES="$HOME/.local/share/omp-public-sources/default"
 mkdir -p "$PUBLIC_SOURCES"
 ```
 
@@ -1087,16 +1381,16 @@ Execute these instructions only after the optional gate passes, for the requeste
 For reviewed source-backed skills that the accepted plugins do not already provide, create one approved-only root and link each selected complete skill directory. Example for one macOS skill, after validating the source checkout:
 
 ```bash
-APPROVED_SKILLS="$HOME/.omp/profiles/personal/agent/approved-skills"
+APPROVED_SKILLS="$HOME/.omp/agent/approved-skills"
 mkdir -p "$APPROVED_SKILLS"
 ln -s "$PUBLIC_SOURCES/cmux/skills/cmux-browser" \
   "$APPROVED_SKILLS/cmux-browser"
 omp config set skills.customDirectories \
-  '["~/.omp/profiles/personal/agent/approved-skills"]'
+  '["~/.omp/agent/approved-skills"]'
 omp skill list --json
 ```
 
-Resolve each skill's real upstream path from its source manifest, not from its display name. Do not overwrite an existing destination or copy only `SKILL.md`; helper scripts, references, licenses, and relative links must survive. OMP scans one level below each custom root. A custom-directory skill can outrank a plugin skill, so omit duplicates rather than relying on shadowing.
+This example uses the default profile. For a named profile, select it for every command and substitute its `omp config path` result in both the destination and custom-directory setting. Resolve each skill's real upstream path from its source manifest, not from its display name. Do not overwrite an existing destination or copy only `SKILL.md`; helper scripts, references, licenses, and relative links must survive. OMP scans one level below each custom root. A custom-directory skill can outrank a plugin skill, so omit duplicates rather than relying on shadowing.
 
 For wiki prerequisites, the inventory's installed version was 2026.7.3. Use an approved pin such as:
 
