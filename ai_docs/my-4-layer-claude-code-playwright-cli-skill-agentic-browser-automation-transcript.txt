@@ -1,0 +1,834 @@
+What's up engineers? Any Devdan here
+with the right skills your agent can do
+tons of work for you. You know this, but
+by engineering the right stack of
+skills, sub agents, prompts, and
+reusability system, you can automate
+entire classes of work. If you don't
+have agents for these two classes of
+work, we'll break down in this video,
+you're wasting time doing work your
+agents can do for you. This is the name
+of the game right now. How many problems
+can you hand off to your agents in a
+reusable, scalable way? In the terminal,
+J automate Amazon. We're kicking off a
+Claude code instance in fast mode. This
+is going to run a different type of
+workflow. This is going to run in
+agentic browser automation workflow.
+Now, this is a personal workflow that
+it's running. You can see here it's got
+a whole list of items that I need to
+purchase, and it's going to do this for
+me. This is browser automation. As
+engineers, there's a more important task
+that we need to focus on as well. So,
+we'll open up a new terminal here and
+we'll type J UI review. This is going to
+kick off agentic UI testing. You can see
+here we're kicking off three browsers.
+Uh this is going to be a mock user test
+on top of Hacker News, and our UI tests
+are effectively going to operate a user
+story against Hacker News. You can have
+agents do your UI testing. Now, there
+are several benefits to this over
+traditional UI testing with Jest or
+Vitest that we're going to cover in this
+video, but you can see here, you know,
+40K tokens each. They're completing,
+they're summarizing back to the primary
+agent, and you can see here these user
+stories have passed. Why is agentic
+browser use so important? It's because
+it allows you to copy yourself into the
+digital world so you can automate two
+key classes of engineering work, browser
+automation and UI testing. Whenever I
+sit down to automate a problem with
+agents, I always ask myself, what is the
+right combination of skills, sub agents,
+prompts, and tools I can use to solve
+this problem in a templated way for
+repeat success. In this video, I want to
+share my four-layer approach for
+building agents that automate and test
+work on your behalf. Let's break down
+automating work on the web.
+>> [music]
+>> Bowser is a opinionated structure using
+skills, subagents, commands, and one
+additional layer we'll talk about. And
+the whole point here is to set up
+systems for agentic browser automation
+and UI testing. I don't just want to
+solve this problem for one code base. I
+want a system that I can come to that's
+built in an agent-first way to solve
+browser automation and UI testing. So,
+let's start with the core technology.
+So, you can see here the Amazon workflow
+is of course using Claude with Chrome.
+You can activate this by using the
+{dash} {dash} Chrome flag, and it's a
+great way to use your existing browser
+session to accomplish work with agents.
+There are pros and cons to this
+approach, which is why I needed another
+tool so that we could scale UI testing
+with agents. That is of course the
+Playwright CLI. Now, this is super
+important and the developers know this.
+You want to be using CLIs, not MCP
+servers. MCP servers chew up your
+tokens, and they're very rigid. You have
+to do it their way, however the MCP
+server is built. This is why we always
+prefer CLIs. And CLIs give us the
+massive benefit can build on top of it
+in our own opinionated way. So, these
+are the two technologies that Bowser is
+built on. Couple key things to note
+here. We ran three agents that QA'd
+specific user stories, and they all
+responded to the primary agent with
+success. You can see each of them has
+their own number of steps, and they all
+have their own screenshots. This is
+super critical. You can see the
+autocomplete already picking up on what
+I want to do. I'm just going to hit tab,
+enter, open the screenshots directory,
+and let's go ahead and see what happened
+there. You can see that every step of
+the way our agents created a screenshot
+of the workflow. View top post comments.
+We can walk through exactly what our
+agent did and how it validated
+everything. This is a simple mock
+example test, but imagine this running
+on your brand new user interface that
+you're building up with agents deploying
+very quickly. If one of your workflows
+goes wrong, your agents now have a trail
+of success and a trail of failure
+because they're taking screenshots along
+the way. I want to show you different
+ways you can layer your architecture.
+It's not just about skills. Everyone's
+very obsessed with skills. I want to
+show you how you can stack it up and
+layer it properly to get repeatable
+results at scale. So, let's jump into
+the code base here. So, we'll start with
+the skill. So, in dot Claude skills, we
+have two key skills, right? Claude
+browser and Playwright browser. Let's
+start with the more interesting one,
+Playwright browser. If I open this up,
+you can see we have the structure all
+collapsed and you can see all the
+details of this skill. Now, the key
+pieces are here. This is a token
+efficient CLI for Playwright, runs
+headless, supports parallel sessions,
+and we have named sessions for stored
+state. All right, so if we open this up
+here, you know, you can see we have just
+a bunch of details on how this works,
+and this is directly using the
+Playwright CLI. You know, the nice part
+about building your own skill is you get
+to customize it however you want, right?
+So, they have their own opinionated
+skill in here. You know, I always
+recommend you check out how other
+engineers are building their skill.
+There's reference files here, and then
+they have a skill that MD kind of just
+breaking down what the help command
+would do anyway. You know, you can see
+that's how they broke that down. Inside
+of this, I'm breaking it down my own
+way. I'm setting up defaults that I want
+for repeated success for the way that
+I'm going to be building applications.
+an important thing to mention. Code is
+fully commoditized. Anyone can generate
+code. That is not an advantage anymore.
+What is an advantage is your specific
+solution to the problem you're solving,
+and that boils down all the way to how
+you write your skills. So, you can see
+here, you know, the big advantage we get
+out of this is headless by default, we
+get parallel sessions, and we get
+persistent profiles. So, if you are
+running some type of login workflow with
+your Playwright testing agent, you can
+persist the session, which is really
+important. So, that's great. We also
+have the Claude browser skill. There's
+not much to document here because when
+you're using Claude with the --chrome
+flag, essentially what it does is it
+injects a bunch of additional tools that
+allows Claude to access the browser. And
+so, the only real checks we need to add
+into the skill is just to make sure that
+the flag is turned on. And then we have
+a couple, you know, opinionated pieces
+here, resize the browser and then you
+execute these requests and return. So,
+very simple. This skill isn't ultra
+necessary, but I wanted to build it to
+showcase how we can stack up the skill
+into different workflows. So, that's
+great. We have our two skills, right?
+The skill is the capability. This is the
+foundational layer. The next piece of
+this layer to approach is going to be
+our
+>> [music]
+>> agents. So, you can see here we have
+three agents. Let's start with the
+simple one. Let's start with our
+Playwright browser agent. Now, check out
+how I'm prompt engineering this. This is
+a very simple sub-agent that we can spin
+up to do arbitrary browser work with the
+Playwright CLI. So, we've activated the
+skill in the front matter and then we're
+mentioning it just one more time inside
+of the actual workflow. So, you can see
+here this agent is very simple. All
+we're doing is scaling the skill into a
+sub-agent. We can prompt over and over
+for UI testing tasks. And really just
+for any browser automation tasks. It
+doesn't have to be for UI testing. It
+just happens to be that it's great for
+that. Okay? And then we have the Claude
+browser agent. So, we can use the Claude
+code Chrome tools inside of a sub-agent.
+The big problem with this is that it
+doesn't really belong here. We can check
+on our workflow right now. If you open
+up the terminal, you can see that our
+Amazon workflow is still working,
+purchasing things for us. Let's go ahead
+and open up Chrome. You can see it's
+buying some blue light blockers for me.
+It's got a couple other things inside
+the the cart for me here, including, you
+know, flowers, Valentine's Day right
+around the corner. Got to pick up those
+flowers for the GF, right? It's fully
+automated and it's doing this work on my
+behalf. The big problem with this using
+the --chrome flag is that you cannot run
+this in parallel, okay? So, this is one
+of the big limitations, 14 minutes
+running AK tokens. It's just going to
+continue running my browser automation
+task for me. And let's move to our most
+important agent, the Bowser QA agent.
+And so, here's where things get
+interesting. This is where we're
+actually building out a concrete
+workflow. This is where things get more
+specialized. This is a UI validation
+agent. It's going to work through user
+stories. It's going to do it in a very
+specific way. This is where we start
+templating our engineering into a system
+for repeat success. All right? These
+agents can do a lot more than we give
+them credit for. It's time to start
+pushing them hard into specific
+workflows to automate classes of work.
+So, let's understand how this agent
+allows us to do that exactly. We have a
+classic agent workflow here, classic
+agentic prompt, purpose variables,
+workflow, report examples. If you've
+been with the channel, you understand
+the structure very well. Let's jump into
+the workflow, right? This is where the
+work actually happens. So, this agent is
+going to parse a user story into
+specific steps, create a directory for
+it, work through the workflow, take
+screenshots, report pass or fail, and
+then actually close the browser. And so,
+here we have an opinionated workflow
+with a few variables where agent is
+going to be recording its journey along
+the way and saving screenshots. Very,
+very powerful. You can see we have a
+output format. This is very important.
+We are specifically telling our agent to
+respond, and we have examples of some
+step-by-step workflows that this agent
+could actually execute, okay? And so, if
+you wanted to, we could do something
+like this, right? We can just copy one
+of these examples. We'll use the
+example.com, you know, we'll just copy
+this out, and it's going to turn this
+into a series of steps, fire up a cloud
+code instance, and then we can just use
+the agent reference with @bowser-qa.
+There's this agent, and then we can just
+fire this prompt off. So, we're giving
+it that step-by-step workflow, and this
+is going to kick off a headless browser
+agent to actually validate this workflow
+to make sure that everything works, all
+right? And so, this is just a random
+example. Uh example.com doesn't actually
+have, you know, any input field to enter
+anything into. So, this workflow will
+likely come back failed, right? Because
+these steps don't really exist. Failed
+to go to example.com, reserve domain,
+paragraph of text, no login, exactly.
+So, we got screenshots of the journey
+saved along the way. Now, this is the
+important piece that I really want to
+share with you here, right? We layered
+an agent on top of a skill, and then we
+built an agent to use that skill, right?
+We can see that Playwright browser skill
+here. And we built a concrete workflow
+for repeat success. This browser
+codebase, it isn't like a standalone
+codebase. It's a codebase that I and you
+can reference to pull a consistent
+structure of skills, subagents, prompts,
+and one additional layer I'll share in a
+moment here for reusability, and it
+allows you to take this and apply it to
+any problem, any codebase with a
+consistent structure, okay? And so, the
+agent is where we start to specialize
+and scale, where the skill is just our
+raw capability, okay? And so, I think if
+you're just looking at things from the
+angle of the skill, you're not using all
+agentics as well as you could, right?
+There are many other pieces that you can
+add to this to really expand what you
+can do with your agent, all right?
+Everyone is just spamming skills right
+now, and that's great. I understand why,
+but there's layers to how you can build
+this up for repeat success, especially,
+and this is an important thing to
+mention, especially with these new agent
+orchestration features coming out of
+Cloud Code and other agentic coding
+tools, knowing how to build these
+specialized agents that you can scale is
+going to be all too important. I think
+subagents got a massive buff, and
+they're going to be a centerpiece as
+agent orchestration becomes the primary
+paradigm of agentic coding. I'll link
+the previous video where we talk about
+the powerful new agent orchestration
+features coming out of Cloud Code. You
+can see here the Amazon workflow has
+completed. It's walked right up to the
+doorstep of making the purchase, and if
+we open up the terminal here, you can
+see here that it, you know, set
+everything. This workflow took 20
+minutes to run, but it did it all
+without us, all right? And so, you know,
+you can see this is a this is a risky
+workflow because it walked right up to
+the doorstep of the purchase and it has
+everything we asked for. This is one
+example, browser automation has many
+many uses, many many things you can do
+from support workflow automation, from
+gathering documents from, you know,
+different resources. There are many many
+ways to use browser automation and you
+can see here my agent emphasizing this,
+stopping here, not placing order, very
+important. The adherence of this Opus
+4.6 model is really fantastic. It's
+great with directions and you can see
+that it, you know, completed this entire
+workflow. Definitely took some time
+though. And if it took time, that means
+it took tokens. So, that's great. Let's
+continue to the next layer, right? So,
+you can see here we're starting to build
+opinionated, reusable agents on top of
+our skill, right? We're not just relying
+on the skill, although if we want to,
+whenever we want to, we can kick off a
+brand new terminal, fire up Claude, and
+we can activate any one of these skills,
+right? So, if we wanted to, we could do
+Claude browser, kick the skill off, or
+Playwright browser, kick this off. So,
+we can hop into any layer we want to.
+This is a huge advantage that makes it
+easier to test and scale up your agents
+one step at a time as you add layer by
+layer by layer of agentics. But, you can
+see here we have a couple prompts, so
+let's go ahead and get into the third
+layer of this stack, which is the actual
+custom slash commands. And I'm calling
+this the orchestration layer now. Let's
+break down why.
+Once you have the skill and once you
+stack agents on top of your workflow, I
+think the next thing you're going to
+want to go for is a command. A custom
+slash command also just known as a
+reusable prompt. You can see we have
+that UI review prompt that ran. This is
+where things get a little more
+interesting, a little more complex. So,
+UI review fires off parallel story
+validation. So, you saw how this works
+at a high level, but you can see here we
+have stories glob. So, we have a bunch
+of variables set up here. So, if we open
+up AI review, you can see we have a
+single simple user story for Hacker
+News. And if we open this up, you can
+see this very simple file format that is
+effectively a user story for your
+application. It has the name, the URL
+your agent's going to visit, and then
+the actual workflow. If this isn't
+clear, the true purpose of these
+workflows is, you know, you copy all
+these, you go localhost, you know, blah
+blah blah/your
+page, and then your agent validates
+against that specific page. Obviously,
+this is a very agent-first approach to
+testing, but you know, another great
+part here is that you can do things like
+this, you know, your staging.incom/your
+page, and then you can test against that
+as well. And if you wanted to, you can
+even modify this workflow so that, you
+know, you have multiple pages that
+you're going to test. Again, I want to
+emphasize this. This isn't just a random
+skill, right? I think of skills as
+low-level capabilities that you give
+your agent. After you have that, it's up
+to you to compose it into something
+useful and valuable in a repeat scalable
+way. And a great way to do that is by
+building out sub-agents so that you can
+scale, and then commands, which gives
+you that real power, that real control.
+All right, so more and more I'm thinking
+about commands, you know, prompts as the
+orchestration layer. So, you can see
+this is the user story we built out, and
+of course, you can have an agent as
+you're building your application. You
+can have them very, very quickly spin up
+new stories to test that workflow, all
+right? If you want to, you can take this
+and add that next piece. This is what I
+do when I deploy this Bowser system into
+my applications. I'll take this workflow
+and actually add additional agents to
+it. So, let me explain that part. In UI
+review, this is our orchestration
+prompt. And of course, it looks just
+like all of our other prompts, very
+consistent prompt structure. You add the
+sections when you need them, when you
+don't, you remove them. Here we have a
+lot of them, right? Purpose, variables,
+code structure, instructions, workflow
+report. What this does is, it's going to
+create an agent team. We are leveraging
+the new orchestration feature coming out
+of Cloud Code, coming out of a lot of
+powerful agent-to-code tools now, right?
+You can create teams of agents that work
+toward a common goal. In this case,
+we're creating a team that does UI
+review, all right? So, you can see here
+in the instructions, kind of breaking
+down how we'll do this, but the most
+important piece is the workflow, all
+right? So, we're going to discover all
+the UIs and set up the output directory.
+We're then going to spawn our agents,
+right? This is a team of agents and
+we're actually breaking down how to
+prompt each agent, right? So, for each
+task call, use this prompt. So, we are
+meta prompt engineering in a different
+type of way here. We're teaching our
+primary agent or the orchestrator agent
+how to prompt the sub agents. All right,
+and we're being very explicit here, so
+you can be very, very detailed with the
+results you're getting out of your sub
+agents. Then we have collect after every
+teammate finishes, they're going to ping
+back via the task list, as we've covered
+in previous videos, and then they're
+going to clean up and report. So, we're
+actually using this powerful UI review
+prompt, right? UI review, as a
+consistent way to test our UI over and
+over, and all we have to do is just
+activate this prompt. And our entire UI
+gets tested by agents. And so, you know,
+you might be thinking, why would you use
+agents instead of a consistent, you
+know, UI testing framework? There are
+many reasons for that. I think the
+biggest one is that at a drop of a dime,
+if we open up our user stories, we can
+have our agent quickly build arbitrary
+workflows and, you know, [laughter]
+very, very, very easily and seamlessly.
+It's just, you know, walk through
+step-by-step exactly what happens, and
+our agents will just validate against a
+URL, right? To me, this is the big
+advantage of agentic UI testing. They
+just operate on the thing like a user
+would, okay? No sea of testing
+configuration for your Justs, your
+Vitests, your, you know, whatever tests
+you're setting up. They're acting like a
+user would. You know, I understand that
+we're always playing this game of
+balance between are we going to build a
+agentic non-deterministic solution, or
+are we going to build a very
+deterministic code solution for things
+like this, right? And I think more and
+more the answer is, you know, all the
+top. I think all the best agentic
+engineers, they're going to be doing
+some combination of both, but they're
+also going to be leaning a little extra
+agentic, all right? And so, this is one
+manifestation of that. We're setting up
+user stories that have a specific URL
+that we spread across multiple agents to
+run it in parallel. And now at any point
+in time, and we can just kick this off
+again, right? There's no cost here to
+us. And actually, I'll kick this off in
+headed mode, so we can all see this. Any
+point in time, we can then just run the
+workflow to test our new application or
+to test whatever thing that you're
+working on, right? And so, you know, in
+the world of trusting and deploying
+agents, I think this is going to be more
+and more valuable because we can just
+quickly add user stories and have our
+agents run through them very quickly.
+You can see, once again, they're
+spinning up their own headed browser
+using the Playwright CLI. They're
+working very, very quickly. You know,
+they're operating with pretty great
+token efficiency because we're using the
+CLI instead of the MCP server, so
+there's great token efficiency. We can
+see all of our agents have completed
+almost here. And they're all going to
+close their page. There we go. Done. And
+then they're going to merge the results
+back here. There it is. UI summary
+complete. This is us moving all the way
+up to that prompt level. And so, the
+prompt controls the sub-agents. The
+sub-agents use the skills. Okay, so very
+powerful. Let me show you the Amazon
+workflow. So, if you're doing browser
+automation work, Amazon add to cart, we
+have a very, very simple workflow. I
+think for browser automation, you know,
+the automations themselves are best
+written as an actual reusable custom
+slash command for testing purposes, but
+also so that we can scale them like
+this. So, some engineers on the channel,
+you may have come across patterns like
+this where you have something I call a
+hop or a higher-order prompt. Okay, so
+this is an interesting type of prompt.
+Think of this like a function that takes
+a function as a parameter. All right?
+This is exactly what this does. So, you
+can see here, argument one, this
+actually takes another prompt as a
+parameter. Why do we do this? We do this
+because we want to wrap that prompt that
+runs in a very consistent workflow.
+Okay? And so, here's the workflow. This
+is the automate browser workflow. We're
+going to save browser automation
+workflow inside of this directory, so I
+can just store a bunch of automations
+here, and then I can change the workflow
+that actually runs. Okay? So, the
+consistent pieces go in the higher-order
+prompt, and then the details, right, the
+steps that you want to run, go in the
+lower order prompt or just the prompt
+that you want to execute. As you can see
+here, very simple, we have a, you know,
+Amazon add to cart, that's what we ran
+before. And so, at any point in time, we
+can run, you know, Amazon add to cart
+like this, or we can run, you know, our
+proper higher order prompt to automate
+and then pass in the workflow, right?
+So, we would do something like this, and
+then we would execute it like this. And
+so, this will kick off that purchase
+workflow, and the idea is, you know,
+relatively simple, but very powerful. I
+can now run these automations, right?
+We're going to parse, we're going to
+load the workflow, and then we're going
+to execute the workflow, but we can
+save, repeat instructions for every
+piece of this workflow that runs. Okay?
+So, that's what this hop automate does,
+and this is us automating browser task
+in a repeat way, okay? We're not just
+relying on skills, we're scaling it up
+into sub-agents, into reusable
+orchestration prompts, and then we have
+one more layer I want to show you here.
+This is a tool that I'm using on the
+channel, and for all my private
+engineering work as well. After you have
+all these different ways to execute with
+your agent, you're going to want a
+repeat single place to call all these
+tools, and that's what you saw here in
+the beginning. If we close up this
+agent, in the root of that directory, if
+we type J, or if you type which J, so
+you can see my actual command, you can
+see that I have J alias to just. Just is
+a powerful and simple command runner.
+Let's break this tool down.
+>> [music]
+>> So, just is the cherry on top for a lot
+of the workflows that I like to run.
+Open up this file here, justfile, you'll
+see all the commands we just ran, all
+the permutations of how we want to
+execute and kick off our Claude agent,
+and you'll see all the workflows with
+variables we can pass into override
+them. This allows you and your team and
+other agents to build repeat solutions
+and then to quickly access them, okay?
+So, this is my reusability layer at the
+very, very top. So, we have skills
+capability at the bottom, we have
+sub-agents to scale. You can give each
+one of your sub-agents a different skill
+or the same skill. And then you want
+commands to orchestrate. And then right
+at the top, I use just or just files for
+reusability. And I'll go ahead and add
+my just file. We type just here, you can
+see I have a skill, of course, built off
+to quickly configure, set up, and adjust
+your just files. So, I'll add this to
+this code base for you here as well. And
+the idea is simple. We want to be able
+to customize and specialize our agents
+inside of our code bases. Great. So, how
+do we do that? After you have all of
+your agentics built in, how can you
+quickly call these in a reusable way,
+right? So, that you, your team, and your
+agents know what is even available. So,
+I like to use just file as a reusability
+layer. And it is just a task runner. If
+we type just, you can see all the
+commands available. At any point in
+time, we can kick off one of our agents.
+Let's just kick off a couple agents here
+so I can show you exactly what this
+looks like. So, if we have our Let's
+find our Chrome browser agent here. And
+let's just use the top-level just paste
+this workflow here, test Chrome skill.
+We can then override this default
+parameter. And the default parameter
+here is default prompt, get current
+date, go to Simon Wilson, find his
+latest blog, summarize it, give it a
+rating out of 10. Okay, so we can just
+kick this default off, that's fine. And
+you can see we're opening up a Claude
+Code instance to do that work exactly.
+You can imagine this is anything, right?
+We could be, you know, looking for
+updates from our favorite blogs. We want
+to collect them into some resource. We
+want to do some actual data entry. We
+want to run support. We want to do some
+information gathering. You can have your
+agents do that. And Claude and Chrome is
+a way to do it. You can also set up
+something like Playwright CLI to
+quickly, you know, build your own
+customizable skill that does things in a
+specific way on your behalf. But I like
+to use the just file here as that final
+layer of reusability on top of all of
+it. In the beginning of the video, we
+ran this just this workflow. At any
+point in time, we can come in, automate
+Amazon, or we can come to the workflow,
+and we can build a brand new browser
+workflow. And then we can pass this and
+to the automation workflow. That's the
+idea here. And notice here that I'm
+solving the class of problem, okay? And
+that's the meta theme of what I wanted
+to share with you today. There are
+entire classes of problems that you
+don't need to solve anymore if you teach
+your agents to solve that problem. And
+so, in this browser code base, I have a
+templated repeat solution for solving
+browser automation and solving UI
+testing. Now, you know, there's tons of
+things in here we want to tweak, change,
+make our own, make fit the mold of your
+code base, but the way I'm thinking
+about solving problems now in the age of
+agents is template your engineering into
+a repeat opinionated solution that you
+can deploy over and over again and
+specialize, right? This is just a mold.
+Bowser is just a mold with a great
+four-layer architecture where you have a
+capability, which are your skills, that
+you then roll into your agents, which
+gives you scale, right? You can add them
+into teams, you can parallelize these,
+and then you have commands at the top,
+which are effectively the API layer for
+running all of these in a more
+opinionated, more specialized way,
+right? this is the orchestration piece.
+Then at the top of it all, you can
+create what are effectively functions
+for your commands that you can run over
+and over and over. This is my four-layer
+approach for browser automation and UI
+testing. I highly recommend you build
+something like this out for your own
+work. You can see here we finished
+looking at Simon's blog. Shout out Simon
+Wilson, always sharing top-tier ideas
+for engineers. And, you know, you can
+see here just a nice simple breakdown,
+right? But, that was all done with
+browser automation. You can imagine we
+hit, you know, five or 10 top blogs to
+gather information from engineers giving
+us the greatest signal, and that's the
+big theme, you know, once again, we're
+striking on that. You want to be handing
+off more and more work to your agents.
+You want to be solving classes of
+problems in a repeat way. Every time you
+go to tackle that specific problem, you
+are doing less, and your agents are
+doing more. You're scaling your compute
+to scale your impact. That's a a theme
+we talk about on the channel all the
+time. There's one more idea that I want
+to discuss with you here. You know, you
+might be thinking, "Dan, why are you
+breaking things down so much like this?
+Skills, commands, agents. Why aren't you
+just throwing agents at the problem? Let
+them take care of how all of this looks.
+Just automate everything, right?
+Automate this stuff away." Don't
+outsource learning how to build with the
+most important technology of our
+lifetime, agents, okay? If you're
+outsourcing your skills, I know a lot of
+people are using plugins now, your
+agents, your prompts, how will you
+improve? How will you build unique
+systems? How will you even know how to
+build powerful agentic layers around
+your code base, all right? And the
+answer is you won't. You won't be able
+to. You'll be limited by what everyone
+else can do because you'll be dependent
+on what everyone else is doing. You'll
+always be using plugins, you'll be using
+someone else's prompts, and you know,
+that in itself is super dangerous. We
+don't cover security a lot, but prompt
+injections are one of the most
+dangerous security vulnerabilities to
+exist for engineers because you can
+write and command anything. More on that
+later. I really want to emphasize this
+idea here. You know, if you can't look
+at a library, pull it into a skill,
+build it on your own, scale it with some
+sub-agents, and then orchestrate it with
+a prompt, right? If If you can't really
+build it up, stack up these layers, you
+will constantly be limited. And this is
+one of the big differences, once again,
+between Vibe Coders and agentic
+engineers. Agentic engineers know what
+their agents are doing, and they know it
+so well, they don't have to look. Vibe
+Coders don't know, and they don't look.
+If you master the agent, you will master
+knowledge work. Don't outsource
+learning. Check out the link in the
+description, pull some ideas from this
+code base. The organization here of the
+four-layer architecture is the most
+important piece here. Take this, make it
+your own, roll it into your own skills,
+right? Create your own sub-agents,
+specialize your repeat solutions with
+your AI review directory or your AI docs
+directory, with your commands, right?
+Make it your own. Specialization
+matters more than ever. Specialization
+combined with scale and agent
+orchestration is where the big nugget of
+gold is right now in the age of agents.
+Link in the description for this
+codebase. You know where to find me
+every single Monday. Stay focused and
+keep building.
