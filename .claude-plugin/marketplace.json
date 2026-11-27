@@ -177,8 +177,8 @@
     {
       "name": "meta-docs",
       "source": "./plugins/meta/meta-docs",
-      "description": "Documentation quality, anti-slop rewriting, multi-language humanization, and adversarial verification skills and subagents.",
-      "version": "0.1.0",
+      "description": "Documentation quality, interactive codebase courses, anti-slop rewriting, and adversarial verification skills and subagents.",
+      "version": "0.2.0",
       "category": "meta",
       "keywords": [
         "documentation",
@@ -186,6 +186,7 @@
         "unslop",
         "humanize",
         "interrogate",
+        "codebase-course",
         "writing",
         "review"
       ],

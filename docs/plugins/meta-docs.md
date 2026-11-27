@@ -1,16 +1,18 @@
 # Meta Docs plugin reference
 
-> `meta` · v0.1.0 · [plugin source](../../plugins/meta/meta-docs/)
+> `meta` · v0.2.0 · [plugin source](../../plugins/meta/meta-docs/)
 
-[Meta Docs](../../plugins/meta/meta-docs/README.md) provides three skills and an autonomous review
+[Meta Docs](../../plugins/meta/meta-docs/README.md) provides four skills and an autonomous review
 subagent for cleaning up AI writing habits, humanizing documentation across 20 languages and 10
-purpose modes, and adversarially verifying documentation contracts and plans.
+purpose modes, creating interactive codebase courses, and adversarially verifying documentation
+contracts and plans.
 
 | Component | Kind | Input | Output | Boundary |
 |---|---|---|---|---|
 | [`unslop`](../../plugins/meta/meta-docs/skills/unslop/SKILL.md) | Skill | Drafted prose, READMEs, PR descriptions, commit bodies, or release notes | Rewritten text or diff with 28 numbered AI writing tells removed | Preserves facts, commands, code blocks, and intended tone; does not invent facts. |
 | [`humanize-skills`](../../plugins/meta/meta-docs/skills/humanize-skills/SKILL.md) | Skill | A passage or document plus optional mode/language/tone flags (`--technical`, `--audit`, `--lang=xx`, `--calibrate`) | Severity-grouped audit or rewritten text (or `<name>.humanized.<ext>` for long files) | Enforces a pre-flight 0-100 **no-edit gate** and a strict **fact-lock** intake ledger; never overwrites long files in place. |
 | [`interrogate`](../../plugins/meta/meta-docs/skills/interrogate/SKILL.md) | Skill | A documentation page, specification, design plan, or git diff | Restatement of intent, verified findings backed by command output, and dropped-claim counts | Report-only unless asked to fix; drops any finding not proven by an executed command or check. |
+| [`codebase-course`](../../plugins/meta/meta-docs/skills/codebase-course/SKILL.md) | Skill | A repository or selected source paths | Offline HTML lessons, source citations, and an exercise | Does not run project code or overwrite existing output without approval; reports unverified behavior. |
 | [`docs-anti-slop-reviewer`](../../plugins/meta/meta-docs/agents/docs-anti-slop-reviewer.md) | Subagent | Target documentation files or branch diff | Structured second-pass review report combining `interrogate` contract checks and `unslop` / `humanize-skills` prose proposals | Runs in an isolated context window; model-agnostic; does not mutate files unless explicitly asked. |
 
 ## Installation
@@ -59,5 +61,6 @@ for prerequisites and ready-to-run prompts.
 
 - [De-slop and humanize documentation](../tutorials/meta-docs/deslop-and-humanize-docs.md)
 - [Stress-test docs and plans with `interrogate`](../tutorials/meta-docs/interrogate-docs-and-plans.md)
+- [Teach a repository with an offline course](../tutorials/meta-docs/codebase-course.md)
 - [Anti-slop playbook and before/after walkthrough](../../plugins/meta/meta-docs/skills/unslop/references/anti-slop-playbook.md)
 - [Implementation blueprint](../../specs/meta-docs.md)

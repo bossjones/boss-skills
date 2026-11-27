@@ -62,7 +62,7 @@ after the marketplace changes:
 | github-pr-review | `boss-dev` | 1.1.1 | Approval-gated GitHub PR reviews with inline code suggestions (external) | [github-pr-review.md](github-pr-review.md) |
 | twitter-tools | `social-media` | 0.1.1 | Download X/Twitter media and convert tweets to Reels | [twitter-tools.md](twitter-tools.md) |
 | proxmox-infra | `boss-homelab` | 0.1.1 | Manage Proxmox VE homelab infrastructure and IaC | [proxmox-infra.md](proxmox-infra.md) |
-| meta-docs | `meta` | 0.1.0 | De-slop, humanize, and adversarially verify docs (Claude Code, Copilot CLI, Codex) | [meta-docs.md](meta-docs.md) |
+| meta-docs | `meta` | 0.2.0 | Improve docs, build codebase courses, and verify plans (Claude Code, Copilot CLI, Codex) | [meta-docs.md](meta-docs.md) |
 
 ## Source layout
 
@@ -75,7 +75,7 @@ plugins/
 ├── boss-homelab/
 │   └── proxmox-infra/      # 1 skill (proxmox-infrastructure)
 ├── meta/
-│   └── meta-docs/          # 3 skills, 1 agent; Claude, Copilot, and Codex manifests
+│   └── meta-docs/          # 4 skills, 1 agent; Claude, Copilot, and Codex manifests
 └── social-media/
     └── twitter-tools/      # 2 skills
 

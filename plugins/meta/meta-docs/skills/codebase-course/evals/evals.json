@@ -1,0 +1,54 @@
+{
+  "skill_name": "codebase-course",
+  "description": "Activation and outcome cases for source-grounded offline courses.",
+  "evals": [
+    {
+      "id": 0,
+      "eval_name": "guided-local-course",
+      "prompt": "Make an offline interactive course teaching a newcomer how scripts/symlink_plugins.py plans changes. Write it to a new course directory.",
+      "should_trigger": true,
+      "invocation_type": "implicit",
+      "success_criteria": {
+        "outcome": {
+          "description": "Creates an accessible local learning resource grounded in inspected source.",
+          "assertions": [
+            "The HTML has linked lessons, source paths and line ranges, and an exercise with answer feedback",
+            "The course requires no external network assets",
+            "The response identifies the output and distinguishes browser checks from static checks"
+          ]
+        }
+      }
+    },
+    {
+      "id": 1,
+      "eval_name": "existing-output-and-limited-evidence",
+      "prompt": "Make a browser course about this small repository, but the requested destination already contains files and the runtime behavior has not been tested.",
+      "should_trigger": true,
+      "invocation_type": "implicit",
+      "success_criteria": {
+        "outcome": {
+          "description": "Preserves existing output and reports evidence limitations.",
+          "assertions": [
+            "Asks before overwriting or proposes an unused sibling destination",
+            "Distinguishes source evidence from unverified runtime behavior"
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "eval_name": "negative-quick-explanation",
+      "prompt": "What does this five-line Python function return?",
+      "should_trigger": false,
+      "invocation_type": "negative_control",
+      "success_criteria": {
+        "outcome": {
+          "description": "Answers the question without generating a course.",
+          "assertions": [
+            "Does not create an HTML course"
+          ]
+        }
+      }
+    }
+  ]
+}

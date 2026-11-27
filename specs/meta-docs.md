@@ -101,7 +101,31 @@ codex plugin add meta-docs@boss-skills         # caches all three SKILL.md files
 
 ## Acceptance Criteria
 
+These criteria describe the initial v0.1.0 port.
+
 - `meta-docs` installs from `boss-skills` in Claude Code, Copilot CLI, and Codex.
 - Neither manifest declares `"agents": "./agents/"`. `make verify-structure` rejects that form.
 - The Claude manifest, Codex manifest, and Claude marketplace entry all report version `0.1.0`.
 - Docs, tutorials, and the root README list the plugin, and the link checker passes.
+
+## Original interactive course skill
+
+Add a new, independently authored `codebase-course` skill to `meta-docs`. It turns a reviewed
+repository into a local, interactive HTML learning resource for the audience and scope the user
+requests. This is a new implementation, not a copy or relicensing of another course skill.
+
+The skill should:
+
+- Inspect the relevant source, identify a small set of teachable workflows, and cite file paths
+  and line ranges for technical claims. Separate verified behavior from assumptions.
+- Create an accessible, usable course with navigation, explanations, source-grounded examples,
+  and exercises with feedback. It should work locally without a hosted service or external assets.
+- Avoid exposing secrets or copying unapproved private material, running project code without
+  permission, or overwriting an existing output directory without consent.
+- Handle small or incomplete repositories and disclose what could not be verified.
+- Work as a plugin skill in Claude Code, Copilot CLI, and Codex without relying on a particular
+  subagent or tool name.
+
+Update the plugin documentation and marketplace metadata, retain existing attribution, and use
+the repository's version-bump workflow. Verify the plugin structure, Markdown, links, skill
+quality, and the generated course's navigation and exercises.

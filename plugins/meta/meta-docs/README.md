@@ -1,9 +1,9 @@
 # Meta Docs
 
-`meta-docs` packages three documentation skills and an autonomous review subagent for the
-`boss-skills` marketplace. It ships manifests for Claude Code, GitHub Copilot CLI, and Codex. Use it to run a separate anti-slop review pass on drafted prose, humanize
-documents across 20 languages and 10 purpose modes without losing technical facts, and stress-test
-documentation contracts and plans with execution-backed adversarial verification.
+`meta-docs` packages four documentation skills and an autonomous review subagent for the
+`boss-skills` marketplace. It ships manifests for Claude Code, GitHub Copilot CLI, and Codex. Use it
+to review prose, humanize documents across 20 languages and 10 purpose modes, create interactive
+codebase courses, and verify documentation contracts and plans.
 
 Read the [Meta Docs plugin reference](../../../docs/plugins/meta-docs.md) for the contract summary and
 the [Meta Docs tutorials](../../../docs/tutorials/meta-docs/README.md) for step-by-step walkthroughs.
@@ -15,6 +15,7 @@ the [Meta Docs tutorials](../../../docs/tutorials/meta-docs/README.md) for step-
 | [`unslop`](skills/unslop/SKILL.md) | Skill | Cuts 28 numbered AI writing tells (vocabulary, em dashes, "Not just X, but Y", inline-header lists, abstract metaphor nouns) while keeping commands and facts intact. | Fast second-pass cleanup on READMEs, PR descriptions, commit bodies, and short technical docs. |
 | [`humanize-skills`](skills/humanize-skills/SKILL.md) | Skill | Runs a pre-flight no-edit gate, a strict fact-lock intake ledger, and surface + structural passes across 20 languages, 10 modes (`--technical`, `--academic`, `--legal`, etc.), and 7 tones. | Long documents (`1,500+` words), non-English docs, voice calibration (`--calibrate`), or severity-grouped audits (`--audit`). |
 | [`interrogate`](skills/interrogate/SKILL.md) | Skill | Restates intent, fans out parallel adversary subagents to break a document, specification, or code diff, and retains only findings proven by an executable command. | Verifying that documented CLI flags, paths, links, schemas, and architectural plans hold up against the real repository. |
+| [`codebase-course`](skills/codebase-course/SKILL.md) | Skill | Builds an offline HTML course with source evidence and exercises. | Teaching a newcomer a selected repository workflow. |
 | [`docs-anti-slop-reviewer`](agents/docs-anti-slop-reviewer.md) | Subagent | Runs in an isolated context window with `unslop`, `humanize-skills`, and `interrogate` preloaded to perform a combined prose + contract review pass. | Delegating a separate review pass after drafting a README, tutorial, spec, or pull request so review logs stay out of your main session. |
 
 ## Install the Plugin
@@ -76,8 +77,8 @@ codex plugin marketplace add bossjones/boss-skills
 codex plugin add meta-docs@boss-skills
 ```
 
-Codex plugins load skills only. Ask Codex to use `unslop`, `humanize-skills`, or `interrogate`
-directly instead of the `docs-anti-slop-reviewer` subagent.
+Codex plugins load skills only. Ask Codex to use `unslop`, `humanize-skills`, `interrogate`, or
+`codebase-course` directly instead of the `docs-anti-slop-reviewer` subagent.
 
 ## Relationship to `stop-slop`
 
@@ -142,6 +143,13 @@ blocks, tables, and citations.
 ```text
 Use the docs-anti-slop-reviewer agent to audit plugins/meta/meta-docs/README.md for AI prose tells and
 broken documentation contracts.
+```
+
+### 5. Interactive codebase course (`codebase-course`)
+
+```text
+/meta-docs:codebase-course Teach a newcomer how scripts/symlink_plugins.py plans changes.
+Create an offline course in ./learning/symlinks.
 ```
 
 ## Documenting Usage with `tutorial-engineer`
